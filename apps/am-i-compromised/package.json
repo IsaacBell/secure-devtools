@@ -1,0 +1,64 @@
+{
+  "name": "am-i-compromised",
+  "version": "1.0.0",
+  "description": "Detect compromised code and dependencies in your project",
+  "license": "MIT",
+  "author": "Isaac Bell <contact@isaacbell.io>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IsaacBell/secure-devtools.git",
+    "directory": "apps/am-i-compromised"
+  },
+  "bugs": {
+    "url": "https://github.com/IsaacBell/secure-devtools/issues"
+  },
+  "homepage": "https://github.com/IsaacBell/secure-devtools/tree/main/apps/am-i-compromised",
+
+  "funding": "https://ko-fi.com/ibell",
+
+  "os": [
+    "darwin",
+    "linux"
+  ],
+
+  "bin": {
+    "am-i-compromised": "bin/scanner.sh",
+    "security-gate": "bin/scanner.sh",
+    "scanner": "bin/scanner.sh"
+  },
+
+  "files": [
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+
+  "scripts": {
+    "test": "bats test",
+    "lint": "shellcheck bin/*.sh",
+    "format:check": "shfmt -d bin",
+    "format": "shfmt -w bin",
+    "check": "pnpm lint && pnpm format:check && pnpm test",
+    "ci": "pnpm check"
+  },
+
+  "devDependencies": {
+    "bats": "^1.13.0",
+    "bats-assert": "^2.2.4",
+    "bats-support": "^0.3.0"
+  },
+
+  "keywords": [
+    "security",
+    "dependencies",
+    "supply-chain",
+    "npm",
+    "malware",
+    "scanner",
+    "ioc"
+  ],
+
+  "engines": {
+    "node": ">=20"
+  }
+}

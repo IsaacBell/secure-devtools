@@ -1,0 +1,8 @@
+# Use the mise-managed toolchain even when mise is not activated in this shell
+# (e.g. GUI git clients). Falls back to whatever `pnpm` is already on PATH.
+if [ -d "$HOME/.local/share/mise/shims" ]; then
+  PATH="$HOME/.local/share/mise/shims:$PATH"
+  export PATH
+fi
+
+pnpm check

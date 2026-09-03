@@ -1,0 +1,22 @@
+*.env
+.env.*
+!.env.example
+
+*node_modules/
+coverage/
+*dist/
+.DS_Store
+
+*/compose.override.yaml
+/docs/build
+
+# npm
+*/bats-*.tgz
+*/package-lock.json
+*test/.bats/run-logs/
+
+# scratch file that should never be committed
+*/test.bats
+*/test2/
+report.xml
+report.log

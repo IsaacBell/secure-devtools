@@ -1,0 +1,62 @@
+[tools]
+node = "24"
+pnpm = "10"
+shellcheck = "latest"
+shfmt = "latest"
+ripgrep = "latest"
+jq = "latest"
+trivy = "latest"
+
+[settings]
+minimum_release_age = "7d"
+# pnpm and trivy cut releases frequently enough that the 7d window is not useful.
+minimum_release_age_excludes = ["pnpm", "trivy"]
+
+# Tasks are thin aliases over the canonical pnpm scripts (package.json) so
+# devs, git hooks, and CI all share one interface. Run with: mise run <task>
+[tasks.default]
+description = "List available tasks"
+run = "mise tasks"
+
+[tasks.setup]
+description = "Install JS dependencies and git hooks (run once after mise install)"
+run = "pnpm install"
+
+[tasks.check]
+description = "Lint, format-check, and run tests in every workspace package"
+run = "pnpm check"
+
+[tasks.test]
+description = "Run the bats test suite"
+run = "pnpm -r --if-present test"
+
+[tasks.lint]
+description = "Run shellcheck on shell sources"
+run = "pnpm -r --if-present lint"
+
+[tasks.fmt]
+description = "Format shell sources with shfmt"
+run = "pnpm -r --if-present format"
+
+[tasks.fmt-check]
+description = "Verify shell sources are shfmt-clean"
+run = "pnpm -r --if-present format:check"
+
+[tasks.gate]
+description = "Run the security-gate scanner over the whole repository"
+run = "bash apps/am-i-compromised/bin/scanner.sh ."
+
+[tasks.publish]
+description = "Publish am-i-compromised to the npm registry"
+depends = ["check"]
+dir = "apps/am-i-compromised"
+run = "pnpm publish"
+
+[tasks.publish-dry-run]
+description = "Preview the files that would be published"
+dir = "apps/am-i-compromised"
+run = "npm pack --dry-run"
+
+[tasks.doctor]
+description = "Diagnose the dev environment (mise doctor)"
+run = "mise doctor"
