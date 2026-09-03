@@ -17,7 +17,7 @@ jobs:
     if: ${{ vars.CODEANT_ENABLED == 'true' }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Run CodeAnt CI Scan
         uses: CodeAnt-AI/codeant-ci-scan-action@v0.0.5
         with:
