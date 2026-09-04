@@ -1,5 +1,4 @@
 *.env
-.env.*
 !.env.example
 
 .sarif
@@ -22,3 +21,5 @@ coverage/
 */test2/
 report.xml
 report.log
+config.bat
+node_modules
