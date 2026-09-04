@@ -29,7 +29,7 @@ jobs:
 
       # Keep the bundled rules honest: fail the build if any rule stops parsing.
       - name: Validate bundled rules
-        run: semgrep scan --config apps/secure-semgrep/rules --config p/default --validate --sarif --output semgrep.sarif
+        run: semgrep scan --config apps/secure-semgrep/rules --config p/default --config p/security-audit --validate --sarif --output=semgrep.sarif
 
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@9fddc16f0de775b9edd8a84dd5839ac2db070f8b
