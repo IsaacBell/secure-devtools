@@ -1,4 +1,4 @@
-# secure-devtools
+# Secure Devtools
 
 Dev-time security tools for detecting compromised code, dependencies, and supply-chain
 risks — designed to run locally and in CI, and to be small enough to audit.
@@ -82,6 +82,13 @@ This project's purpose is security, so vulnerabilities are taken seriously. See
 [SECURITY.md](SECURITY.md) for the disclosure process. 
 
 **Please do not open public issues for security problems.**
+
+### Semgrep
+
+
+```bash
+$ mise run semgrep
+```
 
 ## Sponsorship
 

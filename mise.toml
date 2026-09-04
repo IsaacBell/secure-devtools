@@ -6,6 +6,7 @@ shfmt = "latest"
 ripgrep = "latest"
 jq = "latest"
 trivy = "latest"
+semgrep = "latest"
 
 [settings]
 minimum_release_age = "7d"
@@ -41,6 +42,10 @@ run = "pnpm -r --if-present format"
 [tasks.fmt-check]
 description = "Verify shell sources are shfmt-clean"
 run = "pnpm -r --if-present format:check"
+
+[tasks.semgrep]
+description = "Run static analysis and preserve compliance evidence."
+run = "semgrep scan --config security/semgrep/ --config p/default --config p/security-audit --error"
 
 [tasks.gate]
 description = "Run the security-gate scanner over the whole repository"

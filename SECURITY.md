@@ -1,12 +1,10 @@
 # Security Policy
 
-Security is the point of this project, so please report vulnerabilities promptly and
-discreetly.
+Security is the point of this project, so please report vulnerabilities promptly and discreetly.
 
 ## Supported versions
 
-Only the latest published release receives security fixes. Releases are cut from `main`
-and published to npm as needed.
+Only the latest published release receives security fixes. Releases are cut from `main` and published to npm as needed.
 
 ## Reporting a vulnerability
 
@@ -28,5 +26,4 @@ disclosure timeline with you.
 - `apps/am-i-compromised/bin/scanner.sh` and its test suite
 - CI workflows and dependency manifests
 
-The scanner is a heuristic pre-flight check. It can miss malware and can report false
-positives; a clean scan is not proof that a repository or its dependencies are safe.
+The scanner is a heuristic pre-flight check. It can miss malware and can report false positives; a clean scan is not proof that a repository or its dependencies are safe.

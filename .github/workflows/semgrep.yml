@@ -1,0 +1,21 @@
+name: Semgrep
+
+on:
+  pull_request: {}
+  push:
+    branches:
+      - main
+      - staging
+      - preview
+
+jobs:
+  semgrep:
+    name: Semgrep Scan
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Run Semgrep
+        run: semgrep scan --config security/semgrep/ --config p/default --config p/security-audit --error
