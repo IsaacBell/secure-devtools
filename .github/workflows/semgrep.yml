@@ -1,0 +1,32 @@
+name: Semgrep
+
+on:
+  pull_request: {}
+  push:
+    branches:
+      - main
+      - staging
+      - preview
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    name: Semgrep
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # Scan this repository with the bundled secure-semgrep rules + Node/Python
+      # loadouts. Review mode (-e) records findings as evidence without breaking
+      # CI; run `mise run semgrep-strict` locally to enforce them as a gate.
+      - name: Run Semgrep (secure-semgrep)
+        run: bash apps/secure-semgrep/bin/secure-semgrep.sh -e -L node -L py .
+
+      # Keep the bundled rules honest: fail the build if any rule stops parsing.
+      - name: Validate bundled rules
+        run: semgrep scan --config apps/secure-semgrep/rules --validate

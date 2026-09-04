@@ -1,2 +1,17 @@
 packages:
   - "apps/*"
+
+# https://pnpm.io/settings#trustpolicy
+#  pnpm will fail if a package's trust level has decreased
+#  compared to previous releases
+trustPolicy: no-downgrade
+
+# https://pnpm.io/settings#minimumreleaseage
+# wait at least seven days before
+# installing newly published package versions
+minimumReleaseAge: 10080
+
+# https://pnpm.io/settings#blockexoticsubdeps
+# prevent the installation of transitive dependencies
+# from untrusted sources
+blockExoticSubdeps: true

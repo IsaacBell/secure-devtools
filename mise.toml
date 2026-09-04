@@ -6,6 +6,7 @@ shfmt = "latest"
 ripgrep = "latest"
 jq = "latest"
 trivy = "latest"
+semgrep = "latest"
 
 [settings]
 minimum_release_age = "7d"
@@ -42,6 +43,22 @@ run = "pnpm -r --if-present format"
 description = "Verify shell sources are shfmt-clean"
 run = "pnpm -r --if-present format:check"
 
+[tasks.semgrep]
+# Full static-analysis pass over this repository (evidence mode: exits 0 so a
+# scan that finds issues still produces a report instead of breaking CI).
+# Findings are reviewable; use `mise run semgrep-strict` to turn them into a gate.
+description = "Run secure-semgrep over the repo; report findings without failing (evidence)"
+run = "bash apps/secure-semgrep/bin/secure-semgrep.sh -e -L node -L py ."
+
+[tasks.semgrep-strict]
+description = "Run secure-semgrep over the repo; exit 1 on any finding (gate)"
+run = "bash apps/secure-semgrep/bin/secure-semgrep.sh -L node -L py ."
+
+[tasks.semgrep-check]
+description = "Validate every bundled secure-semgrep rule parses"
+dir = "apps/secure-semgrep"
+run = "pnpm validate"
+
 [tasks.gate]
 description = "Run the security-gate scanner over the whole repository"
 run = "bash apps/am-i-compromised/bin/scanner.sh ."
@@ -55,6 +72,17 @@ run = "pnpm publish"
 [tasks.publish-dry-run]
 description = "Preview the files that would be published"
 dir = "apps/am-i-compromised"
+run = "npm pack --dry-run"
+
+[tasks.publish-secure-semgrep]
+description = "Publish the secure-semgrep rules package to npm"
+depends = ["check"]
+dir = "apps/secure-semgrep"
+run = "pnpm publish"
+
+[tasks.publish-secure-semgrep-dry-run]
+description = "Preview the files secure-semgrep would publish"
+dir = "apps/secure-semgrep"
 run = "npm pack --dry-run"
 
 [tasks.doctor]

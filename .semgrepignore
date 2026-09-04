@@ -1,0 +1,18 @@
+# Repo-root .semgrepignore for the `mise run semgrep` gate.
+#
+# Scan semgrep rules in their packaged form only; their fixture files are
+# intentional positive/negative test inputs, not code to gate on. The quarantined
+# scanner fixtures are the same idea — deliberately malicious, never scanned.
+
+# This package's rule definitions + their paired fixtures are validation inputs.
+apps/secure-semgrep/rules/
+
+# Quarantined malware samples used by am-i-compromised's test suite.
+apps/am-i-compromised/test/__security_gate_fixtures__/
+
+# Generated scan evidence, not source.
+reports/
+
+# Tooling / dependency noise.
+node_modules/
+.git/
