@@ -62,7 +62,7 @@ description = "Run secure-semgrep over the repo; exit 1 on any finding (gate)"
 run = "bash apps/secure-semgrep/bin/secure-semgrep.sh -L node -L py ."
 
 [tasks.semgrep-ci]
-run = "semgrep scan --config apps/secure-semgrep/rules --config p/default --config p/security-audit --validate --sarif --output=semgrep.sarif"
+run = "semgrep scan --config apps/secure-semgrep/rules --config p/default --config p/security-audit --sarif --output=semgrep.sarif"
 
 [tasks.semgrep-check]
 description = "Validate every bundled secure-semgrep rule parses"

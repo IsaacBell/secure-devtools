@@ -33,7 +33,8 @@ jobs:
             --output=semgrep.sarif
 
       - name: Upload SARIF
-        if: always() # don't skip
+        # if fork PR, don't upload their SARIF
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         uses: github/codeql-action/upload-sarif@9fddc16f0de775b9edd8a84dd5839ac2db070f8b
         with:
           sarif_file: semgrep.sarif
