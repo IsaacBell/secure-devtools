@@ -18,6 +18,7 @@ jobs:
       - name: Install toolchain
         uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
 
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
@@ -28,10 +29,17 @@ jobs:
     name: Security gate
     runs-on: ubuntu-latest
     steps:
+<<<<<<< HEAD
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Install toolchain
         uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2
+=======
+      - uses: actions/checkout@v7
+
+      - name: Install toolchain
+        uses: jdx/mise-action@v4
+>>>>>>> e5922f4b7a7b0f72f77e3b92a524724fa1db0ea7
 
       - name: Scan repository
         run: mise run gate
@@ -43,10 +51,18 @@ jobs:
       contents: read
       pull-requests: write
     steps:
+<<<<<<< HEAD
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
       - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+=======
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v3
+>>>>>>> e5922f4b7a7b0f72f77e3b92a524724fa1db0ea7
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
