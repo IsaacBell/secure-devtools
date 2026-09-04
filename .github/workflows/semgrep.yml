@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  security-events: write
 
 jobs:
   semgrep:
@@ -17,22 +18,22 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: semgrep/semgrep
+
     steps:
       - name: Checkout code
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      # Scan this repository with the bundled secure-semgrep rules + Node/Python
-      # loadouts. Review mode (-e) records findings as evidence without breaking
-      # CI; run `mise run semgrep-strict` locally to enforce them as a gate.
-      - name: Run Semgrep (secure-semgrep)
-        run: bash apps/secure-semgrep/bin/secure-semgrep.sh -e -L node -L py .
-
-      # Keep the bundled rules honest: fail the build if any rule stops parsing.
-      - name: Validate bundled rules
-        run: semgrep scan --config apps/secure-semgrep/rules --config p/default --config p/security-audit --validate --sarif --output=semgrep.sarif
+      - name: Run Semgrep
+        run: |
+          semgrep scan \
+            --config apps/secure-semgrep/rules \
+            --config p/default \
+            --config p/security-audit \
+            --sarif \
+            --output=semgrep.sarif
 
       - name: Upload SARIF
+        if: always() # don't skip
         uses: github/codeql-action/upload-sarif@9fddc16f0de775b9edd8a84dd5839ac2db070f8b
         with:
           sarif_file: semgrep.sarif
-        if: always()

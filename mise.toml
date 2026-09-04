@@ -7,6 +7,7 @@ ripgrep = "latest"
 jq = "latest"
 trivy = "latest"
 semgrep = "latest"
+snyk = "latest"
 
 [settings]
 minimum_release_age = "7d"
@@ -42,6 +43,12 @@ run = "pnpm -r --if-present format"
 [tasks.fmt-check]
 description = "Verify shell sources are shfmt-clean"
 run = "pnpm -r --if-present format:check"
+
+[tasks.snyk-scan-deps]
+run = "snyk test --all-projects"
+
+[tasks.snyk-code-scan]
+run = "snyk code test --all-projects"
 
 [tasks.semgrep]
 # Full static-analysis pass over this repository (evidence mode: exits 0 so a
