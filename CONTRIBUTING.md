@@ -70,6 +70,39 @@ repository (or organization) settings under *Settings → Secrets and variables 
 
 `GITHUB_TOKEN` is a built-in secret and needs no setup.
 
+## Releasing (npm)
+
+The npm package lives in `apps/am-i-compromised`; the version is read from its
+`package.json`. Releases are published from a maintainer's machine (there is no
+publish CI job).
+
+### Steps
+
+1. **Bump the version** in `apps/am-i-compromised/package.json` and commit it on
+   `main`. Version follows [semver](https://semver.org).
+2. **Verify everything** from the repo root:
+   ```sh
+   mise run check   # lint + format + tests
+   mise run gate    # the scanner must pass on its own repo
+   ```
+3. **Preview the tarball** (must contain only `bin/`, `README.md`, `LICENSE`):
+   ```sh
+   mise run publish-dry-run
+   ```
+4. **Tag the release commit** — the npm version tag must point at the exact
+   commit being published:
+   ```sh
+   git tag -f am-i-compromised@<version>   # move tag to HEAD if re-releasing
+   git push origin main --tags
+   ```
+5. **Publish**: `mise run publish` (runs `check`, then `pnpm publish`).
+   Authenticate with `npm login` first; if 2FA is enabled, publish will prompt
+   for a one-time password.
+6. **Verify**: `npm view am-i-compromised version` shows the new version, and
+   the [CI badge](../../README.md) on `main` is green.
+
+Publishing requires npm write access for the `am-i-compromised` package name.
+
 Small, well-tested changes are much more likely to be reviewed quickly than large
 rewrites — when in doubt, start a discussion in an issue first.
 

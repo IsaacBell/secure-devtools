@@ -6,6 +6,10 @@
 [![CI](https://github.com/IsaacBell/secure-devtools/actions/workflows/ci.yml/badge.svg)](https://github.com/IsaacBell/secure-devtools/actions/workflows/ci.yml)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](https://github.com/IsaacBell/secure-devtools/blob/main/CONTRIBUTING.md)
 
+## See it in action
+
+![security-gate scan demo](https://raw.githubusercontent.com/IsaacBell/secure-devtools/main/apps/am-i-compromised/demo-security-gate.gif)
+
 A tiny [IoC](https://en.wikipedia.org/wiki/Indicator_of_compromise) scanner that flags
 source-level indicators of malicious or compromised code before you start a dev server or
 merge a pull request.
