@@ -14,6 +14,10 @@ risks — designed to run locally and in CI, and to be small enough to audit.
 [![npm downloads](https://img.shields.io/npm/dm/am-i-compromised)](https://www.npmjs.com/package/am-i-compromised)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](CONTRIBUTING.md)
 
+## See it in action
+
+![security-gate scan demo](apps/am-i-compromised/demo-security-gate.gif)
+
 ## Packages
 
 | Package | Description |
@@ -63,6 +67,7 @@ commit.
 - `apps/am-i-compromised/test/__security_gate_fixtures__/` — quarantined malware samples used to
   test the scanner (**never execute or import these**)
 - `.github/workflows/` — CI: checks + security gate + gitleaks secret scan + dependency review
+  + CodeAnt AI scan (opt-in via repository variable)
 - `mise.toml` — tool versions and tasks, shared by local dev and CI
 
 ## Contributing

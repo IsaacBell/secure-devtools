@@ -123,10 +123,17 @@ Exit code is `0` when nothing is flagged and `1` when it finds something to revi
 
 ### Reading the output
 
-Findings are grouped by category with `file:line:` references. If a finding is a false
-positive, **prefer changing the implementation** over suppressing the scanner from inside
-the source file. Malicious test fixtures should live outside the scanned tree (the scanner
-excludes directories named `__security_gate_fixtures__` unless `INCLUDE_FIXTURES=1`).
+Each unique `file:line` is reported once with every indicator category that
+matched it, so one suspicious location is easy to review instead of being
+repeated under each category heading. Match snippets are width-capped — a
+single minified line cannot flood the report. Output is plain (no ANSI) when
+piped; colors are used only on a TTY (set `NO_COLOR` to disable). Findings
+are listed sorted by path, then line.
+
+If a finding is a false positive, **prefer changing the implementation** over
+suppressing the scanner from inside the source file. Malicious test fixtures
+should live outside the scanned tree (the scanner excludes directories named
+`__security_gate_fixtures__` unless `INCLUDE_FIXTURES=1`).
 
 ## Development
 

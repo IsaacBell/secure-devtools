@@ -56,6 +56,20 @@ The pre-commit hook runs `mise run check` (via `pnpm check`) on every commit.
 - Make sure `mise run check` and `mise run gate` pass locally before pushing.
 - CI runs the same checks plus a gitleaks secret scan and dependency review.
 
+## Maintainers: CI secrets and variables
+
+The CodeAnt AI scan
+([`.github/workflows/codeant.yml`](.github/workflows/codeant.yml)) is opt-in and is
+skipped unless the repository is configured. To enable it, add these in the GitHub
+repository (or organization) settings under *Settings → Secrets and variables → Actions*:
+
+| Setting | Type | Purpose |
+| --- | --- | --- |
+| `CODEANT_ENABLED` | Variable | Set to `true` to run the CodeAnt scan job; unset or any other value skips it |
+| `CODEANT_API_TOKEN` | Secret | CodeAnt API token used by `CodeAnt-AI/codeant-ci-scan-action` |
+
+`GITHUB_TOKEN` is a built-in secret and needs no setup.
+
 Small, well-tested changes are much more likely to be reviewed quickly than large
 rewrites — when in doubt, start a discussion in an issue first.
 

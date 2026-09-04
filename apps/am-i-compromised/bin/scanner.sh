@@ -15,6 +15,11 @@ set -euo pipefail
 #   - encoded or obfuscated payloads
 #   - unusually large source lines
 #
+# Report model: each unique `file:line` is reported once, with the distinct
+# indicator categories that matched it. Match snippets are width-capped so a
+# single minified line can never flood the report. Colors are used only when
+# stdout is a TTY (set NO_COLOR to force plain output).
+#
 # Keep known-malicious fixtures outside the trusted source tree rather than
 # suppressing findings with comments in the source itself.
 
@@ -24,9 +29,19 @@ if ! command -v rg >/dev/null 2>&1; then
 	exit 1
 fi
 
-ROOT="${1:-.}"
+ARG_ROOT="${1:-.}"
+
+if [[ ! -d "$ARG_ROOT" ]]; then
+	echo "scanner: '$ARG_ROOT' is not a directory" >&2
+	echo "usage: scanner [<directory>]  (defaults to the current directory)" >&2
+	exit 2
+fi
+
+ROOT="$(cd "$ARG_ROOT" && pwd)"
 
 readonly MAX_SOURCE_LINE_LENGTH=4000
+readonly MAX_SNIPPET=240
+readonly MAX_FINDINGS=100
 
 readonly SOURCE_GLOBS=(
 	--glob '*.js'
@@ -71,38 +86,116 @@ if [[ "${INCLUDE_FIXTURES:-0}" != "1" ]]; then
 fi
 readonly EXCLUDE_GLOBS
 
-ROOT="$(cd "$ROOT" && pwd)"
+# --- color ---------------------------------------------------------------------
 
-found=0
+if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
+	C_BOLD=$'\033[1m'
+	C_DIM=$'\033[2m'
+	C_RED=$'\033[31m'
+	C_GREEN=$'\033[32m'
+	C_YELLOW=$'\033[33m'
+	C_RESET=$'\033[0m'
+else
+	C_BOLD=""
+	C_DIM=""
+	C_RED=""
+	C_GREEN=""
+	C_YELLOW=""
+	C_RESET=""
+fi
 
-print_header() {
-	local title="$1"
+# --- findings store -------------------------------------------------------------
+#
+# Every unique `path|line` is stored once (findings[]), along with the first
+# snippet seen for it and the union of indicator categories that matched.
 
-	printf '\n=== %s ===\n' "$title"
+declare -a F_PATH=()
+declare -a F_SNIP=()
+declare -a F_TAGS=()
+declare -A F_IDX=()
+declare -A F_FILE_SEEN=()
+
+# Suspicious package.json scripts are stored separately: a script entry has no
+# meaningful source line, and we want each flagged script to stay distinct.
+declare -a S_PATH=()
+declare -a S_NAME=()
+declare -a S_VAL=()
+
+# Set to 1 when package.json inspection could not run (jq missing).
+missing_jq=0
+
+# Cap a snippet so one enormous minified line cannot flood the report.
+# Runs of whitespace are collapsed (preview only) so deeply indented or
+# space-padded lines stay readable. Prints the snippet plus an overflow
+# marker to stdout. The marker reflects the real source length.
+cap_snippet() {
+	local snippet="$1"
+	local n="${#snippet}"
+	local collapsed
+
+	if ((n > MAX_SNIPPET)); then
+		collapsed="$(printf '%s\n' "$snippet" | sed -E 's/[[:space:]]+/ /g')"
+		printf '%s... (+%d more chars)' "${collapsed:0:MAX_SNIPPET}" "$((n - MAX_SNIPPET))"
+	else
+		printf '%s' "$snippet"
+	fi
 }
 
-report_matches() {
-	local title="$1"
-	local matches="$2"
+# Record one finding for path:line under an indicator category.
+record_finding() {
+	local path="$1"
+	local line="$2"
+	local snippet="$3"
+	local tag="$4"
+	local pathrel pad key i trimmed
 
-	if [[ -z "$matches" ]]; then
-		return
+	pathrel="${path#"$ROOT"/}"
+	if [[ -z "$pathrel" || "$pathrel" == "$path" ]]; then
+		pathrel="$(basename "$path")"
 	fi
 
-	print_header "$title"
-	printf '%s\n' "$matches"
-	found=1
+	# Trim leading whitespace so heavily indented code does not eat the cap.
+	trimmed="${snippet#"${snippet%%[![:space:]]*}"}"
+	snippet="$(cap_snippet "$trimmed")"
+
+	pad="$(printf '%08d' "$line")"
+	key="${pathrel}|${pad}"
+
+	if [[ -v F_IDX[$key] ]]; then
+		i="${F_IDX[$key]}"
+		if [[ "${F_TAGS[i]}" != *"$tag"* ]]; then
+			F_TAGS[i]+=", $tag"
+		fi
+	else
+		F_IDX[$key]="${#F_PATH[@]}"
+		F_PATH+=("$pathrel")
+		F_SNIP+=("$snippet")
+		F_TAGS+=("$tag")
+		F_FILE_SEEN[$pathrel]=1
+	fi
+}
+
+# Split an rg `path:line:content` row into its parts (globals: P_PATH, P_LINE,
+# P_SNIP). Column paths are rare on macOS/Linux, so splitting on the first two
+# colons is safe enough and keeps awk out of the common path.
+split_rg_row() {
+	local row="$1"
+	P_PATH="${row%%:*}"
+	P_SNIP="${row#*:}"
+	P_LINE="${P_SNIP%%:*}"
+	P_SNIP="${P_SNIP#*:}"
 }
 
 scan_pattern() {
 	local title="$1"
 	local pattern="$2"
+	local row
 
-	local matches
-
-	# Positive source globs come first. Exclusions come last because ripgrep
-	# gives later matching globs precedence.
-	matches="$(
+	while IFS= read -r row; do
+		[[ -n "$row" ]] || continue
+		split_rg_row "$row"
+		record_finding "$P_PATH" "$P_LINE" "$P_SNIP" "$title"
+	done < <(
 		rg -n \
 			--no-heading \
 			--color never \
@@ -110,55 +203,39 @@ scan_pattern() {
 			"${EXCLUDE_GLOBS[@]}" \
 			"$pattern" \
 			-- "$ROOT" 2>/dev/null || true
-	)"
-
-	report_matches "$title" "$matches"
+	)
 }
 
 scan_long_lines() {
-	local matches count truncated_note
+	local row content length
 
-	# Strip rg's "file:line:" prefix before measuring the source line itself.
-	# This makes MAX_SOURCE_LINE_LENGTH apply to the actual source content.
-	matches="$(
+	while IFS= read -r row; do
+		[[ -n "$row" ]] || continue
+
+		# Strip rg's "file:line:" prefix before measuring the source line
+		# itself. This makes MAX_SOURCE_LINE_LENGTH apply to the actual
+		# source content. Reuse split_rg_row to get path/line/snippet.
+		content="${row#*:}"
+		content="${content#*:}"
+		length="${#content}"
+
+		if ((length > MAX_SOURCE_LINE_LENGTH)); then
+			split_rg_row "$row"
+			record_finding "$P_PATH" "$P_LINE" "$P_SNIP" "source line exceeds ${MAX_SOURCE_LINE_LENGTH} characters"
+		fi
+	done < <(
 		rg -n \
 			--no-heading \
 			--color never \
 			"${SOURCE_GLOBS[@]}" \
 			"${EXCLUDE_GLOBS[@]}" \
-			-- '.' "$ROOT" 2>/dev/null |
-			awk -F: -v limit="$MAX_SOURCE_LINE_LENGTH" '
-        {
-          line = $0
-          sub(/^[^:]*:[0-9]+:/, "", line)
-
-          if (length(line) > limit) {
-            print
-          }
-        }
-      ' || true
-	)"
-
-	if [[ -n "$matches" ]]; then
-		count="$(printf '%s\n' "$matches" | wc -l | tr -d ' ')"
-
-		if ((count > 100)); then
-			# Do not use head here. With a large command-substitution payload,
-			# printf can receive SIGPIPE when head exits after 100 lines.
-			# sed consumes the complete input, so pipefail/set -e remain safe.
-			truncated_note="... (truncated, ${count} total matches)"
-			matches="$(printf '%s\n' "$matches" | sed -n '1,100p')
-${truncated_note}"
-		fi
-	fi
-
-	report_matches \
-		"Source lines exceeding ${MAX_SOURCE_LINE_LENGTH} characters" \
-		"$matches"
+			-- '.' "$ROOT" 2>/dev/null || true
+	)
 }
 
 scan_package_scripts() {
 	local package_files=()
+	local file pathrel entry script_name script_value
 
 	while IFS= read -r -d '' file; do
 		package_files+=("$file")
@@ -171,42 +248,106 @@ scan_package_scripts() {
 			-print0
 	)
 
-	if [[ ${#package_files[@]} -eq 0 ]]; then
+	if ((${#package_files[@]} == 0)); then
+		return
+	fi
+
+	if ! command -v jq >/dev/null 2>&1; then
+		missing_jq=1
 		return
 	fi
 
 	for file in "${package_files[@]}"; do
-		if ! command -v jq >/dev/null 2>&1; then
-			print_header "Unable to inspect package.json scripts"
-			echo "jq is required to inspect package scripts."
-			echo "Install jq and run the security gate again."
-			found=1
-			return
-		fi
+		pathrel="${file#"$ROOT"/}"
+		[[ -n "$pathrel" ]] || pathrel="$(basename "$file")"
 
-		local matches
-
-		matches="$(
+		while IFS= read -r entry; do
+			[[ -n "$entry" ]] || continue
+			script_name="${entry%%:*}"
+			script_value="${entry#*:}"
+			script_value="${script_value#"${script_value%%[![:space:]]*}"}"
+			S_PATH+=("$pathrel")
+			S_NAME+=("$script_name")
+			S_VAL+=("$(cap_snippet "$script_value")")
+			F_FILE_SEEN[$pathrel]=1
+		done < <(
 			jq -r '
-        .scripts // {} |
-        to_entries[] |
-        select(
-          .value |
-          test(
-            "curl|wget|powershell|child_process|node[[:space:]]+-e|base64|eval";
-            "i"
-          )
-        ) |
-        "\(.key): \(.value)"
-      ' "$file" 2>/dev/null || true
-		)"
-
-		if [[ -n "$matches" ]]; then
-			print_header "Suspicious package scripts: ${file#"$ROOT"/}"
-			printf '%s\n' "$matches"
-			found=1
-		fi
+				.scripts // {} |
+				to_entries[] |
+				select(
+					.value |
+					test(
+						"curl|wget|powershell|child_process|node[[:space:]]+-e|base64|eval";
+						"i"
+					)
+				) |
+				"\(.key): \(.value)"
+			' "$file" 2>/dev/null || true
+		)
 	done
+}
+
+render_findings() {
+	local total_files="${#F_FILE_SEEN[@]}"
+	local total_findings=$((${#F_PATH[@]} + ${#S_PATH[@]}))
+	local sorted key path line snippet tags i count=0 num
+
+	if ((total_findings == 0)); then
+		return 0
+	fi
+
+	# Sort findings by (path, line). Lines are zero-padded in the key so a
+	# plain byte sort yields numeric line order.
+	sorted=()
+	if ((${#F_IDX[@]} > 0)); then
+		mapfile -t sorted < <(
+			printf '%s\n' "${!F_IDX[@]}" | LC_ALL=C sort -t'|' -k1,1 -k2,2
+		)
+	fi
+
+	local finding_word="finding"
+	local file_word="file"
+	if ((total_findings != 1)); then
+		finding_word="findings"
+	fi
+	if ((total_files != 1)); then
+		file_word="files"
+	fi
+
+	printf '\n%ssecurity-gate: FAILED — %d %s across %d %s%s\n' \
+		"$C_RED" "$total_findings" "$finding_word" "$total_files" "$file_word" "$C_RESET"
+
+	for key in "${sorted[@]}"; do
+		if ((count == MAX_FINDINGS)); then
+			printf '%s... (truncated: %s more findings not shown)%s\n' "$C_DIM" \
+				"$((total_findings - count))" "$C_RESET"
+			break
+		fi
+
+		i="${F_IDX[$key]}"
+		path="${F_PATH[$i]}"
+		num="${key##*|}"
+		num="$((10#$num))"
+		snippet="${F_SNIP[$i]}"
+		tags="${F_TAGS[$i]}"
+
+		printf '%s\n' ""
+		printf '  %s%s:%d%s\n' "$C_BOLD" "$path" "$num" "$C_RESET"
+		printf '    %s\n' "$snippet"
+		printf '    %s→ %s%s\n' "$C_DIM" "$tags" "$C_RESET"
+
+		count=$((count + 1))
+	done
+
+	# Suspicious package.json scripts (rare, always shown).
+	for ((i = 0; i < ${#S_PATH[@]}; i++)); do
+		printf '%s\n' ""
+		printf '  %s%s:%s (script)%s\n' "$C_BOLD" "${S_PATH[$i]}" "${S_NAME[$i]}" "$C_RESET"
+		printf '    %s\n' "${S_VAL[$i]}"
+		printf '    %s→ suspicious package script%s\n' "$C_DIM" "$C_RESET"
+	done
+
+	return 1
 }
 
 scan_pattern \
@@ -227,7 +368,7 @@ scan_pattern \
 
 scan_pattern \
 	"Runtime global mutation" \
-	'(^|[^[:alnum:]_$])global([.[]|])'
+	'(^|[^[:alnum:]_$])global([.]|\[)'
 
 scan_pattern \
 	"Encoded payload primitives" \
@@ -256,23 +397,38 @@ scan_pattern \
 scan_long_lines
 scan_package_scripts
 
-if [[ "$found" -ne 0 ]]; then
-	print_header "Security gate failed"
+if ((${#F_PATH[@]} > 0 || ${#S_PATH[@]} > 0)); then
+	render_findings
+
+	if ((missing_jq == 1)); then
+		printf '\n%ssecurity-gate: %s could not inspect package.json scripts (jq missing).%s\n' \
+			"$C_YELLOW" "warning:" "$C_RESET"
+	fi
 
 	cat <<'EOF'
-Potentially unsafe source was found.
 
-The development server has not been started.
+Review each flagged location above before starting the dev server. If a
+finding is a false positive, prefer changing the implementation rather than
+suppressing the scanner from inside the source file.
 
-Review the findings above. If a finding is legitimate, prefer changing
-the implementation rather than suppressing the scanner from inside the
-source file.
-
-This scanner is a heuristic pre-flight check. A clean result does not
-prove that the repository or its dependencies are safe.
+This scanner is a heuristic pre-flight check. A clean result does not prove
+that the repository or its dependencies are safe.
 EOF
 
 	exit 1
 fi
 
-echo "Security gate passed."
+if ((missing_jq == 1)); then
+	printf '\n%ssecurity-gate: %s could not inspect package.json scripts (jq missing).%s\n' \
+		"$C_YELLOW" "warning:" "$C_RESET"
+	cat <<'EOF'
+
+Install jq and run the security gate again. The gate stays closed until
+package.json scripts can be checked.
+EOF
+
+	exit 1
+fi
+
+echo "${C_GREEN}security-gate: PASSED${C_RESET} — no indicators found (scanned: ${ARG_ROOT})"
+exit 0
