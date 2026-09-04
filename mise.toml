@@ -7,7 +7,6 @@ ripgrep = "latest"
 jq = "latest"
 trivy = "latest"
 semgrep = "latest"
-snyk = "latest"
 
 [settings]
 minimum_release_age = "7d"
@@ -44,12 +43,6 @@ run = "pnpm -r --if-present format"
 description = "Verify shell sources are shfmt-clean"
 run = "pnpm -r --if-present format:check"
 
-[tasks.snyk-scan-deps]
-run = "snyk test --all-projects"
-
-[tasks.snyk-code-scan]
-run = "snyk code test --all-projects"
-
 [tasks.semgrep]
 # Full static-analysis pass over this repository (evidence mode: exits 0 so a
 # scan that finds issues still produces a report instead of breaking CI).
@@ -60,9 +53,6 @@ run = "bash apps/secure-semgrep/bin/secure-semgrep.sh -e -L node -L py ."
 [tasks.semgrep-strict]
 description = "Run secure-semgrep over the repo; exit 1 on any finding (gate)"
 run = "bash apps/secure-semgrep/bin/secure-semgrep.sh -L node -L py ."
-
-[tasks.semgrep-ci]
-run = "semgrep scan --config apps/secure-semgrep/rules --config p/default --config p/security-audit --sarif --output=semgrep.sarif"
 
 [tasks.semgrep-check]
 description = "Validate every bundled secure-semgrep rule parses"
