@@ -2,7 +2,7 @@
 .env.*
 !.env.example
 
-.sarif
+*.sarif
 
 *node_modules/
 coverage/
