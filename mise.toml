@@ -5,13 +5,13 @@ shellcheck = "latest"
 shfmt = "latest"
 ripgrep = "latest"
 jq = "latest"
-trivy = "latest"
+# trivy = "latest"
 semgrep = "latest"
 
 [settings]
 minimum_release_age = "7d"
 # pnpm and trivy cut releases frequently enough that the 7d window is not useful.
-minimum_release_age_excludes = ["pnpm", "trivy"]
+minimum_release_age_excludes = ["pnpm"]
 
 # Tasks are thin aliases over the canonical pnpm scripts (package.json) so
 # devs, git hooks, and CI all share one interface. Run with: mise run <task>
