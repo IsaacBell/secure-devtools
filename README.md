@@ -1,7 +1,6 @@
 # Secure Devtools
 
-Dev-time security tools for detecting compromised code, dependencies, and supply-chain
-risks — designed to run locally and in CI, and to be small enough to audit.
+Dev-time security tools for detecting compromised code, dependencies, and supply-chain risks — designed to run locally and in CI, and to be small enough to audit.
 
 > **Zero npm runtime dependencies.** The shipped tools are plain shell — there is no dependency tree to audit at
 > install time. `am-i-compromised` needs only `bash`, `ripgrep`, and `jq`; `secure-semgrep` also
