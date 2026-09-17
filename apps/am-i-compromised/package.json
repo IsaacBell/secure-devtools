@@ -2,7 +2,7 @@
   "name": "am-i-compromised",
   "version": "1.0.0",
   "description": "Detect compromised code and dependencies in your project",
-  "license": "MIT",
+  "license": "ISC",
   "author": "Isaac Bell <contact@isaacbell.io>",
   "repository": {
     "type": "git",
@@ -24,7 +24,8 @@
   "bin": {
     "am-i-compromised": "bin/scanner.sh",
     "security-gate": "bin/scanner.sh",
-    "scanner": "bin/scanner.sh"
+    "scanner": "bin/scanner.sh",
+    "safe-pull": "bin/safe-pull.sh"
   },
 
   "files": [

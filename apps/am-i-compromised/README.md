@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/am-i-compromised)](https://www.npmjs.com/package/am-i-compromised)
 [![npm downloads](https://img.shields.io/npm/dm/am-i-compromised)](https://www.npmjs.com/package/am-i-compromised)
-[![License: MIT](https://img.shields.io/npm/l/am-i-compromised)](LICENSE)
+[![License: ISC](https://img.shields.io/npm/l/am-i-compromised)](LICENSE)
 [![CI](https://github.com/IsaacBell/secure-devtools/actions/workflows/ci.yml/badge.svg)](https://github.com/IsaacBell/secure-devtools/actions/workflows/ci.yml)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](https://github.com/IsaacBell/secure-devtools/blob/main/CONTRIBUTING.md)
 
@@ -44,9 +44,17 @@ installed on the host (see [Requirements](#requirements)).
   - encoded/obfuscated payloads (`atob`, hex/unicode escapes, `_0x…` string tables, ...)
   - suspicious `package.json` scripts (scanned with `jq`)
   - unusually long source lines
-- Scans JS/TS/Python/Rust/Ruby/C/C++/C# sources out of the box
+  - editor/workspace config that runs code unprompted — a `.vscode/tasks.json` with
+    `runOn: folderOpen`, `task.allowAutomaticTasks`, or an MCP `stdio` server that
+    downloads and runs a payload
+  - executable payloads disguised as binary assets (JavaScript inside a `.woff2`,
+    `.png`, `.ttf`, `.svg`, and similar files)
+- Scans JS/TS/Python/Rust/Ruby/C/C++/C# sources, editor config, and binary-asset
+  extensions out of the box
 - Excludes `node_modules`, build output, VCS dirs, and `.git`-adjacent noise
 - Self-tests its own detection logic against quarantined malicious fixtures
+- Ships `safe-pull`, a guarded `git pull` that inspects incoming commits before
+  anything reaches the working tree
 
 ## Requirements
 
@@ -138,6 +146,37 @@ If a finding is a false positive, **prefer changing the implementation** over
 suppressing the scanner from inside the source file. Malicious test fixtures
 should live outside the scanned tree (the scanner excludes directories named
 `__security_gate_fixtures__` unless `INCLUDE_FIXTURES=1`).
+
+## Guarded pull (`safe-pull`)
+
+Scanning the working tree is too late for one class of attack: a commit that adds
+a `.vscode/tasks.json` running on folder open, or an MCP `stdio` server that starts
+with the editor, executes as soon as the code is checked out. `safe-pull` closes
+that window by inspecting the incoming commits before anything is written:
+
+```sh
+safe-pull                 # fetch, inspect, then merge --ff-only
+safe-pull --dry-run       # inspect only; never merge
+safe-pull --allow-dirty   # proceed with a dirty working tree
+safe-pull --force-update  # integrate despite a rewritten upstream history
+```
+
+What it checks in the incoming commits: a force-pushed (rewritten) upstream, an
+author/committer mismatch, editor auto-run tasks, download-and-run editor
+commands, executable payloads disguised as asset files, committed `.env` files,
+and a `dotenv` plus `node-fetch`/`axios` dependency pair. The inspection uses
+`git grep` against the fetched commit, so it reads blobs from the object store and
+never writes files to disk. Plain `git fetch` is safe on its own — it executes
+nothing.
+
+Exit codes: `0` clean (and merged, unless `--dry-run`), `1` findings (nothing
+merged), `2` usage or setup problem.
+
+To use it as a git alias:
+
+```sh
+git config --global alias.safe-pull '!safe-pull'
+```
 
 ## Development
 

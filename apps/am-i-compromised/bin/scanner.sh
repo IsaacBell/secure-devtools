@@ -14,6 +14,9 @@ set -euo pipefail
 #   - runtime global mutation
 #   - encoded or obfuscated payloads
 #   - unusually large source lines
+#   - editor/workspace settings that execute code on folder open
+#   - executable payloads disguised as binary asset files
+#   - environment files committed to the git index
 #
 # Report model: each unique `file:line` is reported once, with the distinct
 # indicator categories that matched it. Match snippets are width-capped so a
@@ -74,6 +77,10 @@ EXCLUDE_GLOBS=(
 )
 
 readonly FIXTURES_DIRNAME="__security_gate_fixtures__"
+
+# Indicator definitions live in one file, shared with safe-pull.sh.
+# shellcheck source=bin/ioc-patterns.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/ioc-patterns.sh"
 
 # INCLUDE_FIXTURES=1 disables the fixtures-dir exclusion so the fixtures
 # themselves can be scanned as a self-test of the detection logic. Default
@@ -200,6 +207,35 @@ scan_pattern() {
 			--no-heading \
 			--color never \
 			"${SOURCE_GLOBS[@]}" \
+			"${EXCLUDE_GLOBS[@]}" \
+			"$pattern" \
+			-- "$ROOT" 2>/dev/null || true
+	)
+}
+
+# scan_with_globs <title> <pattern> <glob...>
+#
+# Same contract as scan_pattern, but scoped to an explicit glob set rather than
+# the source-file globs. `--text` makes ripgrep read files it would otherwise
+# skip as binary, and `--hidden` makes it descend into dot-directories such as
+# `.vscode` — both are required for the editor-config and asset checks.
+scan_with_globs() {
+	local title="$1"
+	local pattern="$2"
+	shift 2
+	local row
+
+	while IFS= read -r row; do
+		[[ -n "$row" ]] || continue
+		split_rg_row "$row"
+		record_finding "$P_PATH" "$P_LINE" "$P_SNIP" "$title"
+	done < <(
+		rg -n \
+			--no-heading \
+			--color never \
+			--text \
+			--hidden \
+			"$@" \
 			"${EXCLUDE_GLOBS[@]}" \
 			"$pattern" \
 			-- "$ROOT" 2>/dev/null || true
@@ -350,51 +386,41 @@ render_findings() {
 	return 1
 }
 
-scan_pattern \
-	"Dynamic code execution" \
-	'(^|[^[:alnum:]_$])(eval|Function)[[:space:]]*\('
+# Flag environment files that are present in the git index. An untracked local
+# `.env` is normal and is never flagged; a committed one is an incident, because
+# it is what the injected `dotenv` + `node-fetch` pair exists to read and send.
+scan_tracked_env() {
+	local file
 
-scan_pattern \
-	"Dynamic timer execution" \
-	'(setTimeout|setInterval)[[:space:]]*\([^,]+,[[:space:]]*[0-9]+[[:space:]]*\)'
+	while IFS= read -r file; do
+		[[ -n "$file" ]] || continue
+		if [[ "$file" == *"${FIXTURES_DIRNAME}/"* && "${INCLUDE_FIXTURES:-0}" != "1" ]]; then
+			continue
+		fi
+		record_finding "$ROOT/$file" 1 "$file (present in the git index)" "Tracked .env file"
+	done < <(git -C "$ROOT" ls-files -- "${IOC_ENV_PATHSPEC[@]}" 2>/dev/null || true)
+}
 
-scan_pattern \
-	"Child-process execution" \
-	'(child_process|execFile|execFileSync|execSync|spawn|spawnSync|fork)[[:space:]]*\('
+while IFS= read -r entry; do
+	[[ -n "$entry" ]] || continue
+	split_ioc_entry "$entry"
+	scan_pattern "$IOC_TITLE" "$IOC_PATTERN"
+done < <(printf '%s\n' "${IOC_CONTENT_PATTERNS[@]}")
 
-scan_pattern \
-	"Direct network module access" \
-	'(require|import)[^;]*["'\''](http|https|net|tls|dgram)["'\'']'
+while IFS= read -r entry; do
+	[[ -n "$entry" ]] || continue
+	split_ioc_entry "$entry"
+	scan_with_globs "$IOC_TITLE" "$IOC_PATTERN" "${IOC_EDITOR_GLOBS[@]}"
+done < <(printf '%s\n' "${IOC_EDITOR_PATTERNS[@]}")
 
-scan_pattern \
-	"Runtime global mutation" \
-	'(^|[^[:alnum:]_$])global([.]|\[)'
-
-scan_pattern \
-	"Encoded payload primitives" \
-	'(atob|btoa|Buffer[.]from|Buffer[.]alloc|Buffer[.]concat)[[:space:]]*\('
-
-scan_pattern \
-	"Computed global properties" \
-	'global[[:space:]]*\[[[:space:]]*["'\'']'
-
-scan_pattern \
-	"Hex or Unicode string escapes" \
-	'\\x[0-9a-fA-F]{2}|\\u[0-9a-fA-F]{4}'
-
-scan_pattern \
-	"Common string-table obfuscation" \
-	'(_0x[0-9a-fA-F]{3,}|_0X[0-9A-F]{3,})'
-
-scan_pattern \
-	"Suspicious decoder/string-table helpers" \
-	'(charCodeAt|fromCharCode|String[.]fromCharCode)[[:space:]]*\('
-
-scan_pattern \
-	"Runtime source construction" \
-	'(new[[:space:]]+Function|constructor[[:space:]]*\[[[:space:]]*["'\'']constructor["'\'']\])'
+while IFS= read -r entry; do
+	[[ -n "$entry" ]] || continue
+	split_ioc_entry "$entry"
+	scan_with_globs "$IOC_TITLE" "$IOC_PATTERN" "${IOC_ASSET_GLOBS[@]}"
+done < <(printf '%s\n' "${IOC_ASSET_PATTERNS[@]}")
 
 scan_long_lines
+scan_tracked_env
 scan_package_scripts
 
 if ((${#F_PATH[@]} > 0 || ${#S_PATH[@]} > 0)); then
