@@ -1,0 +1,60 @@
+{
+  "name": "am-i-being-recorded",
+  "version": "0.1.0",
+  "description": "Audit screen/tab capture surfaces and the browser extensions that can start them",
+  "license": "MIT",
+  "author": "Isaac Bell <contact@isaacbell.io>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IsaacBell/secure-devtools.git",
+    "directory": "apps/am-i-being-recorded"
+  },
+  "bugs": {
+    "url": "https://github.com/IsaacBell/secure-devtools/issues"
+  },
+  "homepage": "https://github.com/IsaacBell/secure-devtools/tree/main/apps/am-i-being-recorded",
+
+  "os": [
+    "darwin",
+    "linux"
+  ],
+
+  "bin": {
+    "am-i-being-recorded": "bin/am-i-being-recorded.sh"
+  },
+
+  "files": [
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+
+  "scripts": {
+    "test": "bats test",
+    "lint": "shellcheck bin/*.sh",
+    "format:check": "shfmt -d bin",
+    "format": "shfmt -w bin",
+    "check": "pnpm lint && pnpm format:check && pnpm test",
+    "ci": "pnpm check"
+  },
+
+  "devDependencies": {
+    "bats": "^1.13.0",
+    "bats-assert": "^2.2.4",
+    "bats-support": "^0.3.0"
+  },
+
+  "keywords": [
+    "security",
+    "macos",
+    "linux",
+    "screen-recording",
+    "privacy",
+    "browser-extensions",
+    "capture"
+  ],
+
+  "engines": {
+    "node": ">=20"
+  }
+}

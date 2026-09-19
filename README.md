@@ -23,6 +23,7 @@ Dev-time security tools for detecting compromised code, dependencies, and supply
 | Package | Description |
 | --- | --- |
 | [`am-i-compromised`](apps/am-i-compromised/README.md) | Compromise scanner - checks for malicious code and compromised files. Publishes to npm. |
+| [`am-i-being-recorded`](apps/am-i-being-recorded/README.md) | Local capture-surface audit - names the browser extension behind a screen-recording indicator. |
 | [`secure-semgrep`](apps/secure-semgrep/README.md) | Bundled Semgrep rules + loadout packs for AI-agent, bash & web security scans. Publishes to npm. |
 
 ## Requirements
@@ -72,6 +73,8 @@ commit.
 - `apps/am-i-compromised/` — the npm package (see its [README](apps/am-i-compromised/README.md))
 - `apps/am-i-compromised/test/__security_gate_fixtures__/` — quarantined malware samples used to
   test the scanner (**never execute or import these**)
+- `apps/am-i-being-recorded/` — local capture-surface audit (see its
+  [README](apps/am-i-being-recorded/README.md))
 - `.github/workflows/` — CI: checks + security gate + gitleaks secret scan + dependency review
   + CodeAnt AI scan (opt-in via repository variable)
 - `mise.toml` — tool versions and tasks, shared by local dev and CI
