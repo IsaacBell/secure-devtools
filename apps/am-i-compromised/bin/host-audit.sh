@@ -465,6 +465,13 @@ audit_plist() {
 		finding HIGH "launchagent:$label:inject" "A login item injects a library into every launch" "$(tilde "$f")" "EnvironmentVariables sets DYLD_INSERT_LIBRARIES or LD_PRELOAD" "Remove it. Legitimate software does not inject a library at login."
 	fi
 
+	if printf '%s\n' "$xml" | grep -aqE 'NODE_TLS_REJECT_UNAUTHORIZED'; then
+		finding HIGH "launchagent:$label:tls-off" "A login item turns off TLS certificate checks" "$(tilde "$f")" "EnvironmentVariables sets NODE_TLS_REJECT_UNAUTHORIZED" "Remove it. Every HTTPS connection that job makes becomes forgeable."
+	fi
+	if printf '%s\n' "$xml" | grep -aqE '(NODE_EXTRA_CA_CERTS|SSL_CERT_FILE|SSL_CERT_DIR|REQUESTS_CA_BUNDLE|CURL_CA_BUNDLE|NODE_OPTIONS|HTTPS?_PROXY|ALL_PROXY)'; then
+		finding MEDIUM "launchagent:$label:trust-env" "A login item changes certificate trust, proxy or Node options" "$(tilde "$f")" "EnvironmentVariables sets a CA, proxy or NODE_OPTIONS variable" "Confirm you know why. It can intercept the job's traffic or load code into it."
+	fi
+
 	while IFS= read -r line; do
 		[[ -n "$line" ]] && args+=("$line")
 	done <<<"$(printf '%s\n' "$xml" | plist_values ProgramArguments)"
@@ -792,6 +799,18 @@ audit_agent_text() {
 		[[ -n "$label" ]] || continue
 		finding MEDIUM "agent:$disp:secret:$n" "A secret is stored in plain text" "$disp:$n" "$label (value not shown)" "Move it to a secret manager and rotate it: any process running as you can read this file."
 	done <<<"$(grep -nE "$RE_SECRET_SHAPE" "$f" 2>/dev/null)"
+
+	# (f) Trust and injection variables in the tool's env block: they weaken TLS,
+	# redirect it, or load code, for every process the tool starts.
+	if grep -Eiq '"?NODE_TLS_REJECT_UNAUTHORIZED"?[[:space:]]*[:=][[:space:]]*"?0' "$f" 2>/dev/null; then
+		finding HIGH "agent:$disp:tls-off" "TLS certificate checks are disabled for the tool" "$disp" "NODE_TLS_REJECT_UNAUTHORIZED is 0" "Remove it. Every HTTPS connection the tool makes becomes forgeable."
+	fi
+	if grep -Eiq '"?(NODE_EXTRA_CA_CERTS|SSL_CERT_FILE|SSL_CERT_DIR|REQUESTS_CA_BUNDLE|CURL_CA_BUNDLE)"?[[:space:]]*[:=]' "$f" 2>/dev/null; then
+		finding MEDIUM "agent:$disp:ca-trust" "The tool trusts an extra certificate authority" "$disp" "a CA bundle variable is set" "Confirm you added it. It lets that authority read the tool's HTTPS traffic."
+	fi
+	if grep -Eiq '"?NODE_OPTIONS"?[[:space:]]*[:=][[:space:]]*"[^"]*--(require|import|loader)|"?(DYLD_INSERT_LIBRARIES|LD_PRELOAD)"?[[:space:]]*[:=]' "$f" 2>/dev/null; then
+		finding HIGH "agent:$disp:preload" "The tool loads extra code into its processes" "$disp" "NODE_OPTIONS --require/--import or a library preload is set" "Remove it and find out how it got there."
+	fi
 }
 
 # hook_dangerous_path <command> — true when a hook runs code from a place a

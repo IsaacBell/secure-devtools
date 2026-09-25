@@ -426,6 +426,83 @@ EOF
   assert_output --partial "A login item injects a library into every launch"
 }
 
+@test "plist: EnvironmentVariables that disable TLS checks is high" {
+  write_plist_raw com.example.tlsoff \
+    '  <key>RunAtLoad</key>
+  <true/>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/echo</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>NODE_TLS_REJECT_UNAUTHORIZED</key>
+    <string>0</string>
+  </dict>'
+  audit
+  assert_failure 1
+  assert_output --partial "A login item turns off TLS certificate checks"
+}
+
+@test "plist: EnvironmentVariables with an extra CA bundle is medium" {
+  write_plist_raw com.example.cabundle \
+    '  <key>RunAtLoad</key>
+  <true/>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/echo</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>NODE_EXTRA_CA_CERTS</key>
+    <string>/tmp/ca.pem</string>
+  </dict>'
+  audit
+  assert_failure 1
+  assert_output --partial "changes certificate trust, proxy or Node options"
+}
+
+@test "agent: NODE_TLS_REJECT_UNAUTHORIZED=0 in the tool env is high" {
+  printf '{ "env": { "NODE_TLS_REJECT_UNAUTHORIZED": "0" } }\n' >"$FAKE/.claude/settings.json"
+  audit
+  assert_failure 1
+  assert_output --partial "TLS certificate checks are disabled for the tool"
+}
+
+@test "agent: NODE_EXTRA_CA_CERTS in the tool env is medium" {
+  printf '{ "env": { "NODE_EXTRA_CA_CERTS": "/tmp/ca.pem" } }\n' >"$FAKE/.claude/settings.json"
+  audit
+  assert_failure 1
+  assert_output --partial "The tool trusts an extra certificate authority"
+}
+
+@test "agent: NODE_OPTIONS --require in the tool env is high" {
+  printf '{ "env": { "NODE_OPTIONS": "--require /tmp/hook.js" } }\n' >"$FAKE/.claude/settings.json"
+  audit
+  assert_failure 1
+  assert_output --partial "The tool loads extra code into its processes"
+}
+
+@test "agent: an env block with harmless variables passes" {
+  printf '{ "env": { "NODE_OPTIONS": "--max-old-space-size=4096", "NODE_TLS_REJECT_UNAUTHORIZED": "1" } }\n' >"$FAKE/.claude/settings.json"
+  audit
+  assert_success
+}
+
+@test "rc: an extra CA bundle in a startup file is medium" {
+  printf 'export NODE_EXTRA_CA_CERTS=/tmp/ca.pem\n' >"$FAKE/.zshrc"
+  audit
+  assert_failure 1
+  assert_output --partial "An extra certificate authority is trusted in a startup file"
+}
+
+@test "rc: SSL_CERT_FILE in a startup file is medium" {
+  printf 'export SSL_CERT_FILE=/tmp/ca.pem\n' >"$FAKE/.bashrc"
+  audit
+  assert_failure 1
+  assert_output --partial "An extra certificate authority is trusted in a startup file"
+}
+
 @test "plist: an unparsable plist is reported, not skipped" {
   printf 'not a plist at all\n' >"$AGENTS/com.example.broken.plist"
   audit
