@@ -840,3 +840,29 @@ EOF
   assert_success
   assert_output --partial "usage: am-i-compromised host"
 }
+
+# --- portability -------------------------------------------------------------------
+# /bin/bash is 3.2 on macOS: an empty array expanded under `set -u` is an error there.
+
+@test "portable: a plist with no ProgramArguments does not abort under the system bash" {
+  write_plist_raw com.example.noargs '  <key>RunAtLoad</key>
+  <true/>'
+  run /bin/bash "$SCRIPT"
+  refute_output --partial "unbound variable"
+  refute_output --partial "syntax error"
+}
+
+@test "portable: the audit runs on the system bash with an empty fake home" {
+  run /bin/bash "$SCRIPT"
+  assert_success
+  refute_output --partial "unbound variable"
+}
+
+@test "portable: an unset HOME falls back instead of aborting" {
+  unset AIC_HOST_HOME
+  run env -u HOME PATH="$PATH" AIC_HOST_PROJECT="$TMP/project" AIC_HOST_OS=Darwin \
+    AIC_HOST_LAUNCH_DIRS="$AGENTS" AIC_HOST_PS_FILE="$AIC_HOST_PS_FILE" \
+    AIC_HOST_CRONTAB_FILE="$AIC_HOST_CRONTAB_FILE" AIC_HOST_MANAGED_DIRS="$TMP/managed" \
+    bash "$SCRIPT"
+  refute_output --partial "unbound variable"
+}
