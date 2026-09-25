@@ -25,6 +25,18 @@ set -euo pipefail
 #
 # Keep known-malicious fixtures outside the trusted source tree rather than
 # suppressing findings with comments in the source itself.
+#
+# A line already reviewed and confirmed safe can be marked with a comment
+# carrying a required reason, on the finding's own line or the line before:
+#
+#   // am-i-compromised-ignore: ANSI color code, not an obfuscated payload
+#
+# Suppressed findings are never dropped silently: they are still counted and
+# listed in their own section of the report, on every run, including a clean
+# one. This marker is honored here only. safe-pull.sh deliberately does not
+# read it — it inspects commits nobody has reviewed yet, so a marker written
+# by whoever authored the incoming diff must not be able to wave off their
+# own payload.
 
 if ! command -v rg >/dev/null 2>&1; then
 	echo "scanner: ripgrep (rg) is required but was not found on PATH." >&2
@@ -128,6 +140,15 @@ declare -a S_PATH=()
 declare -a S_NAME=()
 declare -a S_VAL=()
 
+# Findings suppressed by an `am-i-compromised-ignore:` comment. Kept apart
+# from F_* so the suppressed count can never quietly merge into (or vanish
+# from) the real total — see suppression_reason() and render_suppressed().
+declare -a SUP_PATH=()
+declare -a SUP_SNIP=()
+declare -a SUP_TAGS=()
+declare -a SUP_REASON=()
+declare -A SUP_IDX=()
+
 # Set to 1 when package.json inspection could not run (jq missing).
 missing_jq=0
 
@@ -148,13 +169,61 @@ cap_snippet() {
 	fi
 }
 
-# Record one finding for path:line under an indicator category.
+# --- suppression -----------------------------------------------------------
+#
+# A comment carrying `am-i-compromised-ignore: <reason>` on the finding's own
+# line, or the line immediately before it, marks that finding reviewed and
+# safe. The reason is required: a marker with nothing (or only whitespace)
+# after the colon does not suppress anything, so an empty "make it go away"
+# comment cannot silently defeat the gate. The marker is recognized as plain
+# text anywhere on the candidate line — it does not need to sit inside a
+# language-specific comment syntax, since the source files this scanner reads
+# span half a dozen languages and the marker text itself is distinctive
+# enough not to appear by accident.
+readonly SUPPRESS_MARKER_RE='am-i-compromised-ignore:[[:space:]]*(.+)$'
+
+# suppression_reason <path> <line> — on stdout, the trimmed reason text if
+# `path` carries a valid marker on `line` or `line - 1`; exit status 0. No
+# output and exit status 1 otherwise. Checks the finding's own line first.
+suppression_reason() {
+	local path="$1"
+	local line="$2"
+	local prev=$((line > 1 ? line - 1 : 0))
+	local candidate reason
+
+	[[ -f "$path" ]] || return 1
+
+	# No `--` before the path: BSD sed (macOS) does not understand it as an
+	# end-of-options marker and treats it as a filename, which fails and
+	# trips set -e on the enclosing assignment. Safe without it: $path is
+	# always the absolute $ROOT-rooted path built earlier in this script,
+	# never a string that could be mistaken for an option.
+	for candidate in \
+		"$(sed -n "${line}p" "$path" 2>/dev/null)" \
+		"$( ((prev > 0)) && sed -n "${prev}p" "$path" 2>/dev/null)"; do
+		if [[ "$candidate" =~ $SUPPRESS_MARKER_RE ]]; then
+			reason="${BASH_REMATCH[1]}"
+			reason="${reason#"${reason%%[![:space:]]*}"}"
+			reason="${reason%"${reason##*[![:space:]]}"}"
+			if [[ -n "$reason" ]]; then
+				printf '%s' "$reason"
+				return 0
+			fi
+		fi
+	done
+
+	return 1
+}
+
+# Record one finding for path:line under an indicator category. A suppressed
+# finding is rerouted into the SUP_* store instead of F_*: it never counts
+# toward the exit code, but it is never dropped either.
 record_finding() {
 	local path="$1"
 	local line="$2"
 	local snippet="$3"
 	local tag="$4"
-	local pathrel pad key i trimmed
+	local pathrel pad key i trimmed reason
 
 	pathrel="${path#"$ROOT"/}"
 	if [[ -z "$pathrel" || "$pathrel" == "$path" ]]; then
@@ -167,6 +236,22 @@ record_finding() {
 
 	pad="$(printf '%08d' "$line")"
 	key="${pathrel}|${pad}"
+
+	if reason="$(suppression_reason "$path" "$line")"; then
+		if [[ -v SUP_IDX[$key] ]]; then
+			i="${SUP_IDX[$key]}"
+			if [[ "${SUP_TAGS[i]}" != *"$tag"* ]]; then
+				SUP_TAGS[i]+=", $tag"
+			fi
+		else
+			SUP_IDX[$key]="${#SUP_PATH[@]}"
+			SUP_PATH+=("$pathrel")
+			SUP_SNIP+=("$snippet")
+			SUP_TAGS+=("$tag")
+			SUP_REASON+=("$reason")
+		fi
+		return
+	fi
 
 	if [[ -v F_IDX[$key] ]]; then
 		i="${F_IDX[$key]}"
@@ -209,6 +294,72 @@ scan_pattern() {
 			"${SOURCE_GLOBS[@]}" \
 			"${EXCLUDE_GLOBS[@]}" \
 			"$pattern" \
+			-- "$ROOT" 2>/dev/null || true
+	)
+}
+
+# atob/btoa/Buffer.from/Buffer.alloc/Buffer.concat are routine on their own —
+# decoding a header, encoding a credential pair, reading buffered output as
+# utf8. They only get flagged when the match line (or a small window around
+# it) also reaches for something that executes, or when the call is decoding
+# a sizeable literal blob rather than a runtime value. See IOC_ENCODED_* in
+# ioc-patterns.sh for the three regexes this combines.
+scan_encoded_payload_primitives() {
+	local row window_text start end
+
+	while IFS= read -r row; do
+		[[ -n "$row" ]] || continue
+		split_rg_row "$row"
+
+		if [[ "$P_SNIP" =~ $IOC_EXEC_NEARBY_PATTERN || "$P_SNIP" =~ $IOC_LONG_BASE64_LITERAL_PATTERN ]]; then
+			record_finding "$P_PATH" "$P_LINE" "$P_SNIP" "$IOC_ENCODED_PRIMITIVE_TITLE"
+			continue
+		fi
+
+		start=$((P_LINE > IOC_ENCODED_PRIMITIVE_WINDOW ? P_LINE - IOC_ENCODED_PRIMITIVE_WINDOW : 1))
+		end=$((P_LINE + IOC_ENCODED_PRIMITIVE_WINDOW))
+		# No `--`: see the note in suppression_reason(); $P_PATH is always
+		# absolute here too.
+		window_text="$(sed -n "${start},${end}p" "$P_PATH" 2>/dev/null)"
+		if [[ "$window_text" =~ $IOC_EXEC_NEARBY_PATTERN ]]; then
+			record_finding "$P_PATH" "$P_LINE" "$P_SNIP" "$IOC_ENCODED_PRIMITIVE_TITLE"
+		fi
+	done < <(
+		rg -n \
+			--no-heading \
+			--color never \
+			"${SOURCE_GLOBS[@]}" \
+			"${EXCLUDE_GLOBS[@]}" \
+			"$IOC_ENCODED_PRIMITIVE_PATTERN" \
+			-- "$ROOT" 2>/dev/null || true
+	)
+}
+
+# execFile/execFileSync/execSync/spawn/spawnSync/fork with a literal command
+# and a trailing Node-style options object is the ordinary shape of a
+# build/import/CLI script. It stays a signal when the command is assembled at
+# runtime (a bare variable, a template with interpolation, concatenation) or
+# invoked with no options object at all. See IOC_CHILD_PROCESS_* in
+# ioc-patterns.sh.
+scan_child_process() {
+	local row safe
+
+	while IFS= read -r row; do
+		[[ -n "$row" ]] || continue
+		split_rg_row "$row"
+
+		safe=0
+		if [[ "$P_SNIP" =~ $IOC_CHILD_PROCESS_SAFE_PATTERN && "$P_SNIP" =~ $IOC_CHILD_PROCESS_OPTIONS_OBJECT_PATTERN ]]; then
+			safe=1
+		fi
+		((safe == 1)) || record_finding "$P_PATH" "$P_LINE" "$P_SNIP" "$IOC_CHILD_PROCESS_TITLE"
+	done < <(
+		rg -n \
+			--no-heading \
+			--color never \
+			"${SOURCE_GLOBS[@]}" \
+			"${EXCLUDE_GLOBS[@]}" \
+			"$IOC_CHILD_PROCESS_PATTERN" \
 			-- "$ROOT" 2>/dev/null || true
 	)
 }
@@ -386,6 +537,38 @@ render_findings() {
 	return 1
 }
 
+# Findings suppressed by an `am-i-compromised-ignore:` comment. Shown on
+# every run that has any — a FAILED run, and a PASSED one too — so a
+# suppression can never quietly disappear from view.
+render_suppressed() {
+	local n="${#SUP_PATH[@]}"
+	local word="finding"
+	local sorted key i path num
+
+	((n > 0)) || return 0
+	((n == 1)) || word="findings"
+
+	printf '\n%ssecurity-gate: %d %s suppressed by inline comment%s\n' \
+		"$C_YELLOW" "$n" "$word" "$C_RESET"
+
+	mapfile -t sorted < <(
+		printf '%s\n' "${!SUP_IDX[@]}" | LC_ALL=C sort -t'|' -k1,1 -k2,2
+	)
+
+	for key in "${sorted[@]}"; do
+		i="${SUP_IDX[$key]}"
+		path="${SUP_PATH[$i]}"
+		num="${key##*|}"
+		num="$((10#$num))"
+
+		printf '%s\n' ""
+		printf '  %s%s:%d%s\n' "$C_DIM" "$path" "$num" "$C_RESET"
+		printf '    %s\n' "${SUP_SNIP[$i]}"
+		printf '    %s→ %s (suppressed)%s\n' "$C_DIM" "${SUP_TAGS[$i]}" "$C_RESET"
+		printf '    %sreason: %s%s\n' "$C_DIM" "${SUP_REASON[$i]}" "$C_RESET"
+	done
+}
+
 # Flag environment files that are present in the git index. An untracked local
 # `.env` is normal and is never flagged; a committed one is an incident, because
 # it is what the injected `dotenv` + `node-fetch` pair exists to read and send.
@@ -407,6 +590,9 @@ while IFS= read -r entry; do
 	scan_pattern "$IOC_TITLE" "$IOC_PATTERN"
 done < <(printf '%s\n' "${IOC_CONTENT_PATTERNS[@]}")
 
+scan_encoded_payload_primitives
+scan_child_process
+
 while IFS= read -r entry; do
 	[[ -n "$entry" ]] || continue
 	split_ioc_entry "$entry"
@@ -424,7 +610,13 @@ scan_tracked_env
 scan_package_scripts
 
 if ((${#F_PATH[@]} > 0 || ${#S_PATH[@]} > 0)); then
-	render_findings
+	# render_findings ends with `return 1` (there were findings) even though
+	# nothing here reads that status — under `set -e` a bare call would abort
+	# the script right here, silently skipping render_suppressed and the
+	# footer below. `|| true` keeps that return value from being anything
+	# other than documentation.
+	render_findings || true
+	render_suppressed || true
 
 	if ((missing_jq == 1)); then
 		printf '\n%ssecurity-gate: %s could not inspect package.json scripts (jq missing).%s\n' \
@@ -434,8 +626,14 @@ if ((${#F_PATH[@]} > 0 || ${#S_PATH[@]} > 0)); then
 	cat <<'EOF'
 
 Review each flagged location above before starting the dev server. If a
-finding is a false positive, prefer changing the implementation rather than
-suppressing the scanner from inside the source file.
+finding is a real false positive, mark it reviewed instead of reflexively
+rewriting working code:
+
+  // am-i-compromised-ignore: <why this is safe>
+
+on the flagged line or the line before it — the reason is required.
+Suppressions are never silent: they are counted and listed above on every
+run, including a clean one.
 
 This scanner is a heuristic pre-flight check. A clean result does not prove
 that the repository or its dependencies are safe.
@@ -443,6 +641,8 @@ EOF
 
 	exit 1
 fi
+
+render_suppressed || true
 
 if ((missing_jq == 1)); then
 	printf '\n%ssecurity-gate: %s could not inspect package.json scripts (jq missing).%s\n' \
@@ -456,5 +656,10 @@ EOF
 	exit 1
 fi
 
-echo "${C_GREEN}security-gate: PASSED${C_RESET} — no indicators found (scanned: ${ARG_ROOT})"
+if ((${#SUP_PATH[@]} > 0)); then
+	printf '%ssecurity-gate: PASSED%s — no indicators found (%d suppressed; scanned: %s)\n' \
+		"$C_GREEN" "$C_RESET" "${#SUP_PATH[@]}" "$ARG_ROOT"
+else
+	echo "${C_GREEN}security-gate: PASSED${C_RESET} — no indicators found (scanned: ${ARG_ROOT})"
+fi
 exit 0

@@ -52,6 +52,14 @@ installed on the host (see [Requirements](#requirements)).
 - Scans JS/TS/Python/Rust/Ruby/C/C++/C# sources, editor config, and binary-asset
   extensions out of the box
 - Excludes `node_modules`, build output, VCS dirs, and `.git`-adjacent noise
+- Context-aware where a bare regex would be noisy: a decode primitive
+  (`atob`, `Buffer.from`, ...) only trips the gate near an execution call or a
+  long embedded literal; `execSync`/`spawn`/... only trips it when the command
+  isn't a plain literal with a normal options object; `setTimeout`/`setInterval`
+  only trip it on a string first argument, not a callback; hex/unicode escapes
+  only trip it as a long adjacent run, not a lone ANSI color code
+- Reviewed lines can be marked safe with `am-i-compromised-ignore: <reason>` —
+  see [Suppressing a finding](#suppressing-a-finding)
 - Self-tests its own detection logic against quarantined malicious fixtures
 - Ships `safe-pull`, a guarded `git pull` that inspects incoming commits before
   anything reaches the working tree
@@ -131,7 +139,9 @@ In CI:
 - run: security-gate .
 ```
 
-Exit code is `0` when nothing is flagged and `1` when it finds something to review.
+Exit code is `0` when nothing unreviewed is flagged and `1` when it finds
+something to review. A suppressed finding (see below) never affects the exit
+code — only unreviewed findings do.
 
 ### Reading the output
 
@@ -142,10 +152,58 @@ single minified line cannot flood the report. Output is plain (no ANSI) when
 piped; colors are used only on a TTY (set `NO_COLOR` to disable). Findings
 are listed sorted by path, then line.
 
-If a finding is a false positive, **prefer changing the implementation** over
-suppressing the scanner from inside the source file. Malicious test fixtures
-should live outside the scanned tree (the scanner excludes directories named
-`__security_gate_fixtures__` unless `INCLUDE_FIXTURES=1`).
+If a finding is a false positive because the *pattern* is too broad, that's a
+scanner bug — please [open an issue](https://github.com/IsaacBell/secure-devtools/issues).
+If the code itself can reasonably be rewritten to stop matching, **prefer
+that** over suppressing. Malicious test fixtures should live outside the
+scanned tree (the scanner excludes directories named `__security_gate_fixtures__`
+unless `INCLUDE_FIXTURES=1`). For the remaining case — the match is accurate
+and the code is genuinely fine as written — mark it reviewed instead:
+
+### Suppressing a finding
+
+Some findings are real matches on code that is genuinely safe — a giant
+hardcoded string literal, a command built from a value that's already been
+validated, and so on. For those, mark the line reviewed instead of
+rewriting working code to dodge the pattern:
+
+```js
+const decoded = atob(header); // am-i-compromised-ignore: decodes a request header, not a payload
+```
+
+The marker is `am-i-compromised-ignore:` followed by a reason, on the
+finding's own line or the line immediately before it (handy when the flagged
+line is too long to comment on directly, like a huge literal):
+
+```js
+// am-i-compromised-ignore: bee movie script fixture, not obfuscated code
+const script = "...49,000 characters...";
+```
+
+The reason is required — a marker with nothing after the colon does not
+suppress anything, so an empty "make it go away" comment can't quietly defeat
+the gate. The marker is recognized as plain text anywhere on the line; it
+does not need to sit inside any particular comment syntax, since the scanner
+reads half a dozen languages.
+
+Suppressed findings are **never dropped silently**. They are counted and
+listed in their own section of the report on every run, including a clean
+one, so a suppression can't quietly go stale or hide a second, unrelated
+issue on the same line:
+
+```
+security-gate: 1 finding suppressed by inline comment
+
+  src/auth.ts:42
+    const decoded = atob(header); // am-i-compromised-ignore: decodes a request header, not a payload
+    → Encoded payload primitives (suppressed)
+    reason: decodes a request header, not a payload
+```
+
+This marker is honored by `security-gate`/`scanner` only. **`safe-pull` does
+not read it.** `safe-pull` inspects commits nobody has reviewed yet — that's
+the entire point of the guard — so a marker written by whoever authored the
+incoming diff must never be able to wave off their own payload.
 
 ## Guarded pull (`safe-pull`)
 

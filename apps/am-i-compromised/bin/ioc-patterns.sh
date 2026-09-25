@@ -20,20 +20,54 @@
 # shellcheck disable=SC2034
 
 # --- source-level indicators ---------------------------------------------------
+#
+# "Encoded payload primitives" and "Child-process execution" are deliberately
+# NOT in this array even though they are source-level indicators: both need a
+# little more than "does this regex match the line" to stay low-noise (see
+# the context-aware rules below), so scanner.sh applies them with a small
+# bespoke function instead of the generic per-pattern loop. Their regexes
+# still live in this file so every rule stays defined in one place.
 
 readonly IOC_CONTENT_PATTERNS=(
 	$'Dynamic code execution\t(^|[^[:alnum:]_$])(eval|Function)[[:space:]]*\\('
-	$'Dynamic timer execution\t(setTimeout|setInterval)[[:space:]]*\\([^,]+,[[:space:]]*[0-9]+[[:space:]]*\\)'
-	$'Child-process execution\t(child_process|execFile|execFileSync|execSync|spawn|spawnSync|fork)[[:space:]]*\\('
+	$'Dynamic timer execution\t(setTimeout|setInterval)[[:space:]]*\\([[:space:]]*(["\'`][^,]*|[A-Za-z_$][A-Za-z0-9_$]*)[[:space:]]*,[[:space:]]*[0-9]+[[:space:]]*\\)'
 	$'Direct network module access\t(require|import)[^;]*["\'](http|https|net|tls|dgram)["\']'
 	$'Runtime global mutation\t(^|[^[:alnum:]_$])global([.]|\\[)'
-	$'Encoded payload primitives\t(atob|btoa|Buffer[.]from|Buffer[.]alloc|Buffer[.]concat)[[:space:]]*\\('
 	$'Computed global properties\tglobal[[:space:]]*\\[[[:space:]]*["\']'
-	$'Hex or Unicode string escapes\t\\\\x[0-9a-fA-F]{2}|\\\\u[0-9a-fA-F]{4}'
+	$'Hex or Unicode string escapes\t(\\\\x[0-9a-fA-F]{2}){4,}|(\\\\u[0-9a-fA-F]{4}){4,}'
 	$'Common string-table obfuscation\t(_0x[0-9a-fA-F]{3,}|_0X[0-9A-F]{3,})'
-	$'Suspicious decoder/string-table helpers\t(charCodeAt|fromCharCode|String[.]fromCharCode)[[:space:]]*\\('
+	$'Suspicious decoder/string-table helpers\t(fromCharCode|String[.]fromCharCode)[[:space:]]*\\('
 	$'Runtime source construction\t(new[[:space:]]+Function|constructor[[:space:]]*\\[[[:space:]]*["\']constructor["\']\\])'
 )
+
+# --- context-aware source rules -------------------------------------------------
+#
+# A regex alone over-fires on these two shapes, so scanner.sh pairs them with
+# a small amount of surrounding context (see scan_encoded_payload_primitives
+# and scan_child_process in scanner.sh):
+#
+# Encoded payload primitives — decoding/encoding a runtime value (an auth
+# header, a credential pair, a buffered response) is routine. It becomes a
+# signal when the result is handed to something that executes, or when the
+# call is decoding a sizeable literal blob baked into the source rather than
+# a value computed elsewhere.
+readonly IOC_ENCODED_PRIMITIVE_TITLE="Encoded payload primitives"
+readonly IOC_ENCODED_PRIMITIVE_PATTERN='(atob|btoa|Buffer[.]from|Buffer[.]alloc|Buffer[.]concat)[[:space:]]*\('
+readonly IOC_EXEC_NEARBY_PATTERN='(^|[^[:alnum:]_$])(eval|Function|execSync|execFileSync|execFile|exec|spawnSync|spawn)[[:space:]]*\(|(^|[^[:alnum:]_$])vm[.][A-Za-z]+[[:space:]]*\('
+readonly IOC_LONG_BASE64_LITERAL_PATTERN=$'["\'`][A-Za-z0-9+/]{40,}={0,2}["\'`]'
+readonly IOC_ENCODED_PRIMITIVE_WINDOW=3
+
+# Child-process execution — a literal, hardcoded command is the ordinary
+# shape of a build/import/CLI script, and a trailing Node-style options
+# object (`{ encoding: ..., stdio: ..., cwd: ... }`) is a strong tell that
+# this is a deliberate, ordinary child_process call rather than a quick
+# injected one-liner. It stays a signal when the command is assembled at
+# runtime (a bare variable, a template with interpolation, concatenation) or
+# invoked with no options object at all.
+readonly IOC_CHILD_PROCESS_TITLE="Child-process execution"
+readonly IOC_CHILD_PROCESS_PATTERN='(child_process|execFile|execFileSync|execSync|spawn|spawnSync|fork)[[:space:]]*\('
+readonly IOC_CHILD_PROCESS_SAFE_PATTERN=$'(execFile|execFileSync|execSync|spawn|spawnSync|fork)[[:space:]]*\\([[:space:]]*["\'][^"\'`+]*["\'][[:space:]]*[,)]'
+readonly IOC_CHILD_PROCESS_OPTIONS_OBJECT_PATTERN=',[[:space:]]*\{'
 
 # --- editor/workspace configuration -------------------------------------------
 #
