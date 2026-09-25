@@ -72,7 +72,12 @@ for arg in "$@"; do
 	esac
 done
 
-HOME_DIR="${AIC_HOST_HOME:-$HOME}"
+HOME_DIR="${AIC_HOST_HOME:-${HOME:-}}"
+[[ -n "$HOME_DIR" ]] || HOME_DIR="$(cd ~ 2>/dev/null && pwd)" || HOME_DIR=""
+if [[ -z "$HOME_DIR" ]]; then
+	echo "host-audit: cannot determine the home directory (HOME is unset)." >&2
+	exit 2
+fi
 PROJECT_DIR="${AIC_HOST_PROJECT:-$PWD}"
 OS="${AIC_HOST_OS:-$(uname -s)}"
 ALLOW_FILE="${AIC_HOST_ALLOW:-$HOME_DIR/.config/am-i-compromised/host-allow.txt}"
@@ -93,6 +98,7 @@ JQ_NOTED=0
 
 # --- indicator definitions ------------------------------------------------------
 
+# am-i-compromised-ignore: detector pattern definition, not a clipboard read
 RE_CLIP_READ='pbpaste|NSPasteboard|generalPasteboard|clipboardy|pyperclip|xclip|xsel|wl-paste|Get-Clipboard|clipboard-listener'
 RE_CAPTURE_WORD='clipboard|pasteboard|keylog|keystroke'
 RE_KEYLOG='CGEventTap|kCGEventKeyDown|IOHIDManager|addGlobalMonitorForEvents|pynput|logkeys'

