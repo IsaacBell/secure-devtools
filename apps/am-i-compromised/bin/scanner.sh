@@ -14,6 +14,9 @@ set -euo pipefail
 #   - runtime global mutation
 #   - encoded or obfuscated payloads
 #   - unusually large source lines
+#   - clipboard/keystroke/screen capture paired with an exfiltration endpoint
+#     (and the decisive single signals: a hardcoded bot token, the background
+#     launcher, or a persistence writer beside a capture call)
 #   - editor/workspace settings that execute code on folder open
 #   - executable payloads disguised as binary asset files
 #   - environment files committed to the git index
@@ -37,6 +40,14 @@ set -euo pipefail
 # read it — it inspects commits nobody has reviewed yet, so a marker written
 # by whoever authored the incoming diff must not be able to wave off their
 # own payload.
+
+# `am-i-compromised host` audits this machine (persistence, shell startup files,
+# AI-tool configuration, running processes) instead of a source tree. It needs no
+# ripgrep, so it dispatches before the ripgrep check below.
+if [[ "${1:-}" == "host" ]]; then
+	shift
+	exec bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/host-audit.sh" "$@"
+fi
 
 if ! command -v rg >/dev/null 2>&1; then
 	echo "scanner: ripgrep (rg) is required but was not found on PATH." >&2
@@ -364,6 +375,139 @@ scan_child_process() {
 	)
 }
 
+# --- clipboard / keystroke / screen capture + exfiltration ---------------------
+#
+# A capture API on its own is ordinary — a clipboard manager, a screenshot tool,
+# a test helper — so detection is file-level rather than line-level: a file is
+# reported when it both reads the clipboard or input and reaches an exfiltration
+# endpoint, or when it carries one of a few decisive single signals. See
+# IOC_CAPTURE_* / IOC_EXFIL_* in ioc-patterns.sh.
+
+# file_matches <file> <ere> — true when the file matches the extended regex.
+file_matches() {
+	local file="$1"
+	local pattern="$2"
+
+	grep -aEq -- "$pattern" "$file" 2>/dev/null
+}
+
+# file_has_capture <file> — true when the file reads the clipboard or captures
+# keystrokes/screen.
+file_has_capture() {
+	file_matches "$1" "$IOC_CAPTURE_CLIPBOARD_PATTERN" ||
+		file_matches "$1" "$IOC_CAPTURE_INPUT_PATTERN"
+}
+
+# first_match_line <file> <ere> — the first matching line number, or nothing.
+first_match_line() {
+	local file="$1"
+	local pattern="$2"
+
+	grep -anE -- "$pattern" "$file" 2>/dev/null | head -n 1 | cut -d: -f1 || true
+}
+
+# source_line <file> <line> — that line's text, for the finding snippet.
+source_line() {
+	sed -n "${2}p" "$1" 2>/dev/null || true
+}
+
+# is_shell_script <file> — a .sh/.bash/.zsh file, or a shebang script whose
+# interpreter is a shell. Only a shell script can be the background launcher.
+is_shell_script() {
+	local file="$1"
+	local first
+
+	case "$file" in
+	*.sh | *.bash | *.zsh) return 0 ;;
+	esac
+	first="$(head -n 1 "$file" 2>/dev/null || true)"
+	[[ "$first" == '#!'* ]] || return 1
+	[[ "$first" =~ (sh|bash|zsh) ]]
+}
+
+scan_capture_exfil() {
+	local files=() file base capture_line token_line persist_line bgline js jsfile
+	local first reported
+
+	# Candidate files: the capture-relevant source extensions, plus extensionless
+	# scripts with a shebang. rg --files honors EXCLUDE_GLOBS (node_modules,
+	# build output, the fixtures dir), and the two passes are disjoint, so no file
+	# is examined twice.
+	while IFS= read -r -d '' file; do
+		files+=("$file")
+	done < <(
+		rg --files --null "${IOC_CAPTURE_EXT_GLOBS[@]}" "${EXCLUDE_GLOBS[@]}" -- "$ROOT" 2>/dev/null || true
+	)
+	while IFS= read -r -d '' file; do
+		first="$(head -n 1 "$file" 2>/dev/null || true)"
+		if [[ "$first" == '#!'* ]]; then
+			files+=("$file")
+		fi
+	done < <(
+		rg --files --null --glob '!*.*' "${EXCLUDE_GLOBS[@]}" -- "$ROOT" 2>/dev/null || true
+	)
+
+	((${#files[@]} > 0)) || return 0
+
+	for file in "${files[@]}"; do
+		base="$(basename "$file")"
+		capture_line="$(first_match_line "$file" "$IOC_CAPTURE_CLIPBOARD_PATTERN")"
+		[[ -n "$capture_line" ]] || capture_line="$(first_match_line "$file" "$IOC_CAPTURE_INPUT_PATTERN")"
+
+		reported=0
+
+		# The incident shape: capture and exfiltration in the same file.
+		if [[ -n "$capture_line" ]] && file_matches "$file" "$IOC_EXFIL_PATTERN"; then
+			record_finding "$file" "$capture_line" "$(source_line "$file" "$capture_line")" "$IOC_CAPTURE_TITLE"
+			reported=1
+		fi
+
+		# A hardcoded Telegram bot token stands alone, even with no capture code.
+		if ((reported == 0)); then
+			token_line="$(first_match_line "$file" "$IOC_TELEGRAM_TOKEN_PATTERN")"
+			if [[ -n "$token_line" ]]; then
+				record_finding "$file" "$token_line" "$(source_line "$file" "$token_line")" "$IOC_TELEGRAM_TOKEN_TITLE"
+				reported=1
+			fi
+		fi
+
+		# The wrapper from the incident: a shell script that backgrounds a Node
+		# payload behind a pid-file lock. HIGH when the named payload beside it
+		# itself captures and exfiltrates, MEDIUM otherwise.
+		if is_shell_script "$file" &&
+			file_matches "$file" "$IOC_WRAPPER_BG_PATTERN" &&
+			file_matches "$file" "$IOC_WRAPPER_PIDFILE_PATTERN"; then
+			bgline="$(first_match_line "$file" "$IOC_WRAPPER_BG_PATTERN")"
+			js="$(source_line "$file" "$bgline" | grep -oE '[A-Za-z0-9_./-]+\.js' | head -n 1 || true)"
+			jsfile=""
+			if [[ -n "$js" ]]; then
+				jsfile="$(dirname "$file")/$(basename "$js")"
+			fi
+			if [[ -n "$jsfile" && -f "$jsfile" ]] && file_has_capture "$jsfile" && file_matches "$jsfile" "$IOC_EXFIL_PATTERN"; then
+				record_finding "$file" "$bgline" "$(source_line "$file" "$bgline")" "$IOC_WRAPPER_PAYLOAD_TITLE"
+			elif [[ -n "$bgline" ]]; then
+				record_finding "$file" "$bgline" "$(source_line "$file" "$bgline")" "$IOC_WRAPPER_TITLE"
+			fi
+		fi
+
+		if ((reported == 1)); then
+			continue
+		fi
+
+		# Persistence written by a script that also reads the clipboard or input.
+		if [[ -n "$capture_line" ]] && file_matches "$file" "$IOC_PERSISTENCE_PATTERN"; then
+			persist_line="$(first_match_line "$file" "$IOC_PERSISTENCE_PATTERN")"
+			record_finding "$file" "$persist_line" "$(source_line "$file" "$persist_line")" "$IOC_PERSISTENCE_CAPTURE_TITLE"
+			continue
+		fi
+
+		# A capture-shaped file name that reads the clipboard or input.
+		if [[ -n "$capture_line" ]] && printf '%s' "$base" | grep -Eiq -- "$IOC_CAPTURE_FILENAME_PATTERN"; then
+			record_finding "$file" "$capture_line" "$(source_line "$file" "$capture_line")" "$IOC_CAPTURE_FILENAME_TITLE"
+		fi
+	done
+}
+
 # scan_with_globs <title> <pattern> <glob...>
 #
 # Same contract as scan_pattern, but scoped to an explicit glob set rather than
@@ -605,6 +749,7 @@ while IFS= read -r entry; do
 	scan_with_globs "$IOC_TITLE" "$IOC_PATTERN" "${IOC_ASSET_GLOBS[@]}"
 done < <(printf '%s\n' "${IOC_ASSET_PATTERNS[@]}")
 
+scan_capture_exfil
 scan_long_lines
 scan_tracked_env
 scan_package_scripts

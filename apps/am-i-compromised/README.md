@@ -49,6 +49,10 @@ installed on the host (see [Requirements](#requirements)).
     downloads and runs a payload
   - executable payloads disguised as binary assets (JavaScript inside a `.woff2`,
     `.png`, `.ttf`, `.svg`, and similar files)
+  - clipboard, keystroke, and screen capture paired with exfiltration (a
+    Telegram/Discord/Slack/webhook endpoint, a bot token, `nc`/`ncat`), plus the
+    decisive single signals: a hardcoded bot token, a background-launcher
+    wrapper, or a persistence writer beside a capture call
 - Scans JS/TS/Python/Rust/Ruby/C/C++/C# sources, editor config, and binary-asset
   extensions out of the box
 - Excludes `node_modules`, build output, VCS dirs, and `.git`-adjacent noise
@@ -204,6 +208,42 @@ This marker is honored by `security-gate`/`scanner` only. **`safe-pull` does
 not read it.** `safe-pull` inspects commits nobody has reviewed yet — that's
 the entire point of the guard — so a marker written by whoever authored the
 incoming diff must never be able to wave off their own payload.
+
+## Clipboard/keylogger/exfil detection
+
+A scanner that only knows npm supply-chain patterns misses a whole class of
+malware: a hidden script that reads the clipboard — or the keyboard, or the
+screen — and forwards what it captures to a remote service. In September 2026 a
+macOS LaunchAgent wrapper started a Node script that posted every clipboard
+change to a Telegram bot, and no source scan could see it.
+
+A capture API on its own is ordinary (clipboard managers, screenshot tools,
+test helpers), so these signals are combined **per file**: a capture signal and
+an exfiltration signal in the *same* file is reported as HIGH, while a few
+decisive shapes stand alone as MEDIUM. The check covers `.js`, `.mjs`, `.cjs`,
+`.ts`, `.py`, `.sh`, `.zsh`, `.bash`, `.rb`, `.swift`, `.plist`, and
+extensionless scripts with a shebang.
+
+| Signal group | Example indicators | Severity |
+| --- | --- | --- |
+| Clipboard read | `pbpaste`, `xclip`, `xsel`, `wl-paste`, `Get-Clipboard`, `clipboardy`, `clipboard-event`, `NSPasteboard`, `navigator.clipboard.readText`, `pyperclip` | context |
+| Keystroke / screen capture | `CGEventTap`, `pynput`, `iohook`, `node-global-key-listener`, `keylogger`, `screencapture`, `screenshot-desktop`, `pyautogui.screenshot` | context |
+| Exfiltration | `api.telegram.org`, `/sendMessage`, `/sendDocument`, `node-telegram-bot-api`, `telegraf`, Discord/Slack webhooks, `webhook.site`, `pastebin.com/api`, `transfer.sh`, `ngrok`, `nc`/`ncat` to a host, bot-token shape `[0-9]{8,10}:[A-Za-z0-9_-]{35}` | context |
+| Capture **and** exfiltration in one file | any capture signal together with any exfiltration signal | HIGH |
+| Hardcoded Telegram bot token | a `123456789:AAA…` token literal in any scanned file | MEDIUM |
+| Background launcher wrapper | `nohup node <payload>.js >> <log> &` behind a pid-file lock | MEDIUM |
+| …with a live payload | the named `<payload>.js` sits beside it and captures + exfiltrates | HIGH |
+| Persistence beside capture | `launchctl load`, `~/Library/LaunchAgents`, `crontab -`, `~/.config/autostart` in a script that also captures | MEDIUM |
+| Capture-shaped file name | name matching `(clip|key|screen)[-_ ]?(logger|monitor|spy|grab)` that reads the clipboard or input | MEDIUM |
+
+Files under `node_modules`/`.cache`, build output, and the fixtures dir are
+never scanned, so a README mention or a vendor's own clipboard-library source
+with no exfiltration endpoint does not trip the gate. Reviewed matches can still
+be marked safe with `am-i-compromised-ignore:` (see above).
+
+`security-gate host` audits the machine itself for the persistence side of this
+same class — launch agents, shell startup files, AI-tool config, and running
+processes.
 
 ## Guarded pull (`safe-pull`)
 

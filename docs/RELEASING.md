@@ -2,13 +2,13 @@
 
 Per-package release workflow. Each package is independent; npm publish requires 2FA.
 
-## am-i-compromised (next: 1.1.0)
+## am-i-compromised (next: 1.2.0)
 
 - [ ] Verify heuristics work completes
 - [ ] Update version in `apps/am-i-compromised/package.json`
 - [ ] Dry-run: `mise run publish-dry-run`
 - [ ] Publish: `mise run publish` (2FA required)
-- [ ] Tag: `git tag am-i-compromised@1.1.0`
+- [ ] Tag: `git tag am-i-compromised@1.2.0`
 - [ ] GitHub release
 
 ## secure-semgrep (current: 1.0.1)
