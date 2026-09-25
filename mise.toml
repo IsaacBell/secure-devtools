@@ -98,6 +98,17 @@ description = "Preview the files secure-semgrep would publish"
 dir = "apps/secure-semgrep"
 run = "npm pack --dry-run"
 
+[tasks.publish-am-i-being-recorded]
+description = "Publish am-i-being-recorded to the npm registry"
+depends = ["check"]
+dir = "apps/am-i-being-recorded"
+run = "pnpm publish"
+
+[tasks.publish-am-i-being-recorded-dry-run]
+description = "Preview the files that would be published by am-i-being-recorded"
+dir = "apps/am-i-being-recorded"
+run = "npm pack --dry-run"
+
 [tasks.doctor]
 description = "Diagnose the dev environment (mise doctor)"
 run = "mise doctor"
