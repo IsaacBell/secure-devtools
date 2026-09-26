@@ -103,7 +103,7 @@ RE_CLIP_READ='pbpaste|NSPasteboard|generalPasteboard|clipboardy|pyperclip|xclip|
 RE_CAPTURE_WORD='clipboard|pasteboard|keylog|keystroke'
 RE_KEYLOG='CGEventTap|kCGEventKeyDown|IOHIDManager|addGlobalMonitorForEvents|pynput|logkeys'
 RE_SCREEN='screencapture[[:space:]]|CGDisplayCreateImage|CGWindowListCreateImage|scrot[[:space:]]|import[[:space:]]+-window[[:space:]]+root'
-RE_EXFIL_URL='api\.telegram\.org|discord(app)?\.com/api/webhooks|hooks\.slack\.com/services|webhook\.site|pastebin\.com/api|transfer\.sh|requestbin|ngrok\.(io|app|dev)|sendMessage'
+RE_EXFIL_URL='api\.telegram\.org|discord(app)?\.com/api/webhooks|hooks\.slack\.com/services|webhook\.site|pastebin\.com/api|transfer\.sh|requestbin|ngrok\.(io|app|dev)|/sendMessage([?/]|$)'
 RE_EXFIL_WORD='telegram|discord|webhook'
 RE_BG_LAUNCH='nohup[[:space:]].*&'
 # Names used by capture-tool folders and by the September 2026 incident. Kept
@@ -627,7 +627,7 @@ rc_rules() {
 	rc_rule "$f" "$disp" MEDIUM "sudo, su or ssh replaced by an alias or function" 'alias[[:space:]]+(sudo|su|ssh|scp|git|npm|npx|security)=|^[[:space:]]*(function[[:space:]]+)?(sudo|su|ssh)[[:space:]]*[(][)]' "This is how passwords and tokens get captured. Confirm you wrote it."
 	rc_rule "$f" "$disp" MEDIUM "Background launcher from a user-writable path" '(nohup|setsid|disown)[^#]*(application support|/tmp/|/var/tmp/|/private/tmp/|/var/folders/|/[.][[:alnum:]_-]+/)' "Confirm you wrote it."
 	rc_rule "$f" "$disp" MEDIUM "PATH is prefixed with a writable directory" 'path=.*(/tmp|/var/tmp|/private/tmp|/var/folders|application support|/users/shared|/downloads|/[.]cache)/' "Confirm you added it. A writable directory early on PATH lets its contents run as you."
-	RC_EXEMPT='/[.](cargo|deno|bun|rvm|nvm|pyenv|rbenv|sdkman|asdf|volta|fnm|ghcup|opam|orbstack|oh-my-zsh|local/bin|config/(fish|zsh|nvm))/' \
+	RC_EXEMPT='/[.](cargo|deno|bun|rvm|nvm|pyenv|rbenv|sdkman|asdf|volta|fnm|ghcup|opam|orbstack|oh-my-zsh|zinit|zplug|antigen|zprezto|fzf|tmux|conda|local/bin|config/(fish|zsh|nvm|gh))/' \
 		rc_rule "$f" "$disp" MEDIUM "A startup file loads a script from a writable or hidden directory" '(^|[^[:alnum:]_])(source|\.)[[:space:]]+[^#]*(([$]home|~)?/(tmp|var/tmp|private/tmp|var/folders|users/shared|downloads)/|application support|/[.][[:alnum:]_-]+/)' "Confirm you know this file. A sourced script runs with the same access you have."
 	rc_rule "$f" "$disp" MEDIUM "AppleScript run from a startup file" 'osascript[[:space:]]+-e' "Confirm you wrote it."
 	rc_rule "$f" "$disp" MEDIUM "AI-tool API base URL redirected in a startup file" '(anthropic|openai|gemini|openrouter|google)[a-z_]*(base_url|api_url|endpoint|host)[[:space:]]*=' "Model traffic and credentials go wherever this points. Confirm you set it."
@@ -709,6 +709,25 @@ url_host() {
 	esac
 }
 
+# url_port <url> — the port of the authority, or nothing. A colon in the path
+# or in userinfo is not a port.
+url_port() {
+	local h="$1" p=""
+	[[ "$h" == *://* ]] && h="${h#*://}"
+	h="${h%%/*}"
+	h="${h##*@}"
+	case "$h" in
+	'['*']:'*) p="${h##*]:}" ;;
+	'['*) ;;
+	*:*:*) ;;
+	*:*) p="${h##*:}" ;;
+	esac
+	case "$p" in
+	'' | *[!0-9]*) return 0 ;;
+	esac
+	printf '%s' "$p"
+}
+
 # is_loopback_host <host> — every shape of "this machine" that a proxy can bind.
 is_loopback_host() {
 	local h
@@ -763,7 +782,7 @@ audit_agent_text() {
 		looks_like_host "$url" || continue
 		host="$(url_host "$url")"
 		if is_loopback_host "$host"; then
-			port="$(printf '%s' "$url" | sed -nE 's#.*:([0-9]{2,5})[/" }]?.*#\1#p')"
+			port=$(url_port "$url")
 			who=""
 			[[ -n "$port" ]] && who="$(listener_for_port "$port")"
 			finding HIGH "agent:$disp:base-url:$n" "Model traffic is routed through a local proxy" "$disp:$n" "$(printf '%s' "$url" | redact); listener: ${who:-none found}" "Find out what listens on that port and who installed it. It sees every prompt, file and key your tool sends."

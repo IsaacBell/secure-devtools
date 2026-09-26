@@ -909,3 +909,14 @@ FAKE_TELEGRAM_TOKEN="123456789:$(printf '%035d' 0 | tr 0 A)"
   assert_output --partial "1 finding suppressed by inline comment"
   assert_output --partial "reason: reviewed local clipboard helper"
 }
+
+# --- portability ---------------------------------------------------------------------
+# The scanner uses associative arrays (bash 4+). macOS ships bash 3.2 as /bin/bash.
+
+@test "portable: the stock macOS bash gets a clear message, not a declare error" {
+  command -v rg >/dev/null 2>&1 || skip "ripgrep is required to reach the array declarations"
+  [[ "$(/bin/bash -c 'echo "${BASH_VERSINFO[0]}"')" -lt 4 ]] || skip "/bin/bash is already 4 or newer"
+  run env PATH="/usr/bin:/bin:$(dirname "$(command -v rg)")" /bin/bash "$SCRIPT" "$TMP"
+  refute_output --partial "invalid option"
+  refute_output --partial "declare:"
+}

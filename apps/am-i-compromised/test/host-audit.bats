@@ -872,3 +872,28 @@ EOF
     bash "$SCRIPT"
   refute_output --partial "unbound variable"
 }
+
+@test "url_port: the port comes from the authority, not from a colon in the path or userinfo" {
+  eval "$(sed -n '/^url_port() {/,/^}/p' "$SCRIPT")"
+  [[ "$(url_port 'http://127.0.0.1:4319/w/claude:9999')" == 4319 ]]
+  [[ "$(url_port 'http://user:pw@localhost:11434')" == 11434 ]]
+  [[ "$(url_port 'http://[::1]:8080/x')" == 8080 ]]
+  [[ "$(url_port 'localhost:3000')" == 3000 ]]
+  [[ -z "$(url_port 'http://127.0.0.1/path:80')" ]]
+  [[ -z "$(url_port 'http://[::1]/x')" ]]
+}
+
+@test "rc: sourcing files from common shell-framework and conda directories is not flagged" {
+  printf '[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh\nsource "$HOME/.zinit/bin/zinit.zsh"\n. "$HOME/miniconda3/etc/profile.d/conda.sh"\nsource "$HOME/.zprezto/init.zsh"\n' >"$FAKE/.zshrc"
+  touch -t 202001010000 "$FAKE/.zshrc"
+  audit
+  assert_success
+}
+
+@test "capture + exfil: a clipboard read beside an ordinary sendMessage function is not high" {
+  mkdir -p "$FAKE/Library/Application Support/ClipboardMonitor"
+  printf 'const clipboardy = require("clipboardy")\nfunction sendMessage(chat, text) { chat.push(text) }\nsendMessage(room, clipboardy.readSync())\n' >"$FAKE/Library/Application Support/ClipboardMonitor/notes.js"
+  write_plist com.example.chat "$FAKE/Library/Application Support/ClipboardMonitor/notes.js"
+  audit
+  refute_output --partial "reports to a remote service"
+}
