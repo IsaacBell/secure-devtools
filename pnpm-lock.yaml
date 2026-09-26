@@ -12,6 +12,18 @@ importers:
         specifier: ^9.1.7
         version: 9.1.7
 
+  apps/am-i-being-recorded:
+    devDependencies:
+      bats:
+        specifier: ^1.13.0
+        version: 1.13.0
+      bats-assert:
+        specifier: ^2.2.4
+        version: 2.2.4(bats-support@0.3.0(bats@1.13.0))(bats@1.13.0)
+      bats-support:
+        specifier: ^0.3.0
+        version: 0.3.0(bats@1.13.0)
+
   apps/am-i-compromised:
     devDependencies:
       bats:

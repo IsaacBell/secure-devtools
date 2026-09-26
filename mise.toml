@@ -72,6 +72,10 @@ run = "pnpm validate"
 description = "Run the security-gate scanner over the whole repository"
 run = "bash apps/am-i-compromised/bin/scanner.sh ."
 
+[tasks.am-i-being-recorded]
+description = "Audit local capture surfaces and browser extensions (macOS/Linux)"
+run = "bash apps/am-i-being-recorded/bin/am-i-being-recorded.sh"
+
 [tasks.publish]
 description = "Publish am-i-compromised to the npm registry"
 depends = ["check"]
@@ -94,6 +98,20 @@ description = "Preview the files secure-semgrep would publish"
 dir = "apps/secure-semgrep"
 run = "npm pack --dry-run"
 
+[tasks.publish-am-i-being-recorded]
+description = "Publish am-i-being-recorded to the npm registry"
+depends = ["check"]
+dir = "apps/am-i-being-recorded"
+run = "pnpm publish"
+
+[tasks.publish-am-i-being-recorded-dry-run]
+description = "Preview the files that would be published by am-i-being-recorded"
+dir = "apps/am-i-being-recorded"
+run = "npm pack --dry-run"
+
 [tasks.doctor]
 description = "Diagnose the dev environment (mise doctor)"
 run = "mise doctor"
+
+[tasks.agentshield]
+run = "pnpx ecc-agentshield scan --fix"

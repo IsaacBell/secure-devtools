@@ -20,20 +20,54 @@
 # shellcheck disable=SC2034
 
 # --- source-level indicators ---------------------------------------------------
+#
+# "Encoded payload primitives" and "Child-process execution" are deliberately
+# NOT in this array even though they are source-level indicators: both need a
+# little more than "does this regex match the line" to stay low-noise (see
+# the context-aware rules below), so scanner.sh applies them with a small
+# bespoke function instead of the generic per-pattern loop. Their regexes
+# still live in this file so every rule stays defined in one place.
 
 readonly IOC_CONTENT_PATTERNS=(
 	$'Dynamic code execution\t(^|[^[:alnum:]_$])(eval|Function)[[:space:]]*\\('
-	$'Dynamic timer execution\t(setTimeout|setInterval)[[:space:]]*\\([^,]+,[[:space:]]*[0-9]+[[:space:]]*\\)'
-	$'Child-process execution\t(child_process|execFile|execFileSync|execSync|spawn|spawnSync|fork)[[:space:]]*\\('
+	$'Dynamic timer execution\t(setTimeout|setInterval)[[:space:]]*\\([[:space:]]*(["\'`][^,]*|[A-Za-z_$][A-Za-z0-9_$]*)[[:space:]]*,[[:space:]]*[0-9]+[[:space:]]*\\)'
 	$'Direct network module access\t(require|import)[^;]*["\'](http|https|net|tls|dgram)["\']'
 	$'Runtime global mutation\t(^|[^[:alnum:]_$])global([.]|\\[)'
-	$'Encoded payload primitives\t(atob|btoa|Buffer[.]from|Buffer[.]alloc|Buffer[.]concat)[[:space:]]*\\('
 	$'Computed global properties\tglobal[[:space:]]*\\[[[:space:]]*["\']'
-	$'Hex or Unicode string escapes\t\\\\x[0-9a-fA-F]{2}|\\\\u[0-9a-fA-F]{4}'
+	$'Hex or Unicode string escapes\t(\\\\x[0-9a-fA-F]{2}){4,}|(\\\\u[0-9a-fA-F]{4}){4,}'
 	$'Common string-table obfuscation\t(_0x[0-9a-fA-F]{3,}|_0X[0-9A-F]{3,})'
-	$'Suspicious decoder/string-table helpers\t(charCodeAt|fromCharCode|String[.]fromCharCode)[[:space:]]*\\('
+	$'Suspicious decoder/string-table helpers\t(fromCharCode|String[.]fromCharCode)[[:space:]]*\\('
 	$'Runtime source construction\t(new[[:space:]]+Function|constructor[[:space:]]*\\[[[:space:]]*["\']constructor["\']\\])'
 )
+
+# --- context-aware source rules -------------------------------------------------
+#
+# A regex alone over-fires on these two shapes, so scanner.sh pairs them with
+# a small amount of surrounding context (see scan_encoded_payload_primitives
+# and scan_child_process in scanner.sh):
+#
+# Encoded payload primitives — decoding/encoding a runtime value (an auth
+# header, a credential pair, a buffered response) is routine. It becomes a
+# signal when the result is handed to something that executes, or when the
+# call is decoding a sizeable literal blob baked into the source rather than
+# a value computed elsewhere.
+readonly IOC_ENCODED_PRIMITIVE_TITLE="Encoded payload primitives"
+readonly IOC_ENCODED_PRIMITIVE_PATTERN='(atob|btoa|Buffer[.]from|Buffer[.]alloc|Buffer[.]concat)[[:space:]]*\('
+readonly IOC_EXEC_NEARBY_PATTERN='(^|[^[:alnum:]_$])(eval|Function|execSync|execFileSync|execFile|exec|spawnSync|spawn)[[:space:]]*\(|(^|[^[:alnum:]_$])vm[.][A-Za-z]+[[:space:]]*\('
+readonly IOC_LONG_BASE64_LITERAL_PATTERN=$'["\'`][A-Za-z0-9+/]{40,}={0,2}["\'`]'
+readonly IOC_ENCODED_PRIMITIVE_WINDOW=3
+
+# Child-process execution — a literal, hardcoded command is the ordinary
+# shape of a build/import/CLI script, and a trailing Node-style options
+# object (`{ encoding: ..., stdio: ..., cwd: ... }`) is a strong tell that
+# this is a deliberate, ordinary child_process call rather than a quick
+# injected one-liner. It stays a signal when the command is assembled at
+# runtime (a bare variable, a template with interpolation, concatenation) or
+# invoked with no options object at all.
+readonly IOC_CHILD_PROCESS_TITLE="Child-process execution"
+readonly IOC_CHILD_PROCESS_PATTERN='(child_process|execFile|execFileSync|execSync|spawn|spawnSync|fork)[[:space:]]*\('
+readonly IOC_CHILD_PROCESS_SAFE_PATTERN=$'(execFile|execFileSync|execSync|spawn|spawnSync|fork)[[:space:]]*\\([[:space:]]*["\'][^"\'`+]*["\'][[:space:]]*[,)]'
+readonly IOC_CHILD_PROCESS_OPTIONS_OBJECT_PATTERN=',[[:space:]]*\{'
 
 # --- editor/workspace configuration -------------------------------------------
 #
@@ -112,6 +146,58 @@ readonly IOC_ENV_PATHSPEC=(
 	':(glob)**/.env'
 	':(glob)**/.env.*'
 	':(exclude,glob)**/*.example'
+)
+
+# --- clipboard / keystroke / screen capture + exfiltration ---------------------
+#
+# In September 2026 a macOS LaunchAgent wrapper launched a hidden Node script
+# that polled the system clipboard and forwarded every copy to a Telegram bot,
+# and no source scan could find it. The source scanner knew only npm
+# supply-chain indicators, so it missed the whole class. See
+# docs/incidents/2026-09-clipboard-telegram-launchagent.md.
+#
+# A capture API on its own is routine — a clipboard manager, a screenshot tool,
+# a test helper — so it is only half of the signal. scanner.sh applies these per
+# file (see scan_capture_exfil): a capture signal and an exfiltration signal in
+# the SAME file is HIGH. A few decisive shapes stand alone as MEDIUM: a
+# hardcoded bot token, the background-launcher wrapper, a persistence writer
+# beside a capture call, or a capture-shaped file name that reads the clipboard.
+# Plain README/markdown mentions, files under node_modules/.cache, and a
+# clipboard library that never reaches an endpoint must stay unflagged.
+#
+# These regexes are plain POSIX ERE fragments, matched with grep -E / ripgrep.
+
+# am-i-compromised-ignore: detector pattern definition, not a clipboard read
+readonly IOC_CAPTURE_CLIPBOARD_PATTERN='pbpaste|xclip|xsel|wl-paste|Get-Clipboard|clipboardy|clipboard-event|NSPasteboard|navigator\.clipboard\.readText|clipboard\.readText|pyperclip'
+readonly IOC_CAPTURE_INPUT_PATTERN='CGEventTap|pynput|iohook|node-global-key-listener|keylogger|screencapture|screenshot-desktop|pyautogui\.screenshot'
+readonly IOC_CAPTURE_TITLE="Clipboard/keystroke/screen capture with remote exfiltration"
+readonly IOC_EXFIL_PATTERN='api\.telegram\.org|/sendMessage|/sendDocument|node-telegram-bot-api|telegraf|[0-9]{8,10}:[A-Za-z0-9_-]{35}|discord(app)?\.com/api/webhooks|hooks\.slack\.com/services|webhook\.site|pastebin\.com/api|transfer\.sh|ngrok|(^|[^[:alnum:]_])(nc|ncat)[[:space:]][^|;&<>]*[0-9]{2,5}([[:space:]]|$)'
+readonly IOC_TELEGRAM_TOKEN_PATTERN='[0-9]{8,10}:[A-Za-z0-9_-]{35}'
+readonly IOC_TELEGRAM_TOKEN_TITLE="Telegram bot token literal"
+readonly IOC_PERSISTENCE_PATTERN='launchctl[[:space:]]+load|Library/LaunchAgents|crontab[[:space:]]+-|\.config/autostart'
+readonly IOC_PERSISTENCE_CAPTURE_TITLE="Persistence installed by a script that captures input"
+readonly IOC_CAPTURE_FILENAME_PATTERN='(clip|key|screen)[-_ ]?(logger|monitor|spy|grab)'
+readonly IOC_CAPTURE_FILENAME_TITLE="Capture-named script reads the clipboard or input"
+readonly IOC_WRAPPER_BG_PATTERN='nohup[[:space:]].*node[[:space:]].*\.js.*>>.*&'
+readonly IOC_WRAPPER_PIDFILE_PATTERN='[A-Za-z0-9_.-]+\.pid'
+readonly IOC_WRAPPER_TITLE="Background node launcher with a pid-file lock"
+readonly IOC_WRAPPER_PAYLOAD_TITLE="Background node launcher wraps a capture-and-exfiltrate payload"
+
+# Files a capture signal can live in: the capture-relevant source extensions,
+# plus (added at scan time) extensionless scripts with a shebang. See
+# IOC_CAPTURE_EXT_GLOBS and the second pass in scan_capture_exfil.
+readonly IOC_CAPTURE_EXT_GLOBS=(
+	--glob '*.js'
+	--glob '*.mjs'
+	--glob '*.cjs'
+	--glob '*.ts'
+	--glob '*.py'
+	--glob '*.sh'
+	--glob '*.zsh'
+	--glob '*.bash'
+	--glob '*.rb'
+	--glob '*.swift'
+	--glob '*.plist'
 )
 
 # Split a "TITLE<TAB>REGEX" entry into IOC_TITLE and IOC_PATTERN.

@@ -17,6 +17,10 @@ coverage/
 */package-lock.json
 *test/.bats/run-logs/
 
+# python
+__pycache__/
+*.pyc
+
 # scratch file that should never be committed
 */test.bats
 */test2/

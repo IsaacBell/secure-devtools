@@ -49,9 +49,21 @@ installed on the host (see [Requirements](#requirements)).
     downloads and runs a payload
   - executable payloads disguised as binary assets (JavaScript inside a `.woff2`,
     `.png`, `.ttf`, `.svg`, and similar files)
+  - clipboard, keystroke, and screen capture paired with exfiltration (a
+    Telegram/Discord/Slack/webhook endpoint, a bot token, `nc`/`ncat`), plus the
+    decisive single signals: a hardcoded bot token, a background-launcher
+    wrapper, or a persistence writer beside a capture call
 - Scans JS/TS/Python/Rust/Ruby/C/C++/C# sources, editor config, and binary-asset
   extensions out of the box
 - Excludes `node_modules`, build output, VCS dirs, and `.git`-adjacent noise
+- Context-aware where a bare regex would be noisy: a decode primitive
+  (`atob`, `Buffer.from`, ...) only trips the gate near an execution call or a
+  long embedded literal; `execSync`/`spawn`/... only trips it when the command
+  isn't a plain literal with a normal options object; `setTimeout`/`setInterval`
+  only trip it on a string first argument, not a callback; hex/unicode escapes
+  only trip it as a long adjacent run, not a lone ANSI color code
+- Reviewed lines can be marked safe with `am-i-compromised-ignore: <reason>` —
+  see [Suppressing a finding](#suppressing-a-finding)
 - Self-tests its own detection logic against quarantined malicious fixtures
 - Ships `safe-pull`, a guarded `git pull` that inspects incoming commits before
   anything reaches the working tree
@@ -131,7 +143,9 @@ In CI:
 - run: security-gate .
 ```
 
-Exit code is `0` when nothing is flagged and `1` when it finds something to review.
+Exit code is `0` when nothing unreviewed is flagged and `1` when it finds
+something to review. A suppressed finding (see below) never affects the exit
+code — only unreviewed findings do.
 
 ### Reading the output
 
@@ -142,10 +156,94 @@ single minified line cannot flood the report. Output is plain (no ANSI) when
 piped; colors are used only on a TTY (set `NO_COLOR` to disable). Findings
 are listed sorted by path, then line.
 
-If a finding is a false positive, **prefer changing the implementation** over
-suppressing the scanner from inside the source file. Malicious test fixtures
-should live outside the scanned tree (the scanner excludes directories named
-`__security_gate_fixtures__` unless `INCLUDE_FIXTURES=1`).
+If a finding is a false positive because the *pattern* is too broad, that's a
+scanner bug — please [open an issue](https://github.com/IsaacBell/secure-devtools/issues).
+If the code itself can reasonably be rewritten to stop matching, **prefer
+that** over suppressing. Malicious test fixtures should live outside the
+scanned tree (the scanner excludes directories named `__security_gate_fixtures__`
+unless `INCLUDE_FIXTURES=1`). For the remaining case — the match is accurate
+and the code is genuinely fine as written — mark it reviewed instead:
+
+### Suppressing a finding
+
+Some findings are real matches on code that is genuinely safe — a giant
+hardcoded string literal, a command built from a value that's already been
+validated, and so on. For those, mark the line reviewed instead of
+rewriting working code to dodge the pattern:
+
+```js
+const decoded = atob(header); // am-i-compromised-ignore: decodes a request header, not a payload
+```
+
+The marker is `am-i-compromised-ignore:` followed by a reason, on the
+finding's own line or the line immediately before it (handy when the flagged
+line is too long to comment on directly, like a huge literal):
+
+```js
+// am-i-compromised-ignore: bee movie script fixture, not obfuscated code
+const script = "...49,000 characters...";
+```
+
+The reason is required — a marker with nothing after the colon does not
+suppress anything, so an empty "make it go away" comment can't quietly defeat
+the gate. The marker is recognized as plain text anywhere on the line; it
+does not need to sit inside any particular comment syntax, since the scanner
+reads half a dozen languages.
+
+Suppressed findings are **never dropped silently**. They are counted and
+listed in their own section of the report on every run, including a clean
+one, so a suppression can't quietly go stale or hide a second, unrelated
+issue on the same line:
+
+```
+security-gate: 1 finding suppressed by inline comment
+
+  src/auth.ts:42
+    const decoded = atob(header); // am-i-compromised-ignore: decodes a request header, not a payload
+    → Encoded payload primitives (suppressed)
+    reason: decodes a request header, not a payload
+```
+
+This marker is honored by `security-gate`/`scanner` only. **`safe-pull` does
+not read it.** `safe-pull` inspects commits nobody has reviewed yet — that's
+the entire point of the guard — so a marker written by whoever authored the
+incoming diff must never be able to wave off their own payload.
+
+## Clipboard/keylogger/exfil detection
+
+A scanner that only knows npm supply-chain patterns misses a whole class of
+malware: a hidden script that reads the clipboard — or the keyboard, or the
+screen — and forwards what it captures to a remote service. In September 2026 a
+macOS LaunchAgent wrapper started a Node script that posted every clipboard
+change to a Telegram bot, and no source scan could see it.
+
+A capture API on its own is ordinary (clipboard managers, screenshot tools,
+test helpers), so these signals are combined **per file**: a capture signal and
+an exfiltration signal in the *same* file is reported as HIGH, while a few
+decisive shapes stand alone as MEDIUM. The check covers `.js`, `.mjs`, `.cjs`,
+`.ts`, `.py`, `.sh`, `.zsh`, `.bash`, `.rb`, `.swift`, `.plist`, and
+extensionless scripts with a shebang.
+
+| Signal group | Example indicators | Severity |
+| --- | --- | --- |
+| Clipboard read | `pbpaste`, `xclip`, `xsel`, `wl-paste`, `Get-Clipboard`, `clipboardy`, `clipboard-event`, `NSPasteboard`, `navigator.clipboard.readText`, `pyperclip` | context |
+| Keystroke / screen capture | `CGEventTap`, `pynput`, `iohook`, `node-global-key-listener`, `keylogger`, `screencapture`, `screenshot-desktop`, `pyautogui.screenshot` | context |
+| Exfiltration | `api.telegram.org`, `/sendMessage`, `/sendDocument`, `node-telegram-bot-api`, `telegraf`, Discord/Slack webhooks, `webhook.site`, `pastebin.com/api`, `transfer.sh`, `ngrok`, `nc`/`ncat` to a host, bot-token shape `[0-9]{8,10}:[A-Za-z0-9_-]{35}` | context |
+| Capture **and** exfiltration in one file | any capture signal together with any exfiltration signal | HIGH |
+| Hardcoded Telegram bot token | a `123456789:AAA…` token literal in any scanned file | MEDIUM |
+| Background launcher wrapper | `nohup node <payload>.js >> <log> &` behind a pid-file lock | MEDIUM |
+| …with a live payload | the named `<payload>.js` sits beside it and captures + exfiltrates | HIGH |
+| Persistence beside capture | `launchctl load`, `~/Library/LaunchAgents`, `crontab -`, `~/.config/autostart` in a script that also captures | MEDIUM |
+| Capture-shaped file name | name matching `(clip|key|screen)[-_ ]?(logger|monitor|spy|grab)` that reads the clipboard or input | MEDIUM |
+
+Files under `node_modules`/`.cache`, build output, and the fixtures dir are
+never scanned, so a README mention or a vendor's own clipboard-library source
+with no exfiltration endpoint does not trip the gate. Reviewed matches can still
+be marked safe with `am-i-compromised-ignore:` (see above).
+
+`security-gate host` audits the machine itself for the persistence side of this
+same class — launch agents, shell startup files, AI-tool config, and running
+processes.
 
 ## Guarded pull (`safe-pull`)
 

