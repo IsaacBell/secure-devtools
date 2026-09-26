@@ -43,11 +43,13 @@ set -u
 
 usage() {
 	cat <<'EOF'
-usage: am-i-compromised host [--verbose]
+usage: am-i-compromised host [--verbose] [dir]
 
 Read-only audit of this machine: login persistence, shell startup files,
 AI-tool configuration, and running processes. Exits 1 if anything needs review.
 
+  dir             project whose AI-tool config (.claude/, .mcp.json) is checked
+                  (default: the current directory). No root or sudo is needed.
   -v, --verbose   also list informational items and every persistence entry
   -h, --help      show this help
 
@@ -57,6 +59,7 @@ EOF
 }
 
 VERBOSE=0
+PROJECT_ARG=""
 for arg in "$@"; do
 	case "$arg" in
 	-v | --verbose) VERBOSE=1 ;;
@@ -64,13 +67,18 @@ for arg in "$@"; do
 		usage
 		exit 0
 		;;
-	*)
+	-*)
 		echo "host-audit: unknown option '$arg'" >&2
 		usage >&2
 		exit 2
 		;;
+	*) PROJECT_ARG="$arg" ;;
 	esac
 done
+if [[ -n "$PROJECT_ARG" && ! -d "$PROJECT_ARG" ]]; then
+	echo "host-audit: '$PROJECT_ARG' is not a directory" >&2
+	exit 2
+fi
 
 HOME_DIR="${AIC_HOST_HOME:-${HOME:-}}"
 [[ -n "$HOME_DIR" ]] || HOME_DIR="$(cd ~ 2>/dev/null && pwd)" || HOME_DIR=""
@@ -78,9 +86,13 @@ if [[ -z "$HOME_DIR" ]]; then
 	echo "host-audit: cannot determine the home directory (HOME is unset)." >&2
 	exit 2
 fi
-PROJECT_DIR="${AIC_HOST_PROJECT:-$PWD}"
+if [[ -n "$PROJECT_ARG" ]]; then
+	PROJECT_DIR="$(cd "$PROJECT_ARG" && pwd)"
+else
+	PROJECT_DIR="${AIC_HOST_PROJECT:-$PWD}"
+fi
 OS="${AIC_HOST_OS:-$(uname -s)}"
-ALLOW_FILE="${AIC_HOST_ALLOW:-$HOME_DIR/.config/am-i-compromised/host-allow.txt}"
+ALLOW_FILE="${AIC_HOST_ALLOW:-${XDG_CONFIG_HOME:-$HOME_DIR/.config}/am-i-compromised/host-allow.txt}"
 
 if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
 	C_RED=$'\033[31m' C_YELLOW=$'\033[33m' C_GREEN=$'\033[32m' C_DIM=$'\033[2m' C_BOLD=$'\033[1m' C_RESET=$'\033[0m'
@@ -89,11 +101,12 @@ else
 fi
 
 readonly US=$'\037'
-FINDINGS=""  # records: rank+sev US id US title US where US evidence US next
-ALLOWED=""   # the same, plus a trailing US reason
-INVENTORY="" # one line per persistence entry (shown with --verbose)
-SEEN="|"     # ids already recorded
-RC_SEEN="|"  # startup files already scanned, so a source loop cannot recurse
+FINDINGS=""           # records: rank+sev US id US title US where US evidence US next
+PERSISTENCE_CHECKED=1 # 0 when this OS has no persistence checks, so PASSED never claims one
+ALLOWED=""            # the same, plus a trailing US reason
+INVENTORY=""          # one line per persistence entry (shown with --verbose)
+SEEN="|"              # ids already recorded
+RC_SEEN="|"           # startup files already scanned, so a source loop cannot recurse
 JQ_NOTED=0
 
 # --- indicator definitions ------------------------------------------------------
@@ -103,7 +116,7 @@ RE_CLIP_READ='pbpaste|NSPasteboard|generalPasteboard|clipboardy|pyperclip|xclip|
 RE_CAPTURE_WORD='clipboard|pasteboard|keylog|keystroke'
 RE_KEYLOG='CGEventTap|kCGEventKeyDown|IOHIDManager|addGlobalMonitorForEvents|pynput|logkeys'
 RE_SCREEN='screencapture[[:space:]]|CGDisplayCreateImage|CGWindowListCreateImage|scrot[[:space:]]|import[[:space:]]+-window[[:space:]]+root'
-RE_EXFIL_URL='api\.telegram\.org|discord(app)?\.com/api/webhooks|hooks\.slack\.com/services|webhook\.site|pastebin\.com/api|transfer\.sh|requestbin|ngrok\.(io|app|dev)|sendMessage'
+RE_EXFIL_URL='api\.telegram\.org|discord(app)?\.com/api/webhooks|hooks\.slack\.com/services|webhook\.site|pastebin\.com/api|transfer\.sh|requestbin|ngrok\.(io|app|dev)|/sendMessage([?/]|$)'
 RE_EXFIL_WORD='telegram|discord|webhook'
 RE_BG_LAUNCH='nohup[[:space:]].*&'
 # Names used by capture-tool folders and by the September 2026 incident. Kept
@@ -491,7 +504,7 @@ audit_plist() {
 	# Repeating or event-triggered jobs that run a script from the user's own
 	# files are a persistence pattern: unloading them once does not stop them.
 	if printf '%s\n' "$xml" | grep -qE '<key>(StartInterval|StartCalendarInterval|WatchPaths)</key>'; then
-		for a in "$program" "${args[@]}"; do
+		for a in "$program" ${args[@]+"${args[@]}"}; do
 			[[ "$a" == /* ]] || continue
 			staging_zone "$a" && wa=1
 			case "$a" in "$HOME_DIR"/*) wa=1 ;; esac
@@ -627,7 +640,7 @@ rc_rules() {
 	rc_rule "$f" "$disp" MEDIUM "sudo, su or ssh replaced by an alias or function" 'alias[[:space:]]+(sudo|su|ssh|scp|git|npm|npx|security)=|^[[:space:]]*(function[[:space:]]+)?(sudo|su|ssh)[[:space:]]*[(][)]' "This is how passwords and tokens get captured. Confirm you wrote it."
 	rc_rule "$f" "$disp" MEDIUM "Background launcher from a user-writable path" '(nohup|setsid|disown)[^#]*(application support|/tmp/|/var/tmp/|/private/tmp/|/var/folders/|/[.][[:alnum:]_-]+/)' "Confirm you wrote it."
 	rc_rule "$f" "$disp" MEDIUM "PATH is prefixed with a writable directory" 'path=.*(/tmp|/var/tmp|/private/tmp|/var/folders|application support|/users/shared|/downloads|/[.]cache)/' "Confirm you added it. A writable directory early on PATH lets its contents run as you."
-	RC_EXEMPT='/[.](cargo|deno|bun|rvm|nvm|pyenv|rbenv|sdkman|asdf|volta|fnm|ghcup|opam|orbstack|oh-my-zsh|local/bin|config/(fish|zsh|nvm))/' \
+	RC_EXEMPT='/[.](cargo|deno|bun|rvm|nvm|pyenv|rbenv|sdkman|asdf|volta|fnm|ghcup|opam|orbstack|oh-my-zsh|zinit|zplug|antigen|zprezto|fzf|tmux|conda|local/bin|config/(fish|zsh|nvm|gh))/' \
 		rc_rule "$f" "$disp" MEDIUM "A startup file loads a script from a writable or hidden directory" '(^|[^[:alnum:]_])(source|\.)[[:space:]]+[^#]*(([$]home|~)?/(tmp|var/tmp|private/tmp|var/folders|users/shared|downloads)/|application support|/[.][[:alnum:]_-]+/)' "Confirm you know this file. A sourced script runs with the same access you have."
 	rc_rule "$f" "$disp" MEDIUM "AppleScript run from a startup file" 'osascript[[:space:]]+-e' "Confirm you wrote it."
 	rc_rule "$f" "$disp" MEDIUM "AI-tool API base URL redirected in a startup file" '(anthropic|openai|gemini|openrouter|google)[a-z_]*(base_url|api_url|endpoint|host)[[:space:]]*=' "Model traffic and credentials go wherever this points. Confirm you set it."
@@ -674,6 +687,13 @@ audit_rc_files() {
 		disp="${f#"$HOME_DIR"/}"
 		audit_rc_file "$f" "$disp"
 	done
+	# zsh reads its startup files from ZDOTDIR when it is set; ~/.zshenv (above) usually sets it.
+	if [[ -n "${ZDOTDIR:-}" && "$ZDOTDIR" != "$HOME_DIR" && -d "$ZDOTDIR" ]]; then
+		for f in "$ZDOTDIR"/.zshrc "$ZDOTDIR"/.zprofile "$ZDOTDIR"/.zshenv "$ZDOTDIR"/.zlogin; do
+			[[ -f "$f" ]] || continue
+			audit_rc_file "$f" "ZDOTDIR/${f##*/}"
+		done
+	fi
 	for fd in "$HOME_DIR"/.config/fish/conf.d/*.fish; do
 		[[ -f "$fd" ]] || continue
 		audit_rc_file "$fd" "${fd#"$HOME_DIR"/}"
@@ -707,6 +727,25 @@ url_host() {
 	*:*) printf '%s' "${h%%:*}" ;;
 	*) printf '%s' "$h" ;;
 	esac
+}
+
+# url_port <url> — the port of the authority, or nothing. A colon in the path
+# or in userinfo is not a port.
+url_port() {
+	local h="$1" p=""
+	[[ "$h" == *://* ]] && h="${h#*://}"
+	h="${h%%/*}"
+	h="${h##*@}"
+	case "$h" in
+	'['*']:'*) p="${h##*]:}" ;;
+	'['*) ;;
+	*:*:*) ;;
+	*:*) p="${h##*:}" ;;
+	esac
+	case "$p" in
+	'' | *[!0-9]*) return 0 ;;
+	esac
+	printf '%s' "$p"
 }
 
 # is_loopback_host <host> — every shape of "this machine" that a proxy can bind.
@@ -763,7 +802,7 @@ audit_agent_text() {
 		looks_like_host "$url" || continue
 		host="$(url_host "$url")"
 		if is_loopback_host "$host"; then
-			port="$(printf '%s' "$url" | sed -nE 's#.*:([0-9]{2,5})[/" }]?.*#\1#p')"
+			port=$(url_port "$url")
 			who=""
 			[[ -n "$port" ]] && who="$(listener_for_port "$port")"
 			finding HIGH "agent:$disp:base-url:$n" "Model traffic is routed through a local proxy" "$disp:$n" "$(printf '%s' "$url" | redact); listener: ${who:-none found}" "Find out what listens on that port and who installed it. It sees every prompt, file and key your tool sends."
@@ -825,6 +864,10 @@ hook_dangerous_path() {
 	local cmd="$1"
 	if printf '%s' "$cmd" | grep -Eq "$RE_HOOK_BAD_PATH"; then
 		return 0
+	fi
+	# Language-toolchain bin directories are where pipx, cargo, bun and friends install tools.
+	if has "$cmd" '/\.(local/bin|cargo/bin|bun/bin|volta/bin|nvm/versions|pnpm)/'; then
+		return 1
 	fi
 	if printf '%s' "$cmd" | grep -Eq '/\.[[:alnum:]_-]+/' &&
 		! has "$cmd" '/\.(claude|codex|cursor|gemini|config)/'; then
@@ -1035,6 +1078,10 @@ microphone, camera, screen and input-monitoring permissions, run
 EOF
 		return 1
 	fi
+	if [[ "$PERSISTENCE_CHECKED" == 0 ]]; then
+		printf '%shost-audit: PASSED%s — no indicators found, but persistence was not checked (no login-item checks for %s). Checked: shell startup files, AI-tool configuration, running processes\n' "$C_YELLOW" "$C_RESET" "$OS"
+		return 0
+	fi
 	printf '%shost-audit: PASSED%s — no indicators found (checked: persistence, shell startup files, AI-tool configuration, running processes)\n' "$C_GREEN" "$C_RESET"
 	return 0
 }
@@ -1045,6 +1092,7 @@ Darwin)
 	audit_payload_dirs
 	;;
 Linux) audit_linux_units ;;
+*) PERSISTENCE_CHECKED=0 ;;
 esac
 audit_cron
 audit_rc_files

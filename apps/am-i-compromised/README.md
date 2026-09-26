@@ -1,4 +1,4 @@
-# Am I Compromised?
+# 🕵️ Am I Compromised?
 
 [![npm version](https://img.shields.io/npm/v/am-i-compromised)](https://www.npmjs.com/package/am-i-compromised)
 [![npm downloads](https://img.shields.io/npm/dm/am-i-compromised)](https://www.npmjs.com/package/am-i-compromised)
@@ -6,133 +6,56 @@
 [![CI](https://github.com/IsaacBell/secure-devtools/actions/workflows/ci.yml/badge.svg)](https://github.com/IsaacBell/secure-devtools/actions/workflows/ci.yml)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](https://github.com/IsaacBell/secure-devtools/blob/main/CONTRIBUTING.md)
 
-## See it in action
+> *Check the code you're about to run, and the machine you're running it on.*
 
 ![security-gate scan demo](https://raw.githubusercontent.com/IsaacBell/secure-devtools/main/apps/am-i-compromised/demo-security-gate.gif)
 
-A tiny [IoC](https://en.wikipedia.org/wiki/Indicator_of_compromise) scanner that flags
-source-level indicators of malicious or compromised code before you start a dev server or
-merge a pull request.
+## 🌟 Highlights
 
-It is a **heuristic pre-flight check**, not a malware scanner. It cannot prove a
-repository is safe — it catches signals that *should* make you look closer.
+- **Two checks, one command.** Scan a project for malicious code, or audit *this machine* for
+  the things source scans can't see: launch agents, shell startup files, AI-tool config, and
+  running processes.
+- **Catches clipboard and keystroke stealers.** Capture code paired with a Telegram, Discord,
+  Slack or webhook endpoint is flagged, including the hidden LaunchAgent that starts it.
+- **Watches your AI tools.** Flags a local proxy set as your model's base URL, hooks that run
+  code from `node_modules` or a writable path, switched-off permission prompts, and plain-text keys.
+- **Zero npm runtime dependencies.** Plain shell, so there is no install-time tree to audit.
+- **Honest about noise.** Reviewed lines are marked safe with a reason, and suppressed findings
+  are still listed on every run.
+- **Fits your workflow.** Exit code `1` on findings, so it drops into a dev script or CI. A
+  guarded `git pull` (`safe-pull`) is included.
 
-> **Zero npm runtime dependencies.** The shipped tool is plain shell — there is no
-> install-time dependency tree to audit. It only needs `bash`, `ripgrep`, and `jq` on the
-> host.
+## ℹ️ Overview
 
-## Try it now
+`am-i-compromised` is a small [indicator-of-compromise](https://en.wikipedia.org/wiki/Indicator_of_compromise)
+checker. It is a **heuristic pre-flight check**, not a malware scanner: it cannot prove
+anything is safe, it flags signals that *should* make you look closer.
 
-No install required — fetch and run on demand:
+It started after a clipboard-to-Telegram LaunchAgent ran on a developer's Mac for two weeks and
+the old scanner, which only read source trees, never saw it. `host` exists because of that.
 
-```sh
-npx am-i-compromised .       # npm
-pnpm dlx am-i-compromised .  # pnpm
-```
+Part of the `secure-devtools` monorepo.
 
-Scans the current directory for malicious patterns. Exit code `0` = nothing found,
-`1` = findings to review. First run downloads the package; `rg` and `jq` must be
-installed on the host (see [Requirements](#requirements)).
-
-## Features
-
-- Flags patterns associated with malware and obfuscated code:
-  - dynamic code execution (`eval`, `new Function`, ...)
-  - child-process execution (`child_process`, `spawn`, `execSync`, ...)
-  - direct network module access
-  - runtime global mutation
-  - encoded/obfuscated payloads (`atob`, hex/unicode escapes, `_0x…` string tables, ...)
-  - suspicious `package.json` scripts (scanned with `jq`)
-  - unusually long source lines
-  - editor/workspace config that runs code unprompted — a `.vscode/tasks.json` with
-    `runOn: folderOpen`, `task.allowAutomaticTasks`, or an MCP `stdio` server that
-    downloads and runs a payload
-  - executable payloads disguised as binary assets (JavaScript inside a `.woff2`,
-    `.png`, `.ttf`, `.svg`, and similar files)
-  - clipboard, keystroke, and screen capture paired with exfiltration (a
-    Telegram/Discord/Slack/webhook endpoint, a bot token, `nc`/`ncat`), plus the
-    decisive single signals: a hardcoded bot token, a background-launcher
-    wrapper, or a persistence writer beside a capture call
-- Scans JS/TS/Python/Rust/Ruby/C/C++/C# sources, editor config, and binary-asset
-  extensions out of the box
-- Excludes `node_modules`, build output, VCS dirs, and `.git`-adjacent noise
-- Context-aware where a bare regex would be noisy: a decode primitive
-  (`atob`, `Buffer.from`, ...) only trips the gate near an execution call or a
-  long embedded literal; `execSync`/`spawn`/... only trips it when the command
-  isn't a plain literal with a normal options object; `setTimeout`/`setInterval`
-  only trip it on a string first argument, not a callback; hex/unicode escapes
-  only trip it as a long adjacent run, not a lone ANSI color code
-- Reviewed lines can be marked safe with `am-i-compromised-ignore: <reason>` —
-  see [Suppressing a finding](#suppressing-a-finding)
-- Self-tests its own detection logic against quarantined malicious fixtures
-- Ships `safe-pull`, a guarded `git pull` that inspects incoming commits before
-  anything reaches the working tree
-
-## Requirements
-
-| Dependency | Needed for | Install |
-| --- | --- | --- |
-| `bash` 4+ | running the scanner | preinstalled on macOS/Linux |
-| `rg` (ripgrep) | source scanning | `brew install ripgrep` / `apt-get install ripgrep` |
-| `jq` | inspecting `package.json` scripts | `brew install jq` / `apt-get install jq` |
-
-macOS and Linux are supported.
-
-## Install
-
-Install it as a dev dependency so a `security-gate` script can run before your dev server:
+## 🚀 Usage
 
 ```sh
-npm install --save-dev am-i-compromised
-# or: pnpm add -D am-i-compromised
-```
-
-The package exposes three names for the same scanner script:
-
-- `am-i-compromised` — matches the package name, so `npx` / `pnpm dlx` can fetch and run
-  it on demand with no install step
-- `security-gate` — descriptive and collision-resistant; recommended for project-local
-  scripts
-- `scanner` — short alias (generic; may collide with other tools if installed globally)
-
-Prefer `security-gate` inside a project and `npx`/`pnpm dlx` for one-off scans.
-
-## Usage
-
-```sh
-# Scan the current directory (default)
-security-gate
-
-# Scan a specific directory
-security-gate path/to/project
-
-# Include the __security_gate_fixtures__ dir (self-test mode)
-INCLUDE_FIXTURES=1 security-gate .
-```
-
-No-install, fetch-on-demand (first run downloads the package):
-
-```sh
-# npm
+# Scan a project (defaults to the current directory)
 npx am-i-compromised .
 
-# pnpm
-pnpm dlx am-i-compromised .
+# Audit this machine (read-only, no root or sudo, does not need ripgrep).
+# Also checks the AI-tool config of the current folder, or of a folder you name.
+npx am-i-compromised host [path/to/project]
 ```
 
-Or invoke a specific bin explicitly:
+Exit code `0` means nothing found, `1` means findings to review. Add `--verbose` to `host` to
+also list informational entries.
 
-```sh
-npx --package am-i-compromised security-gate .
-```
-
-In `package.json`, run it before starting your dev server:
+In `package.json`, run the scan before your dev server:
 
 ```json
 {
   "scripts": {
-    "dev": "security-gate . && next dev",
-    "security": "security-gate ."
+    "dev": "security-gate . && next dev"
   }
 }
 ```
@@ -140,14 +63,75 @@ In `package.json`, run it before starting your dev server:
 In CI:
 
 ```yaml
-- run: security-gate .
+- run: npx am-i-compromised .
 ```
 
-Exit code is `0` when nothing unreviewed is flagged and `1` when it finds
-something to review. A suppressed finding (see below) never affects the exit
-code — only unreviewed findings do.
+More below: how to read the output, how to suppress a reviewed finding, the host audit, and
+[safe-pull](#guarded-pull-safe-pull). System-wide Linux units and `/etc/cron.*` are not covered yet.
 
-### Reading the output
+## ⬇️ Installation
+
+No install needed with `npx` / `pnpm dlx`. To keep it in a project:
+
+```sh
+npm install --save-dev am-i-compromised   # or: pnpm add -D am-i-compromised
+```
+
+macOS and Linux. Requirements:
+
+| Command | Needs |
+| --- | --- |
+| `am-i-compromised <dir>` | `bash` 4.2+, `rg` ([ripgrep](https://github.com/BurntSushi/ripgrep)), `jq` |
+| `am-i-compromised host` | `bash` 3.2+ (the macOS default works). `jq` is optional but needed to read AI-tool hooks and MCP servers |
+
+macOS ships bash 3.2. The project scan re-runs itself under a newer bash if you have one
+(for example `brew install bash`) and otherwise tells you what to install. Install `rg` and `jq`
+with `brew install ripgrep jq` or `apt-get install ripgrep jq`.
+
+The package installs three names for the same scanner: `am-i-compromised`, `security-gate`
+(good for project scripts) and `scanner` (short; may collide with other tools).
+
+## 🔎 What the project scan detects
+
+- Dynamic code execution (`eval`, `new Function`, ...), child-process execution, direct network
+  module access, runtime global mutation
+- Encoded or obfuscated payloads (`atob`, hex/unicode escapes, `_0x...` string tables), and
+  unusually long source lines
+- Suspicious `package.json` scripts (scanned with `jq`)
+- Editor or workspace config that runs code unprompted: `.vscode/tasks.json` with
+  `runOn: folderOpen`, `task.allowAutomaticTasks`, or an MCP `stdio` server that downloads and
+  runs a payload
+- Executable payloads disguised as binary assets (JavaScript inside a `.woff2`, `.png`, ...)
+- Clipboard, keystroke or screen capture paired with exfiltration, see
+  [below](#clipboardkeyloggerexfil-detection)
+
+It scans JS/TS/Python/Rust/Ruby/C/C++/C# sources out of the box and skips `node_modules`, build
+output and VCS dirs. Where a bare regex would be noisy it wants context: a decode call only
+trips near an execution call or a long literal, and a lone ANSI color escape is not a payload.
+
+## 🖥️ Host audit
+
+`am-i-compromised host` checks the machine, read-only. It never changes anything and never
+prints secret values.
+
+| Area | What it looks for |
+| --- | --- |
+| Persistence | launchd (macOS), user systemd units and XDG autostart (Linux), and the user crontab: entries that capture the clipboard, keys or screen, or send to Telegram/Discord/webhooks; scripts in user-writable places; entries that point at a missing program; `com.apple.*` labels planted in your own directories; unreadable or unparsable plists |
+| Shell startup files | piping a download to a shell, decoded payloads, `eval` of downloaded code, `DYLD_INSERT_LIBRARIES`, `NODE_OPTIONS --require`, disabled TLS checks, extra CA bundles, proxies, `sudo`/`ssh` aliases, and scripts sourced from writable dirs (one level deep) |
+| AI-tool config | Claude, Codex, Cursor, Gemini, Kilo and OpenCode settings: a model base URL pointed at loopback or a non-vendor host, hooks that run code from a writable path or observe every prompt, disabled permission prompts, plain-text keys, unpinned MCP servers, TLS-off and preload variables |
+| Processes | interpreters running from staging directories, and the full command of whatever listens on a suspicious local port |
+
+Findings are `HIGH`, `MEDIUM` or `INFO`. `HIGH` and `MEDIUM` exit `1`. To accept something you
+have reviewed, add its id and a reason to `~/.config/am-i-compromised/host-allow.txt`:
+
+```text
+agent:~/.claude/settings.json:base-url:3 | local LiteLLM gateway I run myself
+```
+
+It honors `CLAUDE_CONFIG_DIR` and `CODEX_HOME`. Toolchain files from nvm, rvm, cargo, conda and
+friends are not flagged just for being sourced from a hidden directory.
+
+## Reading the output
 
 Each unique `file:line` is reported once with every indicator category that
 matched it, so one suspicious location is easy to review instead of being
@@ -164,7 +148,7 @@ scanned tree (the scanner excludes directories named `__security_gate_fixtures__
 unless `INCLUDE_FIXTURES=1`). For the remaining case — the match is accurate
 and the code is genuinely fine as written — mark it reviewed instead:
 
-### Suppressing a finding
+## Suppressing a finding
 
 Some findings are real matches on code that is genuinely safe — a giant
 hardcoded string literal, a command built from a value that's already been
