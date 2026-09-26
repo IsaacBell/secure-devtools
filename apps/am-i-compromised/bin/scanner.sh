@@ -49,15 +49,15 @@ if [[ "${1:-}" == "host" ]]; then
 	exec bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/host-audit.sh" "$@"
 fi
 
-# The source scan uses associative arrays, which need bash 4+. macOS ships 3.2 as
+# The source scan uses associative arrays and `[[ -v arr[key] ]]`, which need bash 4.2+. macOS ships 3.2 as
 # /bin/bash, so look for a newer bash and re-run under it, or say what to install.
-if ((BASH_VERSINFO[0] < 4)); then
+if ((BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 2))); then
 	for newer_bash in /opt/homebrew/bin/bash /usr/local/bin/bash /opt/local/bin/bash /home/linuxbrew/.linuxbrew/bin/bash; do
-		if [[ -x "$newer_bash" ]] && "$newer_bash" -c '((BASH_VERSINFO[0] >= 4))' 2>/dev/null; then
+		if [[ -x "$newer_bash" ]] && "$newer_bash" -c '((BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 2)))' 2>/dev/null; then
 			exec "$newer_bash" "${BASH_SOURCE[0]}" "$@"
 		fi
 	done
-	echo "scanner: bash 4 or newer is required (this is bash ${BASH_VERSION%%(*})." >&2
+	echo "scanner: bash 4.2 or newer is required (this is bash ${BASH_VERSION%%(*})." >&2
 	echo "scanner: install it (e.g. brew install bash), or run 'am-i-compromised host', which works on bash 3.2." >&2
 	exit 1
 fi

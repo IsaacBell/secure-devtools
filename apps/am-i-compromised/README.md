@@ -80,7 +80,7 @@ macOS and Linux. Requirements:
 
 | Command | Needs |
 | --- | --- |
-| `am-i-compromised <dir>` | `bash` 4+, `rg` ([ripgrep](https://github.com/BurntSushi/ripgrep)), `jq` |
+| `am-i-compromised <dir>` | `bash` 4.2+, `rg` ([ripgrep](https://github.com/BurntSushi/ripgrep)), `jq` |
 | `am-i-compromised host` | `bash` 3.2+ (the macOS default works). `jq` is optional but needed to read AI-tool hooks and MCP servers |
 
 macOS ships bash 3.2. The project scan re-runs itself under a newer bash if you have one
