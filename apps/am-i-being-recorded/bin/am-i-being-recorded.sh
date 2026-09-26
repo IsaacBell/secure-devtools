@@ -99,17 +99,18 @@ severity_rank() {
 }
 
 total_findings() {
-	# nosemgrep: apps.secure-semgrep.rules.bash.unquoted-variable-expansion-in-command -- already quoted or arithmetic; rule false positive
-	printf '%s' "$((SEV_TOTAL[CRITICAL] + SEV_TOTAL[HIGH] + SEV_TOTAL[MEDIUM] + SEV_TOTAL[LOW]))"
+	local n=0 sev
+	for sev in CRITICAL HIGH MEDIUM LOW; do
+		((n += SEV_TOTAL[$sev]))
+	done
+	printf '%s' "$n"
 }
 
 # severity_at_or_above <severity> <floor> — true when <severity> is as bad as <floor> or worse.
 severity_at_or_above() {
 	local rank floor
-	# nosemgrep: apps.secure-semgrep.rules.bash.unquoted-command-substitution-in-command -- already quoted; rule false positive
-	rank="$(severity_rank "$1")"
-	# nosemgrep: apps.secure-semgrep.rules.bash.unquoted-command-substitution-in-command -- already quoted; rule false positive
-	floor="$(severity_rank "$2")"
+	rank=$(severity_rank "$1")
+	floor=$(severity_rank "$2")
 	[[ "$rank" -le "$floor" ]]
 }
 
@@ -118,8 +119,7 @@ reported_findings() {
 	local total=0 sev
 	for sev in "${SEVERITIES[@]}"; do
 		if severity_at_or_above "$sev" "$MIN_SEVERITY"; then
-			# nosemgrep: apps.secure-semgrep.rules.bash.unquoted-variable-expansion-in-command -- arithmetic expansion; rule false positive
-			total=$((total + SEV_TOTAL[$sev]))
+			((total += SEV_TOTAL[$sev]))
 		fi
 	done
 	printf '%s' "$total"
@@ -155,8 +155,9 @@ EOF
 }
 
 default_root() {
-	# nosemgrep: apps.secure-semgrep.rules.bash.unquoted-command-substitution-in-command -- already quoted or arithmetic; rule false positive
-	case "$(uname -s)" in
+	local os
+	os=$(uname -s)
+	case "$os" in
 	Darwin) printf '%s' "$HOME/Library/Application Support" ;;
 	*) printf '%s' "${XDG_CONFIG_HOME:-$HOME/.config}" ;;
 	esac
@@ -172,16 +173,13 @@ list_has() {
 resolve_name() {
 	local manifest="$1"
 	local name extdir key msg resolved
-	# nosemgrep: apps.secure-semgrep.rules.bash.unquoted-command-substitution-in-command -- already quoted or arithmetic; rule false positive
-	name="$(jq -r '.name // empty' "$manifest" 2>/dev/null || true)"
+	name=$(jq -r '.name // empty' "$manifest" 2>/dev/null || true)
 	if [[ "$name" =~ ^__MSG_(.+)__$ ]]; then
 		key="${BASH_REMATCH[1]}"
-		# nosemgrep: apps.secure-semgrep.rules.bash.unquoted-command-substitution-in-command -- already quoted or arithmetic; rule false positive
-		extdir="$(dirname "$manifest")"
+		extdir=$(dirname "$manifest")
 		for msg in "$extdir"/_locales/en*/messages.json; do
 			[[ -f "$msg" ]] || continue
-			# nosemgrep: apps.secure-semgrep.rules.bash.unquoted-command-substitution-in-command -- already quoted or arithmetic; rule false positive
-			resolved="$(jq -r --arg k "$key" '.[$k].message // empty' "$msg" 2>/dev/null || true)"
+			resolved=$(jq -r --arg k "$key" '.[$k].message // empty' "$msg" 2>/dev/null || true)
 			if [[ -n "$resolved" ]]; then
 				name="$resolved"
 				break
@@ -189,7 +187,6 @@ resolve_name() {
 		done
 		# A localized name whose key is missing from _locales is not a name.
 		if [[ "$name" == __MSG_*__ ]]; then
-			# nosemgrep: apps.secure-semgrep.rules.bash.unquoted-variable-expansion-in-command -- already quoted or arithmetic; rule false positive
 			name="(unknown)"
 		fi
 	fi
@@ -362,7 +359,9 @@ live_check_linux() {
 }
 
 live_check() {
-	case "$(uname -s)" in
+	local os
+	os=$(uname -s)
+	case "$os" in
 	Darwin) live_check_macos ;;
 	Linux) live_check_linux ;;
 	*) NOTES+=("live checks skipped: unsupported platform $(uname -s)") ;;
