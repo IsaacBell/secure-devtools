@@ -948,3 +948,125 @@ EOF
   audit
   refute_output --partial "Hook runs code from a user-writable location"
 }
+
+# --- scan location ---------------------------------------------------------------------------
+
+@test "location: an optional directory argument selects the project whose agent config is checked" {
+  need_jq
+  mkdir -p "$TMP/other"
+  printf '{ "mcpServers": { "docs": { "command": "npx", "args": ["-y", "some-mcp-server"] } } }\n' >"$TMP/other/.mcp.json"
+  run bash "$SCRIPT" "$TMP/other"
+  assert_failure 1
+  assert_output --partial "MCP server runs unpinned code"
+}
+
+@test "location: with no argument the current directory is the project" {
+  need_jq
+  unset AIC_HOST_PROJECT
+  mkdir -p "$TMP/cwd"
+  printf '{ "mcpServers": { "docs": { "command": "npx", "args": ["-y", "some-mcp-server"] } } }\n' >"$TMP/cwd/.mcp.json"
+  cd "$TMP/cwd"
+  run bash "$SCRIPT"
+  assert_failure 1
+  assert_output --partial "MCP server runs unpinned code"
+}
+
+@test "location: a directory argument that does not exist is a usage error" {
+  run bash "$SCRIPT" "$TMP/does-not-exist"
+  assert_failure 2
+  assert_output --partial "not a directory"
+}
+
+@test "location: no root or sudo is needed, unreadable files are reported as info" {
+  [[ "$(id -u)" != 0 ]] || skip "must run as a normal user"
+  audit
+  refute_output --partial "Permission denied"
+}
+
+# --- pending: known gaps, deliberately not in this release ----------------------------------------
+# Each test states the behavior we want. They are skipped so the suite stays green, and they show
+# up in every run as "skipped" so they are not forgotten. Remove the skip line when implementing.
+
+@test "pending: a missing ps, lsof or crontab is reported as a skipped check, never a clean PASS" {
+  skip "pending: a machine without ps (minimal Alpine/busybox) can still print PASSED for processes"
+}
+
+@test "pending: busybox ps (no -x, no pid= columns) falls back to a form it supports" {
+  skip "pending: ps -axo pid=,user=,command= is procps/BSD only; try ps -A -o pid=,user=,args="
+}
+
+@test "pending: process rows without a user column do not shift the command" {
+  skip "pending: read -r pid user cmd assumes three leading columns; request a fixed field set"
+}
+
+@test "pending: running as root or under sudo warns that root's home was audited" {
+  skip "pending: sudo audits root's home, not the user who is worried; print a note and suggest AIC_HOST_HOME"
+}
+
+@test "pending: system-wide Linux persistence is checked (/etc/systemd/system, /etc/cron.*, /var/spool/cron, at, rc.local)" {
+  skip "pending: only user systemd units, XDG autostart and the user crontab are covered"
+}
+
+@test "pending: systemd user timers and path units are checked" {
+  skip "pending: ~/.config/systemd/user/*.timer and *.path are not read"
+}
+
+@test "pending: nushell, xonsh, elvish, oh-my-zsh custom, /etc/profile.d and /etc/zshrc are scanned" {
+  skip "pending: only bash, zsh and fish startup files are covered"
+}
+
+@test "pending: XDG_CONFIG_HOME relocates the fish, autostart and opencode paths too" {
+  skip "pending: only the allow file honors XDG_CONFIG_HOME today"
+}
+
+@test "pending: AI-tool configs written as JSONC (comments, trailing commas) are still inspected" {
+  skip "pending: jq fails silently on JSONC, so hooks and MCP servers read as absent"
+}
+
+@test "pending: a hook command containing a tab or an empty leading field is not mis-split" {
+  skip "pending: the hook rows are split on TAB, which collapses; use a non-whitespace delimiter as the MCP path does"
+}
+
+@test "pending: a well-known local inference server as the base URL is not treated like an unknown proxy" {
+  skip "pending: design decision. Ollama, LM Studio and LiteLLM on loopback are HIGH today, the same signal as the incident"
+}
+
+@test "pending: a corporate proxy or internal CA bundle can be accepted once without a per-line id" {
+  skip "pending: rc and agent finding ids include the line number, so allow entries break when a file is edited"
+}
+
+@test "pending: a user-level hook that only runs a local notifier is INFO, not MEDIUM" {
+  skip "pending: design decision. Every prompt/tool hook is MEDIUM today"
+}
+
+@test "pending: a value like 1.2.3 or notes.md is not mistaken for a host" {
+  skip "pending: looks_like_host accepts anything with a dot"
+}
+
+@test "pending: a cron job that only redirects output to /tmp is not flagged" {
+  skip "pending: any cron line containing /tmp/ is MEDIUM; match the executed path instead"
+}
+
+@test "pending: a login item that launches a vendor app from Application Support is not medium" {
+  skip "pending: Docker, Slack and Google updaters live there; downgrade unless a capture or exfil signal matches"
+}
+
+@test "pending: mtime and date fallbacks work where GNU stat -f means filesystem status" {
+  skip "pending: validate that the stat output is all digits before using it"
+}
+
+@test "pending: a HOME containing glob characters or a symlinked HOME is displayed correctly" {
+  skip "pending: tilde() uses HOME as a pattern"
+}
+
+@test "pending: greps run with a fixed locale so case folding is the same everywhere" {
+  skip "pending: no LC_ALL=C, so a Turkish locale can change matches"
+}
+
+@test "pending: IFS=: parsing of the launch and managed directory seams tolerates a colon in a path" {
+  skip "pending: macOS allows colons in file names"
+}
+
+@test "pending: the listener check has a seam so tests do not run the real lsof" {
+  skip "pending: loopback base URL tests call lsof on the live machine"
+}

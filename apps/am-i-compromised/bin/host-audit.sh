@@ -43,11 +43,13 @@ set -u
 
 usage() {
 	cat <<'EOF'
-usage: am-i-compromised host [--verbose]
+usage: am-i-compromised host [--verbose] [dir]
 
 Read-only audit of this machine: login persistence, shell startup files,
 AI-tool configuration, and running processes. Exits 1 if anything needs review.
 
+  dir             project whose AI-tool config (.claude/, .mcp.json) is checked
+                  (default: the current directory). No root or sudo is needed.
   -v, --verbose   also list informational items and every persistence entry
   -h, --help      show this help
 
@@ -57,6 +59,7 @@ EOF
 }
 
 VERBOSE=0
+PROJECT_ARG=""
 for arg in "$@"; do
 	case "$arg" in
 	-v | --verbose) VERBOSE=1 ;;
@@ -64,13 +67,18 @@ for arg in "$@"; do
 		usage
 		exit 0
 		;;
-	*)
+	-*)
 		echo "host-audit: unknown option '$arg'" >&2
 		usage >&2
 		exit 2
 		;;
+	*) PROJECT_ARG="$arg" ;;
 	esac
 done
+if [[ -n "$PROJECT_ARG" && ! -d "$PROJECT_ARG" ]]; then
+	echo "host-audit: '$PROJECT_ARG' is not a directory" >&2
+	exit 2
+fi
 
 HOME_DIR="${AIC_HOST_HOME:-${HOME:-}}"
 [[ -n "$HOME_DIR" ]] || HOME_DIR="$(cd ~ 2>/dev/null && pwd)" || HOME_DIR=""
@@ -78,7 +86,11 @@ if [[ -z "$HOME_DIR" ]]; then
 	echo "host-audit: cannot determine the home directory (HOME is unset)." >&2
 	exit 2
 fi
-PROJECT_DIR="${AIC_HOST_PROJECT:-$PWD}"
+if [[ -n "$PROJECT_ARG" ]]; then
+	PROJECT_DIR="$(cd "$PROJECT_ARG" && pwd)"
+else
+	PROJECT_DIR="${AIC_HOST_PROJECT:-$PWD}"
+fi
 OS="${AIC_HOST_OS:-$(uname -s)}"
 ALLOW_FILE="${AIC_HOST_ALLOW:-${XDG_CONFIG_HOME:-$HOME_DIR/.config}/am-i-compromised/host-allow.txt}"
 

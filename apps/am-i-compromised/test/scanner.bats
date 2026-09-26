@@ -920,3 +920,25 @@ FAKE_TELEGRAM_TOKEN="123456789:$(printf '%035d' 0 | tr 0 A)"
   refute_output --partial "invalid option"
   refute_output --partial "declare:"
 }
+
+# --- pending: known gaps, deliberately not in this release ----------------------------------------
+
+@test "pending: a file name containing a colon does not corrupt the path and line number" {
+  skip "pending: split_rg_row splits path:line:content on the first two colons; use rg --json or a NUL delimiter"
+}
+
+@test "pending: a missing git, or a folder that is not a repo, reports the .env check as skipped" {
+  skip "pending: scan_tracked_env returns nothing, so the committed .env check reads as clean"
+}
+
+@test "pending: source patterns like require('http'), global. and eval( do not gate on their own" {
+  skip "pending: design decision. These fire on ordinary code and each match gates the dev server"
+}
+
+@test "pending: ngrok in prose and nc -l on a local port are not exfil signals" {
+  skip "pending: IOC_EXFIL_PATTERN matches the bare word ngrok and any nc with a port"
+}
+
+@test "pending: the suite runs on a plain checkout without pnpm" {
+  skip "pending: setup shells out to pnpm root to find the bats libraries"
+}

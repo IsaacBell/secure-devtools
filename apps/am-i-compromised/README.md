@@ -42,8 +42,9 @@ Part of the `secure-devtools` monorepo.
 # Scan a project (defaults to the current directory)
 npx am-i-compromised .
 
-# Audit this machine (read-only, does not need ripgrep)
-npx am-i-compromised host
+# Audit this machine (read-only, no root or sudo, does not need ripgrep).
+# Also checks the AI-tool config of the current folder, or of a folder you name.
+npx am-i-compromised host [path/to/project]
 ```
 
 Exit code `0` means nothing found, `1` means findings to review. Add `--verbose` to `host` to
