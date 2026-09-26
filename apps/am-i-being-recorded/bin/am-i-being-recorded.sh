@@ -103,15 +103,22 @@ total_findings() {
 	printf '%s' "$((SEV_TOTAL[CRITICAL] + SEV_TOTAL[HIGH] + SEV_TOTAL[MEDIUM] + SEV_TOTAL[LOW]))"
 }
 
+# severity_at_or_above <severity> <floor> — true when <severity> is as bad as <floor> or worse.
+severity_at_or_above() {
+	local rank floor
+	# nosemgrep: apps.secure-semgrep.rules.bash.unquoted-command-substitution-in-command -- already quoted; rule false positive
+	rank="$(severity_rank "$1")"
+	# nosemgrep: apps.secure-semgrep.rules.bash.unquoted-command-substitution-in-command -- already quoted; rule false positive
+	floor="$(severity_rank "$2")"
+	[[ "$rank" -le "$floor" ]]
+}
+
 # Count only the findings at or above the current severity floor.
 reported_findings() {
-	local total=0 floor sev
-	# nosemgrep: apps.secure-semgrep.rules.bash.unquoted-command-substitution-in-command -- already quoted or arithmetic; rule false positive
-	floor="$(severity_rank "$MIN_SEVERITY")"
+	local total=0 sev
 	for sev in "${SEVERITIES[@]}"; do
-		# nosemgrep: apps.secure-semgrep.rules.bash.unquoted-command-substitution-in-command -- already quoted or arithmetic; rule false positive
-		if [[ "$(severity_rank "$sev")" -le "$floor" ]]; then
-			# nosemgrep: apps.secure-semgrep.rules.bash.unquoted-variable-expansion-in-command -- already quoted or arithmetic; rule false positive
+		if severity_at_or_above "$sev" "$MIN_SEVERITY"; then
+			# nosemgrep: apps.secure-semgrep.rules.bash.unquoted-variable-expansion-in-command -- arithmetic expansion; rule false positive
 			total=$((total + SEV_TOTAL[$sev]))
 		fi
 	done
