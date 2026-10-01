@@ -127,6 +127,24 @@ EOF
   assert_output --partial "host-audit: PASSED"
 }
 
+@test "progress: AIH_PROGRESS=1 names each stage and counts login items on stderr" {
+  write_stealer with-payload
+  run --separate-stderr env AIH_PROGRESS=1 bash "$SCRIPT" --system
+  assert_failure 1
+  [[ "$stderr" == *"host-audit: auditing this machine"* ]]
+  [[ "$stderr" == *"Login items and their code signatures"* ]]
+  [[ "$stderr" == *"1/1 com.sstar.clipboardmonitor.plist"* ]]
+  [[ "$stderr" == *"Running processes"* ]]
+  [[ "$stderr" == *"host-audit: checks done"* ]]
+  [[ "$output" != *"found so far"* ]]
+}
+
+@test "progress: off by default when stderr is not a terminal" {
+  run --separate-stderr bash "$SCRIPT" --system
+  assert_success
+  [[ "$stderr" != *"found so far"* ]]
+}
+
 @test "a vendor agent that launches an installed program passes" {
   mkdir -p "$FAKE/Applications/Vendor.app/Contents/MacOS"
   : >"$FAKE/Applications/Vendor.app/Contents/MacOS/vendor"

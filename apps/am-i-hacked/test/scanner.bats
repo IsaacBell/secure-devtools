@@ -716,6 +716,23 @@ write_file() {
   assert_output --partial "reason: reviewed before the rename"
 }
 
+@test "progress: AIH_PROGRESS=1 prints each check on stderr and keeps the report on stdout" {
+  write_file "app.js" 'eval("1")'
+  run --separate-stderr env AIH_PROGRESS=1 bash "$SCRIPT" "$TMP"
+  assert_failure 1
+  [[ "$stderr" == *"am-i-hacked: scanning"* ]]
+  [[ "$stderr" == *"[19/19]"* ]]
+  [[ "$stderr" == *"1 found"* ]]
+  [[ "$output" != *"found so far"* ]]
+}
+
+@test "progress: off by default when stderr is not a terminal" {
+  write_file "app.js" 'console.log("ok")'
+  run --separate-stderr bash "$SCRIPT" "$TMP"
+  assert_success
+  [[ "$stderr" != *"found so far"* ]]
+}
+
 @test "suppression: is honored in non-JS comment syntax" {
   write_file "reviewed.py" 'eval("1")  # am-i-hacked-ignore: sandboxed constant, reviewed'
   scan

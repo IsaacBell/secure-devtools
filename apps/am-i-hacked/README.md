@@ -1,20 +1,25 @@
 # 🕵️ Am I Hacked?
 
 [![npm version](https://img.shields.io/npm/v/am-i-hacked)](https://www.npmjs.com/package/am-i-hacked)
-[![npm downloads](https://img.shields.io/npm/dm/am-i-hacked)](https://www.npmjs.com/package/am-i-hacked)
+[![CI](https://github.com/IsaacBell/secure-devtools/actions/workflows/ci.yml/badge.svg)](https://github.com/IsaacBell/secure-devtools/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/npm/l/am-i-hacked)](LICENSE)
 
 > *Check the code you're about to run, and the machine you're running it on.*
 
-Formerly published as `am-i-compromised`. The old command name still works. See
+```sh
+pnpx am-i-hacked .     # or: npx am-i-hacked .
+```
+
+**Status:** actively maintained; 2.0.0 is the current release. macOS and Linux. Formerly
+published as `am-i-compromised`; the old command name still works. See
 [Renamed from am-i-compromised](#renamed-from-am-i-compromised).
 
 ## 🌟 Highlights
 
 - **Built from real, observed attacks.** The detections come from attacks seen in the wild,
   not guesses. The clipboard-stealer, editor auto-run, disguised-asset and persistence checks
-  each model a specific attack chain. The generic source heuristics (`eval`, child processes,
-  obfuscation) flag the primitives those attacks use, so they are broader and noisier.
+  each model a specific attack chain. The generic rules (`eval`, child processes, obfuscation)
+  flag the building blocks those attacks use, so they are broader and noisier.
 - **Two modes, one tool.** Scan a project for malicious code, or audit *this machine* for the
   things source scans can't see: launch agents, shell startup files, AI-tool config, and
   running processes.
@@ -31,28 +36,38 @@ Formerly published as `am-i-compromised`. The old command name still works. See
 ## ℹ️ Overview
 
 `am-i-hacked` is a small [indicator-of-compromise](https://en.wikipedia.org/wiki/Indicator_of_compromise)
-checker. It is a **heuristic pre-flight check**, not a malware scanner: it cannot prove
-anything is safe, it flags signals that *should* make you look closer.
+checker. It looks for warning signs that should make you look closer. It is not antivirus,
+and it does not look up known viruses. A clean result means it found no warning signs; it
+does not prove the code or the machine is safe.
 
 Some threats never touch a source tree. A clipboard stealer started by a hidden LaunchAgent
 lives in your home directory, where a project scan cannot see it. `host` covers that side.
+
+Why this one? It runs instantly with one command and no signup, account or API key, and it goes
+into CI by copy-paste (below). And it catches what advisory scanners cannot. Tools such as
+`npm audit` and OSV-Scanner match your dependencies against reported vulnerabilities. They cannot see an attack nobody has reported
+yet, or one that lives in the repository itself: an editor task that runs when you open the
+folder, a script saved as a font file, a stealer started at login. `am-i-hacked` reads the files
+for those indicators before you open, install or run anything. Use both.
 
 ## 🚀 Usage
 
 ```sh
 # Scan a project (defaults to the current directory)
-pnpm dlx am-i-hacked .          # npx am-i-hacked . works too
+pnpx am-i-hacked .          # npx am-i-hacked . works too
 
 # Check a folder's AI-tool config (.claude/settings*.json, .mcp.json). Defaults to the current directory.
-pnpm dlx am-i-hacked host [path/to/folder]
+pnpx am-i-hacked host [path/to/folder]
 
 # Audit the whole machine as well: login items and their code signatures, crontab,
 # shell startup files, user-level AI-tool config, running processes.
 # Read-only, no root or sudo, does not need ripgrep.
-pnpm dlx am-i-hacked --system   # same as: host --system [folder]
+pnpx am-i-hacked --system   # same as: host --system [folder]
 ```
 
-Exit code `0` means nothing found, `1` means findings to review, `2` means a usage error. Add
+Exit code `0` means nothing found, `1` means findings to review or a missing requirement (bash
+4.2+ or `rg`, or `jq` when a `package.json` is present; the message names it), `2` means a
+usage error. Add
 `--verbose` to `host` to also list informational entries and every login item with its signer.
 
 In `package.json`, run the scan before your dev server:
@@ -65,10 +80,15 @@ In `package.json`, run the scan before your dev server:
 }
 ```
 
-In CI:
+In CI, for example a GitHub Actions job on `ubuntu-latest`. The runner has `bash` and `jq` but
+no pnpm, and `ripgrep` is installed first in case the image lacks it:
 
 ```yaml
-- run: pnpm dlx am-i-hacked .
+- uses: pnpm/action-setup@v4
+  with:
+    version: 10
+- run: sudo apt-get install -y ripgrep
+- run: pnpx am-i-hacked@2 .
 ```
 
 More below: how to read the output, how to suppress a reviewed finding, the host audit, and
@@ -76,7 +96,7 @@ More below: how to read the output, how to suppress a reviewed finding, the host
 
 ## ⬇️ Installation
 
-No install needed with `pnpm dlx` / `npx`. To keep it in a project:
+No install needed with `pnpx` / `npx`. To keep it in a project:
 
 ```sh
 pnpm add -D am-i-hacked   # or: npm install --save-dev am-i-hacked
@@ -146,7 +166,8 @@ read unless you ask, because most runs are about the project in front of you.
 | Processes (`--system`) | interpreters running from staging directories, and capture-named scripts that report out |
 
 Findings are `HIGH`, `MEDIUM` or `INFO`. `HIGH` and `MEDIUM` exit `1`. To accept something you
-have reviewed, add its id and a reason to `~/.config/am-i-hacked/host-allow.txt`:
+have reviewed, add its id and a reason to `~/.config/am-i-hacked/host-allow.txt` (the tool
+does not create that folder; run `mkdir -p ~/.config/am-i-hacked` first):
 
 ```text
 agent:~/.claude/settings.json:base-url:3 | local LiteLLM gateway I run myself
@@ -163,6 +184,11 @@ repeated under each category heading. Match snippets are width-capped — a
 single minified line cannot flood the report. Output is plain (no ANSI) when
 piped; colors are used only on a TTY (set `NO_COLOR` to disable). Findings
 are listed sorted by path, then line.
+
+While it runs, the scan prints progress on stderr: one line per check with the elapsed time and
+the findings so far, and `host --system` counts login items as it checks their signatures, which
+is the slow part. Progress is on by default in a terminal; set `AIH_PROGRESS=1` to see it in CI
+logs, or `AIH_PROGRESS=0` to turn it off. The report on stdout does not change.
 
 If a finding is a false positive because the *pattern* is too broad, that's a
 scanner bug — please [open an issue](https://github.com/IsaacBell/secure-devtools/issues).

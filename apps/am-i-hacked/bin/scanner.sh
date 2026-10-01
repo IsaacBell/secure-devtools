@@ -745,31 +745,64 @@ scan_tracked_env() {
 	done < <(git -C "$ROOT" ls-files -- "${IOC_ENV_PATHSPEC[@]}" 2>/dev/null || true)
 }
 
+# Progress: one line per check on stderr, so a long scan is never a silent wait. On by default
+# only when stderr is a terminal; AIH_PROGRESS=1 forces it on (CI logs), AIH_PROGRESS=0 turns it
+# off. The report on stdout is unchanged either way.
+if [[ "${AIH_PROGRESS:-}" == 1 || ("${AIH_PROGRESS:-}" != 0 && -t 2) ]]; then
+	PROGRESS=1
+else
+	PROGRESS=0
+fi
+STEP=0
+STEP_TOTAL=$((${#IOC_CONTENT_PATTERNS[@]} + ${#IOC_EDITOR_PATTERNS[@]} + ${#IOC_ASSET_PATTERNS[@]} + 6))
+SCAN_START=$SECONDS
+
+progress() {
+	((PROGRESS == 1)) || return 0
+	STEP=$((STEP + 1))
+	printf '%s[%2d/%d] %3ds, %d found so far%s  %s\n' "$C_DIM" "$STEP" "$STEP_TOTAL" \
+		"$((SECONDS - SCAN_START))" "$((${#F_PATH[@]} + ${#S_PATH[@]}))" "$C_RESET" "$1" >&2
+}
+
+((PROGRESS == 1)) && printf 'am-i-hacked: scanning %s (%d checks)\n' "$ARG_ROOT" "$STEP_TOTAL" >&2
+
 while IFS= read -r entry; do
 	[[ -n "$entry" ]] || continue
 	split_ioc_entry "$entry"
+	progress "$IOC_TITLE"
 	scan_pattern "$IOC_TITLE" "$IOC_PATTERN"
 done < <(printf '%s\n' "${IOC_CONTENT_PATTERNS[@]}")
 
+progress "Encoded payload primitives"
 scan_encoded_payload_primitives
+progress "Child process creation"
 scan_child_process
 
 while IFS= read -r entry; do
 	[[ -n "$entry" ]] || continue
 	split_ioc_entry "$entry"
+	progress "$IOC_TITLE (editor settings)"
 	scan_with_globs "$IOC_TITLE" "$IOC_PATTERN" "${IOC_EDITOR_GLOBS[@]}"
 done < <(printf '%s\n' "${IOC_EDITOR_PATTERNS[@]}")
 
 while IFS= read -r entry; do
 	[[ -n "$entry" ]] || continue
 	split_ioc_entry "$entry"
+	progress "$IOC_TITLE (asset files)"
 	scan_with_globs "$IOC_TITLE" "$IOC_PATTERN" "${IOC_ASSET_GLOBS[@]}"
 done < <(printf '%s\n' "${IOC_ASSET_PATTERNS[@]}")
 
+progress "Capture paired with exfiltration"
 scan_capture_exfil
+progress "Unusually long source lines"
 scan_long_lines
+progress "Environment files in the git index"
 scan_tracked_env
+progress "package.json scripts"
 scan_package_scripts
+
+((PROGRESS == 1)) && printf 'am-i-hacked: checks done in %ds, %d found\n\n' "$((SECONDS - SCAN_START))" \
+	"$((${#F_PATH[@]} + ${#S_PATH[@]}))" >&2
 
 if ((${#F_PATH[@]} > 0 || ${#S_PATH[@]} > 0)); then
 	# render_findings ends with `return 1` (there were findings) even though
@@ -797,8 +830,8 @@ on the flagged line or the line before it — the reason is required.
 Suppressions are never silent: they are counted and listed above on every
 run, including a clean one.
 
-This scanner is a heuristic pre-flight check. A clean result does not prove
-that the repository or its dependencies are safe.
+This scanner looks for warning signs. A clean result does not prove that
+the repository or its dependencies are safe.
 EOF
 
 	exit 1

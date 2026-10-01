@@ -8,7 +8,7 @@ easy to audit — please keep changes in that spirit.
 Requirements: [mise](https://mise.jdx.dev) (installs the pinned toolchain).
 
 ```sh
-mise install      # node, pnpm, shellcheck, shfmt, ripgrep, jq
+mise install      # node, pnpm, shellcheck, shfmt, ripgrep, jq, semgrep
 mise run setup    # JS deps; also installs the husky pre-commit hook
 ```
 

@@ -31,7 +31,7 @@ would run during pack, publish or install.
 
 | Package | Folder | Commands |
 | --- | --- | --- |
-| `am-i-hacked` | `apps/am-i-hacked` | `am-i-hacked`, `aih`, `am-i-compromised`, `aic` |
+| `am-i-hacked` | `apps/am-i-hacked` | `am-i-hacked`, `aih`, `am-i-compromised`, `aic`, `security-gate`, `scanner`, `safe-pull` |
 | `am-i-being-recorded` | `apps/am-i-being-recorded` | `am-i-being-recorded`, `aibr` |
 | `secure-semgrep` | `apps/secure-semgrep` | `secure-semgrep` |
 
@@ -39,7 +39,7 @@ would run during pack, publish or install.
 at the new name:
 
 ```bash
-pnpm deprecate am-i-compromised "Renamed to am-i-hacked. Run: pnpm dlx am-i-hacked"
+pnpm deprecate am-i-compromised "Renamed to am-i-hacked. Run: pnpx am-i-hacked"
 ```
 
 ## Public repository

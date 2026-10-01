@@ -112,6 +112,35 @@ else
 	C_RED='' C_YELLOW='' C_GREEN='' C_DIM='' C_BOLD='' C_RESET=''
 fi
 
+# Progress: each stage, and a running count while login items are checked, on stderr. On by
+# default only when stderr is a terminal; AIH_PROGRESS=1 forces it on (CI logs), AIH_PROGRESS=0
+# turns it off. The report on stdout is unchanged either way.
+if [[ "${AIH_PROGRESS:-}" == 1 || ("${AIH_PROGRESS:-}" != 0 && -t 2) ]]; then
+	PROGRESS=1
+else
+	PROGRESS=0
+fi
+AUDIT_START=$SECONDS
+
+stage() {
+	[[ "$PROGRESS" == 1 ]] || return 0
+	printf '%s[%3ds, %s found so far]%s %s\n' "$C_DIM" "$((SECONDS - AUDIT_START))" \
+		"$(printf '%s' "$FINDINGS" | grep -c . || true)" "$C_RESET" "$1" >&2
+}
+
+# item_progress <n> <total> <label> — one line rewritten in place on a terminal, every tenth item
+# (and the last) as its own line elsewhere.
+item_progress() {
+	[[ "$PROGRESS" == 1 ]] || return 0
+	if [[ -t 2 ]]; then
+		printf '\r  %d/%d %s\033[K' "$1" "$2" "$3" >&2
+		[[ "$1" == "$2" ]] && printf '\n' >&2
+	elif (($1 % 10 == 0 || $1 == $2)); then
+		printf '  %d/%d %s\n' "$1" "$2" "$3" >&2
+	fi
+	return 0
+}
+
 readonly US=$'\037'
 FINDINGS=""           # records: rank+sev US id US title US where US evidence US next
 PERSISTENCE_CHECKED=1 # 0 when this OS has no persistence checks, so PASSED never claims one
@@ -707,11 +736,17 @@ audit_launchd() {
 		dirs="$HOME_DIR/Library/LaunchAgents:/Library/LaunchAgents:/Library/LaunchDaemons"
 	fi
 	IFS=: read -r -a dir_list <<<"$dirs"
+	local plists=() n=0
 	for d in "${dir_list[@]}"; do
 		[[ -d "$d" ]] || continue
 		for f in "$d"/*.plist; do
-			[[ -f "$f" ]] && audit_plist "$f"
+			[[ -f "$f" ]] && plists+=("$f")
 		done
+	done
+	for f in ${plists[@]+"${plists[@]}"}; do
+		n=$((n + 1))
+		item_progress "$n" "${#plists[@]}" "$(basename "$f")"
+		audit_plist "$f"
 	done
 }
 
@@ -1270,19 +1305,39 @@ EOF
 	return 0
 }
 
+if [[ "$PROGRESS" == 1 && "$SYSTEM" == 1 ]]; then
+	printf 'host-audit: auditing this machine and %s\n' "$(tilde "$PROJECT_DIR")" >&2
+elif [[ "$PROGRESS" == 1 ]]; then
+	printf 'host-audit: auditing %s\n' "$(tilde "$PROJECT_DIR")" >&2
+fi
 if [[ "$SYSTEM" == 1 ]]; then
 	case "$OS" in
 	Darwin)
+		stage "Login items and their code signatures"
 		audit_launchd
+		stage "Payload folders"
 		audit_payload_dirs
 		;;
-	Linux) audit_linux_units ;;
+	Linux)
+		stage "systemd user units and autostart entries"
+		audit_linux_units
+		;;
 	*) PERSISTENCE_CHECKED=0 ;;
 	esac
+	stage "Crontab"
 	audit_cron
+	stage "Shell startup files"
 	audit_rc_files
+	stage "User-level AI-tool configuration"
 	audit_agent_config
 fi
+stage "AI-tool configuration in $(tilde "$PROJECT_DIR")"
 audit_folder_agent_config
-[[ "$SYSTEM" == 1 ]] && audit_processes
+if [[ "$SYSTEM" == 1 ]]; then
+	stage "Running processes"
+	audit_processes
+fi
+if [[ "$PROGRESS" == 1 ]]; then
+	printf 'host-audit: checks done in %ds\n' "$((SECONDS - AUDIT_START))" >&2
+fi
 render

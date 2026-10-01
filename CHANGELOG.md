@@ -2,16 +2,19 @@
 
 Newest first. One line per change. Default-behavior changes marked **CHANGED**. Package versions in brackets.
 
-## Unreleased [am-i-compromised 1.3.0]
+## 2026-10-01 [am-i-hacked 2.0.0]
 
-**BLUF:** The host audit is folder-scoped by default. Machine-wide checks, now including code-signature checks on login items, need `--system`.
+**BLUF:** `am-i-compromised` is renamed `am-i-hacked` and released as 2.0.0, the first npm release since 1.0.0. It includes everything below. The package changelog, [`apps/am-i-hacked/CHANGELOG.md`](apps/am-i-hacked/CHANGELOG.md), lists the full set of changes since 1.0.0.
 
-### am-i-compromised
+### am-i-hacked
+- **CHANGED:** renamed from `am-i-compromised`. The old command name, the `am-i-compromised-ignore:` marker and `AIC_HOST_*` variables still work.
+- Progress for the project scan: one line per check on stderr with elapsed time and findings so far. On by default in a terminal; `AIH_PROGRESS=1` turns it on elsewhere (CI), `AIH_PROGRESS=0` turns it off. The report on stdout is unchanged.
+- **CHANGED:** the host audit is folder-scoped by default. Machine-wide checks, now including code-signature checks on login items, need `--system`.
 - **CHANGED:** `host` checks only the AI-tool config in the given folder (default `.`). Login items, crontab, shell startup files, user-level and managed AI-tool config, and processes run only with `--system`.
 - Added `--system` and its alias `--full-system-scan`. `am-i-compromised --system` is shorthand for `host --system`.
 - Folder runs print what was skipped and how to include it. A folder PASSED no longer implies the machine was checked.
 - Added code-signature checks for launchd programs (macOS, `--system`). Reads the binary with `codesign`. Never writes.
-- HIGH: a vendor-prefixed label signed by a Team ID the vendor does not use, or unsigned. Expected IDs come from `bin/vendor-teams.tsv` (22 vendors, each read with `codesign` from a genuine app), then from installed apps with the same bundle-id prefix for any other vendor.
+- HIGH: a vendor-prefixed label signed by a Team ID the vendor does not use, or unsigned. Expected IDs come from `bin/vendor-teams.tsv` (21 vendors with 22 Team IDs, each read with `codesign` from a genuine app), then from installed apps with the same bundle-id prefix for any other vendor.
 - MEDIUM instead of HIGH when the signer is the table vendor's own organization under an unlisted Team ID. Shared prefixes (`com.electron`, `com.github`, ...) are never inferred from apps.
 - MEDIUM: a signature that fails `codesign --verify`. MEDIUM: unsigned or ad-hoc program in a user-writable location. INFO elsewhere.
 - `--verbose` inventory shows each entry's signer and Team ID. The signer matches the name in System Settings > Login Items.

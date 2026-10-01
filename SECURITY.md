@@ -30,7 +30,7 @@ If you are unsure, report privately.
 - `skills/`
 - `.github/workflows/`, `mise.toml`, and dependency manifests
 
-The tools are heuristic checks. They can miss malware and report false positives. A clean result does not prove a machine, repository, or dependency is safe.
+The tools look for warning signs. They can miss malware, and they can flag code that is fine. A clean result does not prove a machine, repository, or dependency is safe.
 
 ## For people
 
@@ -69,4 +69,4 @@ gh api -X POST repos/IsaacBell/secure-devtools/security-advisories --input advis
 
 ## CI gates
 
-The security gate (`.github/workflows/gate.yml`) runs on `pull_request_target`. The workflow file, the scanner, and the toolchain come from the base branch. The pull request's code is checked out into `.review` as data and is never executed. The job has read-only permissions and no secrets. Keep it that way: any step that runs code from `.review` turns this into a way to attack the repository.
+The security gate (`.github/workflows/gate.yml`) runs on `pull_request_target` and on pushes to `main`. For pull requests, the workflow file, the scanner, and the toolchain come from the base branch. The pull request's code is checked out into `.review` as data and is never executed. The job has read-only permissions and no secrets. Keep it that way: any step that runs code from `.review` turns this into a way to attack the repository.

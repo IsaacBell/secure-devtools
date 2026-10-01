@@ -1,119 +1,57 @@
-# Secure Devtools
+# secure-devtools
 
-Dev-time security tools for detecting compromised code, dependencies, and supply-chain risks — designed to run locally and in CI, and to be small enough to audit.
-
-> **Zero npm runtime dependencies.** The shipped tools are plain shell — there is no dependency tree to audit at
-> install time. `am-i-hacked` needs only `bash`, `ripgrep`, and `jq`; `secure-semgrep` also
-> needs `semgrep` on the host. npm devDependencies exist only for local tooling (husky git hooks
-> and the bats test suite).
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/IsaacBell/secure-devtools/actions/workflows/ci.yml/badge.svg)](https://github.com/IsaacBell/secure-devtools/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/am-i-hacked)](https://www.npmjs.com/package/am-i-hacked)
-[![npm downloads](https://img.shields.io/npm/dm/am-i-hacked)](https://www.npmjs.com/package/am-i-hacked)
-[![Dependabot](https://img.shields.io/badge/Dependabot-025E8C?logo=dependabot&logoColor=fff)](#)
-[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](CONTRIBUTING.md)
-
-## Packages
-
-| Package | Description |
-| --- | --- |
-| [`am-i-hacked`](apps/am-i-hacked/README.md) | Compromise scanner - checks for malicious code and compromised files. Publishes to npm. Also installs the short command `aih`. |
-| [`am-i-being-recorded`](apps/am-i-being-recorded/README.md) | Local capture-surface audit - names the browser extension behind a screen-recording indicator. Also installs the short command `aibr`. |
-| [`secure-semgrep`](apps/secure-semgrep/README.md) | Bundled Semgrep rules + loadout packs for AI-agent, bash & web security scans. Publishes to npm. |
-
-## Requirements
-
-- [mise](https://mise.jdx.dev) — installs the security toolchain (`node`, `pnpm`, `shellcheck`,
-  `shfmt`, `ripgrep`, `jq`, `semgrep`) declared in [`mise.toml`](mise.toml)
-- [pnpm](https://pnpm.io) — for package release/distribution
-
-## Quick start
+Plain-shell security tools that check the code you are about to run, and the machine you run it on, for signs of a supply-chain or dev-environment attack. They run locally and in CI, need no account, and have zero npm runtime dependencies.
 
 ```sh
-mise install     # install the pinned toolchain
-mise run setup   # install JS deps + git hooks (== pnpm install)
-mise run check   # lint + format check + tests
+pnpx am-i-hacked .     # or: npx am-i-hacked .
 ```
 
-`mise run` on its own lists every task.
+[![CI](https://github.com/IsaacBell/secure-devtools/actions/workflows/ci.yml/badge.svg)](https://github.com/IsaacBell/secure-devtools/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/am-i-hacked)](https://www.npmjs.com/package/am-i-hacked)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## Commands
+**Status:** actively maintained. `am-i-hacked` 2.0.0 is the current release, renamed from `am-i-compromised`. macOS and Linux.
 
-Tasks are defined in [`mise.toml`](mise.toml).
+## Tools
 
-| Task | What it does |
-| --- | --- |
-| `mise run` | list all tasks (default) |
-| `mise run setup` | install JS deps and git hooks |
-| `mise run check` | shellcheck + shfmt check + bats tests (what CI runs) |
-| `mise run test` | bats test suite only |
-| `mise run lint` | shellcheck only |
-| `mise run fmt` | format shell sources (shfmt) |
-| `mise run fmt-check` | verify formatting without changing files |
-| `mise run gate` | security-gate scan of the whole repository |
-| `mise run semgrep` | semgrep scan of this repo in review mode (evidence, exit 0) |
-| `mise run semgrep-strict` | same scan, but exit 1 on any finding (gate) |
-| `mise run semgrep-check` | validate every bundled `secure-semgrep` rule parses |
-| `mise run publish-dry-run apps/<package>` | list the files one package would publish |
-| `mise run publish apps/<package>` | publish one package to npm and tag it (see [RELEASING](docs/RELEASING.md)) |
-| `mise run doctor` | diagnose the dev environment (`mise doctor`) |
+| Tool | What it checks | How to run |
+| --- | --- | --- |
+| [`am-i-hacked`](apps/am-i-hacked/README.md) | A project folder, for malicious-code indicators: editor tasks that run on folder open, payloads disguised as asset files, obfuscation, capture code paired with an exfiltration endpoint, `.env` files in the git index, risky `package.json` scripts. With `--system`, this machine: login and startup items and their code signatures, crontab, shell startup files, AI-tool config, running processes. | `pnpx am-i-hacked` |
+| [`am-i-being-recorded`](apps/am-i-being-recorded/README.md) | Which browser extension is behind a screen-recording indicator, and what else on the machine can capture you. | From this repository |
+| [`secure-semgrep`](apps/secure-semgrep/README.md) | Semgrep rules and loadout packs for AI-agent, bash and web code. Needs `semgrep`. | From this repository |
 
-Git hooks are installed by husky during `pnpm install` and run `mise run check` on every
-commit.
+Agent skills in [`skills/`](skills/): [quarantine-review](skills/quarantine-review/SKILL.md) (inspect an untrusted repository without running any of it), [login-item-triage](skills/login-item-triage/SKILL.md) and [jujutsu](skills/jujutsu/SKILL.md).
 
-## Repository layout
+## Why this one?
 
-- `apps/am-i-hacked/` — the npm package (see its [README](apps/am-i-hacked/README.md))
-- `apps/am-i-hacked/test/` — bats tests; each test writes its own inert sample, so no live
-  malware ships in this repository
-- `apps/am-i-being-recorded/` — local capture-surface audit (see its
-  [README](apps/am-i-being-recorded/README.md))
-- `skills/` — agent skills (`SKILL.md`) for manual triage, e.g.
-  [login-item-triage](skills/login-item-triage/SKILL.md)
-- `CHANGELOG.md` — changes per release, newest first
-- `.github/workflows/` — CI: checks + security gate + gitleaks secret scan + dependency review
-  + CodeAnt AI scan (opt-in via repository variable)
-- `mise.toml` — tool versions and tasks, shared by local dev and CI
+- **Instant.** One command, no signup, no account, no API key: `pnpx am-i-hacked .`
+- **CI by copy-paste.** Exit code `1` on findings; the [package README](apps/am-i-hacked/README.md#-usage) has the workflow snippet.
+- **Catches what advisory scanners cannot.** `npm audit`, OSV-Scanner and similar tools match your dependencies against published advisories. They cannot see an attack nobody has reported yet, or one that lives in the repository itself: a `.vscode/tasks.json` that runs when you open the folder, a script saved as a font file, a stealer that starts itself at login. `am-i-hacked` reads the files for those indicators before you open, install or run anything. Use both.
 
-## Contributing
+## What it does not do
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, commands, and guidelines. All
-contributions are welcome — open an [issue](https://github.com/IsaacBell/secure-devtools/issues)
-or a pull request.
+It looks for warning signs. It is not antivirus, and it does not look up known viruses. A clean result means it found no warning signs. It does not prove the code or the machine is safe.
 
-## Security
+Some checks also flag normal code, such as `eval`. When you have checked a line and it is fine, mark it with a short reason. That line still shows up as reviewed on every run, so nothing gets hidden.
 
-This project's purpose is security, so vulnerabilities are taken seriously. See
-[SECURITY.md](SECURITY.md) for the disclosure process. 
+## Develop
 
-**Please do not open public issues for security problems.**
+[mise](https://mise.jdx.dev) installs the pinned toolchain (`node`, `pnpm`, `shellcheck`, `shfmt`, `ripgrep`, `jq`, `semgrep`) from [`mise.toml`](mise.toml).
 
-### Semgrep
-
-[`secure-semgrep`](apps/secure-semgrep/README.md) is the repo's static-analysis pack: bundled, owned rules
-for AI agents and bash, plus Semgrep loadout packs you can point at any codebase. It lives in
-[`apps/secure-semgrep`](apps/secure-semgrep/README.md) and publishes to npm as `secure-semgrep`, mirroring
-how `am-i-hacked` is published.
-
-Run it over this repository (review mode records findings without breaking the build):
-
-```bash
-$ mise run semgrep
+```sh
+mise install     # the toolchain
+mise run setup   # dev dependencies and git hooks
+mise run check   # shellcheck, shfmt check and the bats tests: what CI runs
 ```
 
-To turn findings into a hard gate, run `mise run semgrep-strict`. In any other repository, use it the same way
-as a post-`npm install` script — see the [package README](apps/secure-semgrep/README.md) for loadouts
-(`react`, `ts`, `node`, `py`, `rust`) and CI snippets.
+`mise run` lists every task. The git hooks run the same checks before each commit. CI in [`.github/workflows/`](.github/workflows/) runs the checks and tests, this repository's own security gate, a gitleaks secret scan, Semgrep and dependency review. Releases: [docs/RELEASING.md](docs/RELEASING.md). Changes: each package's `CHANGELOG.md`.
 
-## Sponsorship
+## Contributing, security and support
 
-If these tools save you time or keep your projects safer, consider supporting the work:
-
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/ibell)
-
-`npm fund` in the package also points to the same page.
+- Contributing: [CONTRIBUTING.md](CONTRIBUTING.md). Issues and pull requests are welcome.
+- Security problems: [report them privately](https://github.com/IsaacBell/secure-devtools/security/advisories/new); [SECURITY.md](SECURITY.md) has the details. Please do not open a public issue. Published fixes are listed under [security advisories](https://github.com/IsaacBell/secure-devtools/security/advisories).
+- Sponsor the work: [ko-fi](https://ko-fi.com/ibell). `npm fund` points to the same page.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

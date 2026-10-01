@@ -1,6 +1,6 @@
 ---
 name: quarantine-review
-description: Inspect or salvage code from a folder that may have come from a compromised machine or account, or that a code scanner flagged, without running anything in it. Use when a folder or repo is quarantined and you need a verdict, or need to extract reusable source from it safely. Covers containment, scanning, reading files as data, allowlist extraction with provenance, and reporting. Automated equivalent: `pnpm dlx am-i-hacked <dir>`.
+description: Inspect or salvage code from a folder that may have come from a compromised machine or account, or that a code scanner flagged, without running anything in it. Use when a folder or repo is quarantined and you need a verdict, or need to extract reusable source from it safely. Covers containment, scanning, reading files as data, allowlist extraction with provenance, and reporting. Automated equivalent: `pnpx am-i-hacked <dir>`.
 version: 1.0.0
 verified-against: "am-i-hacked 2.0.0"
 ---
@@ -32,7 +32,7 @@ Contain first: work on a copy, in a throwaway directory with trap cleanup. Never
 Then scan:
 
 ```sh
-pnpm dlx am-i-hacked <dir> 2>&1 | tee report.txt
+pnpx am-i-hacked <dir> 2>&1 | tee report.txt
 ```
 
 Save the full report to a file. Count findings by type. List every script and config file that must never run. Check the indicators from section 2 explicitly, not by assumption.
@@ -65,7 +65,7 @@ IFS=, read -r -a list <<<"$exts"; names=(); for e in "${list[@]}"; do names+=(-o
 find "$src" \( -name node_modules -o -name .git -o -name .vscode -o -name .github \) -prune -o \
   -type f \( -false "${names[@]}" \) ! -name '.*' ! -name '*.config.*' ! -name 'package.json' -print0 |
 while IFS= read -r -d '' f; do rel=${f#"$src"/}; mkdir -p "$dest/$(dirname "$rel")"; cp -p "$f" "$dest/$rel"; echo "$(shasum -a 256 "$f" | cut -d' ' -f1)  $rel" >>"$dest/PROVENANCE.txt"; done
-pnpm dlx am-i-hacked "$dest"
+pnpx am-i-hacked "$dest"
 ```
 
 ## 6. Never

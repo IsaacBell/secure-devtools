@@ -23,6 +23,7 @@ Newest first. Default-behavior changes are marked **CHANGED**.
 - Clipboard, keystroke and screen capture paired with an exfiltration endpoint, in the project scan and the host audit.
 - Editor auto-run detection (`runOn`, `allowAutomaticTasks`, download-and-run commands in editor config) and executable payloads disguised as asset files.
 - Detection of `.env` files tracked in the git index.
+- Progress output: the project scan prints one line per check on stderr (`[ 3/19]  12s, 1 found so far  <check>`), and the host audit names each stage and counts login items as it checks their signatures. On by default when stderr is a terminal; `AIH_PROGRESS=1` turns it on elsewhere (CI), `AIH_PROGRESS=0` turns it off. The report on stdout is unchanged.
 - `safe-pull`: a guarded `git pull` that inspects incoming commits before merging with `--ff-only`.
 - The project scan re-runs itself under bash 4.2+ when it finds one; `host` runs on bash 3.2.
 

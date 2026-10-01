@@ -1,6 +1,6 @@
 ---
 name: login-item-triage
-description: Decide whether a macOS login item or background item is legitimate or planted. Use when a user sees a "Background Items Added" notification, an unfamiliar name under System Settings > Login Items, or asks "did I just get compromised?" about something that runs at login. Maps the displayed name to its launchd plist and binary, checks the code signature and Team ID against the vendor, reads any script payload without running it, and preserves evidence before anything is removed. Automated equivalent: `pnpm dlx am-i-hacked --system --verbose`.
+description: Decide whether a macOS login item or background item is legitimate or planted. Use when a user sees a "Background Items Added" notification, an unfamiliar name under System Settings > Login Items, or asks "did I just get compromised?" about something that runs at login. Maps the displayed name to its launchd plist and binary, checks the code signature and Team ID against the vendor, reads any script payload without running it, and preserves evidence before anything is removed. Automated equivalent: `pnpx am-i-hacked --system --verbose`.
 version: 1.0.0
 verified-against: "am-i-hacked 2.0.0"
 ---
@@ -24,7 +24,7 @@ Tell the user what a command will do on screen **before** running it. A surprise
 | `launchctl bootout`, `launchctl unload`, `rm` of a plist or binary | The item stops or disappears | Destructive. Only after evidence is preserved and the user confirms. |
 | `codesign -dv`, `codesign --verify`, `plutil -p`, `stat`, `shasum`, `mdfind`, `launchctl print` | Nothing | Read-only and silent. No warning needed. |
 
-Also say, before a full scan, that `pnpm dlx am-i-hacked --system` reads shell startup files and AI-tool configs. They can hold secrets. The tool never prints secret values.
+Also say, before a full scan, that `pnpx am-i-hacked --system` reads shell startup files and AI-tool configs. They can hold secrets. The tool never prints secret values.
 
 ## 1. Map the displayed name to an entry
 
@@ -94,7 +94,7 @@ Then, with user confirmation only: `launchctl bootout gui/$(id -u)/<label>`. If 
 ## 6. Automate the rest
 
 ```sh
-pnpm dlx am-i-hacked --system --verbose      # every login item with its signer
+pnpx am-i-hacked --system --verbose      # every login item with its signer
 pnpx am-i-being-recorded                      # capture grants (TCC) with signers
 ```
 
