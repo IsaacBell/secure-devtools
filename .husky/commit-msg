@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+# Reject AI attribution in commit messages.
+RE='co-authored-by:.*(claude|anthropic|copilot|chatgpt|openai|cursor|codex|gemini|devin|aider)|(generated|written|addressed|created) (with|by) \[?(claude|chatgpt|copilot|cursor|codex|gemini|devin|aider)|claude\.com/claude-code|noreply@anthropic\.com|🤖 (generated|addressed)'
+if grep -Eiq -- "$RE" "$1"; then
+  echo "commit-msg: AI attribution is not allowed. Remove:" >&2
+  grep -Ein -- "$RE" "$1" | sed "s/^/  /" >&2
+  exit 1
+fi

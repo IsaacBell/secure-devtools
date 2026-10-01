@@ -1,0 +1,27 @@
+# launchd label prefix <TAB> Apple Team ID <TAB> vendor
+# A label with this prefix must be signed by one of the listed Team IDs.
+# Add a row only after reading the ID with `codesign -dv` from a genuine copy
+# of the vendor's app, and say which app in the pull request.
+# Prefixes not listed here are checked against installed apps at runtime.
+com.google	EQHXZ8M8AV	Google LLC
+com.microsoft	UBF8T346G9	Microsoft, App Store build
+us.zoom	BJ4HAAB9B3	Zoom Video Communications, Inc.
+com.tinyspeck	BQR82RBBHL	SLACK TECHNOLOGIES L.L.C.
+com.spotify	2FNC3A47ZF	Spotify
+com.brave	KL8N8XSYF4	Brave Software, Inc.
+ch.protonmail	2SB5Z68H26	Proton AG
+ru.keepcoder	6N38VWS5BX	TELEGRAM MESSENGER LLP
+net.whatsapp	57T9237FN3	WhatsApp, App Store build
+org.whispersystems	U68MSDN6DR	Signal Messenger, LLC
+net.mullvad	CKG9MXH72F	Mullvad VPN AB
+net.mullvad	MADPSAYN6T	The Tor Project, Inc
+org.torproject	MADPSAYN6T	The Tor Project, Inc
+com.figma	T8RA8NE3B7	Figma, Inc.
+com.malwarebytes	GVZRY6KDKR	Malwarebytes Corporation
+io.tailscale	W5364U7YZB	Tailscale Inc.
+com.plexapp	K4QJ56KR4A	Plex Inc.
+com.valvesoftware	MXGJJ98X76	Valve Corporation
+com.anthropic	Q6L2SF6YDW	Anthropic PBC
+com.yubico	LQA3CS5MM7	Yubico Limited
+com.resilio	2953Z5SZSK	Resilio, Inc.
+com.obsproject	2MMRE5MTB8	Wizards of OBS LLC

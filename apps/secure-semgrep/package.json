@@ -1,0 +1,64 @@
+{
+  "name": "secure-semgrep",
+  "version": "1.0.1",
+  "description": "Bundled Semgrep rules + loadout packs for AI-agent, bash, and web security scans",
+  "license": "MIT",
+  "author": "Isaac Bell <contact@isaacbell.io>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IsaacBell/secure-devtools.git",
+    "directory": "apps/secure-semgrep"
+  },
+  "bugs": {
+    "url": "https://github.com/IsaacBell/secure-devtools/issues"
+  },
+  "homepage": "https://github.com/IsaacBell/secure-devtools/tree/main/apps/secure-semgrep",
+
+  "funding": "https://ko-fi.com/ibell",
+
+  "os": [
+    "darwin",
+    "linux"
+  ],
+
+  "bin": {
+    "secure-semgrep": "bin/secure-semgrep.sh"
+  },
+
+  "files": [
+    "bin",
+    "rules",
+    "README.md",
+    "LICENSE"
+  ],
+
+  "scripts": {
+    "test": "bats test",
+    "lint": "shellcheck bin/*.sh",
+    "format:check": "shfmt -d bin",
+    "format": "shfmt -w bin",
+    "check": "pnpm lint && pnpm format:check && pnpm test",
+    "ci": "pnpm check",
+    "validate": "semgrep scan --config rules --validate"
+  },
+
+  "devDependencies": {
+    "bats": "^1.13.0",
+    "bats-assert": "^2.2.4",
+    "bats-support": "^0.3.0"
+  },
+
+  "keywords": [
+    "security",
+    "semgrep",
+    "static-analysis",
+    "ai",
+    "llm",
+    "supply-chain",
+    "dev-sec"
+  ],
+
+  "engines": {
+    "node": ">=20"
+  }
+}

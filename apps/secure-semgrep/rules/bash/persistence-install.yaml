@@ -1,0 +1,37 @@
+rules:
+- id: persistence-install
+  languages: [generic]
+  paths:
+    include:
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.command"
+  severity: WARNING
+  message: >-
+    This script registers something to run at login or on a schedule (launchd,
+    a systemd user unit, XDG autostart, or the crontab). Installers for real
+    tools do this, and so does malware: clipboard stealers commonly persist as a
+    user LaunchAgent. Confirm the program it registers, where it
+    lives, and who signs it. On a machine where it already ran, check with
+    `am-i-compromised --system`.
+  metadata:
+    cwe:
+    - "CWE-506: Embedded Malicious Code"
+    category: security
+    technology:
+    - bash
+    - launchd
+    - systemd
+    confidence: LOW
+    references:
+    - https://attack.mitre.org/techniques/T1543/001/
+    - https://attack.mitre.org/techniques/T1053/003/
+    subcategory:
+    - audit
+    likelihood: LOW
+    impact: HIGH
+  # Skips commented lines and read-only commands (launchctl list/print, crontab -l).
+  # A launchd path built only from variables is caught at `launchctl load`, not at the copy.
+  pattern-regex: >-
+    (?m)^[^#\n]*?(\blaunchctl\s+(load|bootstrap|submit|enable)\b|\b(cp|mv|install|ln|tee|ditto|rsync)\b[^\n#]*Library/Launch(Agents|Daemons)/|>>?\s*["']?[^\s"']*Library/Launch(Agents|Daemons)/|\bsystemctl\s+--user\s+enable\b|\b(cp|mv|install|ln|tee)\b[^\n#]*(/autostart/|systemd/user/)|\bcrontab\s+(-\s*$|-\s*[;|&)]|[^-\s][^\n]*))

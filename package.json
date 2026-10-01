@@ -1,0 +1,21 @@
+{
+  "name": "secure-devtools",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Dev-time supply-chain security tools (monorepo)",
+  "license": "MIT",
+  "scripts": {
+    "test": "pnpm -r --if-present test",
+    "lint": "pnpm -r --if-present lint",
+    "format": "pnpm -r --if-present format",
+    "format:check": "pnpm -r --if-present format:check",
+    "check": "pnpm -r --if-present check",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

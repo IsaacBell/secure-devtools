@@ -1,0 +1,32 @@
+*.env
+.env.*
+!.env.example
+
+*.sarif
+
+*node_modules/
+coverage/
+*dist/
+.DS_Store
+
+*/compose.override.yaml
+
+# repo-search local index (regenerated, never committed)
+.lancedb/
+.repo-search.sqlite3
+/docs/build
+
+# npm
+*/bats-*.tgz
+*/package-lock.json
+*test/.bats/run-logs/
+
+# python
+__pycache__/
+*.pyc
+
+# scratch file that should never be committed
+*/test.bats
+*/test2/
+report.xml
+report.log
