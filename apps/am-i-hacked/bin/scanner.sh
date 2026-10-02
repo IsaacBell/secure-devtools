@@ -247,11 +247,11 @@ readonly YARN_RELEASE_UNVERIFIED_TITLE="Yarn release does not match any official
 # Telegram tokens, launchers, editor auto-run, asset payloads, .env tracking.
 # Dynamic code exec, network access, and similar routine patterns in bundled code
 # are not recorded as findings; matches are counted by file and tag instead.
-declare -A BUNDLE_PATH_SET=()   # Track which files are build-output
-declare -A BUNDLE_IDX=()        # Map: pathrel → index in BUNDLE_FILES
-declare -a BUNDLE_FILES=()      # Build-output files in scan order
-declare -a BUNDLE_COUNT=()      # Match count per file
-declare -a BUNDLE_TAGS=()       # Tag list per file (comma-separated, unique)
+declare -A BUNDLE_PATH_SET=() # Track which files are build-output
+declare -A BUNDLE_IDX=()      # Map: pathrel → index in BUNDLE_FILES
+declare -a BUNDLE_FILES=()    # Build-output files in scan order
+declare -a BUNDLE_COUNT=()    # Match count per file
+declare -a BUNDLE_TAGS=()     # Tag list per file (comma-separated, unique)
 
 # Low-signal tags: these are not recorded as findings in build-output files
 readonly -a LOW_SIGNAL_TAGS=(
