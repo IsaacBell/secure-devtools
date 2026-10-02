@@ -2,6 +2,7 @@
 # Release one package from this monorepo to npm. The name and version come from the
 # package's own package.json, so one script serves every package.
 #
+#   scripts/release.sh login                    # make sure npm is logged in (pnpm login if not)
 #   scripts/release.sh dry-run apps/<package>   # list the files that would ship
 #   scripts/release.sh publish apps/<package>   # publish (npm asks for 2FA), then tag
 #
@@ -13,13 +14,28 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+registry=https://registry.npmjs.org/
+
 die() {
 	echo "release.sh: $*" >&2
 	exit 1
 }
 
+# npm answers an upload without a valid login with 404, not 401, so check before publishing.
+ensure_login() {
+	pnpm whoami --registry "$registry" >/dev/null 2>&1 && return
+	echo "release.sh: not logged in to npm; running pnpm login" >&2
+	pnpm login --registry "$registry"
+	pnpm whoami --registry "$registry" >/dev/null 2>&1 || die "still not logged in to npm"
+}
+
+if [[ ${1:-} == login ]]; then
+	ensure_login
+	exit
+fi
+
 [[ $# -eq 2 ]] || {
-	echo "usage: release.sh dry-run|publish <package-dir>" >&2
+	echo "usage: release.sh login | dry-run|publish <package-dir>" >&2
 	exit 2
 }
 action=$1
@@ -42,6 +58,7 @@ dry-run)
 	(cd "$dir" && pnpm pack --dry-run)
 	;;
 publish)
+	ensure_login
 	if [[ -n "$(pnpm view "$name@$version" version 2>/dev/null)" ]]; then
 		die "$name@$version is already on npm; bump the version in $pkg"
 	fi
