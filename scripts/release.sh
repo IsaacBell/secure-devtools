@@ -34,7 +34,7 @@ version=$(jq -r '.version // empty' "$pkg")
 [[ "$(jq -r '.private // false' "$pkg")" == "false" ]] || die "$name is marked private"
 
 hooks=$(jq -r '.scripts // {} | keys[] | select(test("^(pre|post)?(pack|publish|install)$|^prepublishOnly$|^prepare$"))' "$pkg")
-[[ -z "$hooks" ]] || die "$name has lifecycle scripts that would run on publish: $(echo $hooks)"
+[[ -z "$hooks" ]] || die "$name has lifecycle scripts that would run on publish: ${hooks//$'\n'/ }"
 
 echo "release.sh: $name@$version from $dir"
 case $action in

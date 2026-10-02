@@ -28,6 +28,7 @@ jobs:
         with:
           version: 2026.9.12
 
+      # nosemgrep: yaml.github-actions.security.pull-request-target-code-checkout.pull-request-target-code-checkout -- reviewed: the scanner only reads these files (rg, sed, git ls-files) and never runs them; see the note at the top.
       - name: Check out the code under review
         if: github.event_name == 'pull_request_target'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -103,16 +103,13 @@ readonly SOURCE_GLOBS=(
 	--glob '*.cpp'
 )
 
+# Only installed dependencies and git's own store are skipped by name. Build
+# output (dist/, build/, .next/ ...) is scanned when committed, since a package
+# script can run it; untracked build output that .gitignore lists is skipped
+# like any other ignored untracked file (see "scan scope" below).
 EXCLUDE_GLOBS=(
 	--glob '!**/node_modules/**'
 	--glob '!**/.git/**'
-	--glob '!**/.next/**'
-	--glob '!**/.turbo/**'
-	--glob '!**/dist/**'
-	--glob '!**/build/**'
-	--glob '!**/coverage/**'
-	--glob '!**/out/**'
-	--glob '!**/.cache/**'
 )
 
 readonly FIXTURES_DIRNAME="__security_gate_fixtures__"
@@ -131,6 +128,56 @@ if [[ "${INCLUDE_FIXTURES:-0}" != "1" ]]; then
 	)
 fi
 readonly EXCLUDE_GLOBS
+
+# --- scan scope ------------------------------------------------------------------
+#
+# The tree under review must not decide what gets scanned. On its own, ripgrep
+# skips dot-directories and anything named in .gitignore, .ignore or .rgignore,
+# so a payload under .vscode/, or in a directory the repository's own .gitignore
+# lists, would never be read. So every scan reads dot-directories (--hidden)
+# and drops .ignore and .rgignore (--no-ignore-dot). .gitignore still skips
+# untracked files (local build output, virtualenvs), but never a tracked one:
+# git lists the tracked files its ignore rules match, and rg_scoped scans those
+# by name.
+
+# git with the scanned tree's config defanged. That .git/config is part of what
+# is under review, and `git ls-files` runs any core.fsmonitor command it names.
+untrusted_git() {
+	git -c core.fsmonitor=false "$@"
+}
+
+# Tracked files that a .gitignore, .git/info/exclude or core.excludesFile
+# matches. Normally there are none.
+declare -A TRACKED_IGNORED=()
+while IFS= read -r -d '' tracked; do
+	TRACKED_IGNORED["$ROOT/$tracked"]=1
+done < <(untrusted_git -C "$ROOT" ls-files -z --cached --ignored --exclude-standard 2>/dev/null || true)
+readonly TRACKED_IGNORED
+
+# rg_scoped <rg args...> — ripgrep over $ROOT with the scope rules above. Pass
+# every argument except the search path. A second pass covers the tracked
+# ignored files the same --glob set selects; ripgrep applies globs only to what
+# it finds by walking, so that pass lists them by walking with no ignore rules.
+rg_scoped() {
+	local args=("$@") globs=() extra=() file i
+
+	rg --hidden --no-ignore-dot "$@" -- "$ROOT" || true
+	((${#TRACKED_IGNORED[@]} > 0)) || return 0
+
+	for ((i = 0; i < ${#args[@]}; i++)); do
+		if [[ "${args[i]}" == --glob ]]; then
+			globs+=(--glob "${args[i + 1]}")
+		fi
+	done
+	while IFS= read -r -d '' file; do
+		if [[ -n "${TRACKED_IGNORED["$file"]+x}" ]]; then
+			extra+=("$file")
+		fi
+	done < <(rg --files --null --hidden --no-ignore "${globs[@]}" -- "$ROOT" || true)
+	((${#extra[@]} > 0)) || return 0
+
+	printf '%s\0' "${extra[@]}" | xargs -0 rg --with-filename "$@" -- || true
+}
 
 # --- color ---------------------------------------------------------------------
 
@@ -178,6 +225,47 @@ declare -A SUP_IDX=()
 
 # Set to 1 when package.json inspection could not run (jq missing).
 missing_jq=0
+
+# Yarn release verification. Path to the table of official Yarn release checksums.
+YARN_RELEASES_TABLE="${AIH_YARN_RELEASES:-$(dirname "${BASH_SOURCE[0]}")/yarn-releases.tsv}"
+
+# Globs to exclude Yarn releases from content scans (they are verified separately by hash).
+YARN_RELEASE_EXCLUDE_GLOBS=(
+	--glob '!**/.yarn/releases/*.cjs'
+	--glob '!**/.yarn/releases/*.js'
+)
+
+# Arrays to track Yarn releases during scanning.
+declare -a YARN_V_PATH=()     # Verified release file paths
+declare -a YARN_V_VERSION=()  # Verified release versions (for display)
+declare -a YARN_UNVERIFIED=() # Unverified release versions (for footer)
+YARN_TABLE_MISSING=0          # Set to 1 if the checksum table is missing
+readonly YARN_RELEASE_UNVERIFIED_TITLE="Yarn release does not match any official Yarn release"
+
+# Build-output detection and low-signal tracking. Bundled code (webpack/esbuild/ncc)
+# only gets high-signal checks: string-table obfuscation, capture/exfiltration,
+# Telegram tokens, launchers, editor auto-run, asset payloads, .env tracking.
+# Dynamic code exec, network access, and similar routine patterns in bundled code
+# are not recorded as findings; matches are counted by file and tag instead.
+declare -A BUNDLE_PATH_SET=()   # Track which files are build-output
+declare -A BUNDLE_IDX=()        # Map: pathrel → index in BUNDLE_FILES
+declare -a BUNDLE_FILES=()      # Build-output files in scan order
+declare -a BUNDLE_COUNT=()      # Match count per file
+declare -a BUNDLE_TAGS=()       # Tag list per file (comma-separated, unique)
+
+# Low-signal tags: these are not recorded as findings in build-output files
+readonly -a LOW_SIGNAL_TAGS=(
+	"Dynamic code execution"
+	"Dynamic timer execution"
+	"Child-process execution"
+	"Direct network module access"
+	"Runtime global mutation"
+	"Computed global properties"
+	"Hex or Unicode string escapes"
+	"Suspicious decoder/string-table helpers"
+	"Runtime source construction"
+	"source line exceeds"
+)
 
 # Cap a snippet so one enormous minified line cannot flood the report.
 # Runs of whitespace are collapsed (preview only) so deeply indented or
@@ -243,9 +331,47 @@ suppression_reason() {
 	return 1
 }
 
+# is_build_output <path> — true when the file's first 4096 bytes contain a
+# build-output marker (__nccwpck_require__, __webpack_require__, webpackBootstrap,
+# __toESM(, __commonJS(). Answers are cached per path in BUNDLE_PATH_SET.
+is_build_output() {
+	local path="$1"
+	local head marker
+
+	if [[ -v BUNDLE_PATH_SET["$path"] ]]; then
+		return "$((BUNDLE_PATH_SET["$path"] == 1 ? 0 : 1))"
+	fi
+
+	if head="$(head -c 4096 "$path" 2>/dev/null)"; then
+		for marker in "__nccwpck_require__" "__webpack_require__" "webpackBootstrap" "__toESM(" "__commonJS("; do
+			if [[ "$head" == *"$marker"* ]]; then
+				BUNDLE_PATH_SET["$path"]=1
+				return 0
+			fi
+		done
+	fi
+
+	BUNDLE_PATH_SET["$path"]=0
+	return 1
+}
+
+# is_low_signal_tag <tag> — true when the tag is a routine pattern in bundled code.
+is_low_signal_tag() {
+	local tag="$1"
+	local t
+	for t in "${LOW_SIGNAL_TAGS[@]}"; do
+		if [[ "$tag" == "$t" ]]; then
+			return 0
+		fi
+	done
+	return 1
+}
+
 # Record one finding for path:line under an indicator category. A suppressed
 # finding is rerouted into the SUP_* store instead of F_*: it never counts
 # toward the exit code, but it is never dropped either.
+# For build-output files, low-signal findings are not recorded but are tracked
+# in BUNDLE_* arrays for a summary line at report time.
 record_finding() {
 	local path="$1"
 	local line="$2"
@@ -277,6 +403,25 @@ record_finding() {
 			SUP_SNIP+=("$snippet")
 			SUP_TAGS+=("$tag")
 			SUP_REASON+=("$reason")
+		fi
+		return
+	fi
+
+	# Build-output: low-signal tags are tracked but not recorded as findings
+	if is_build_output "$path" && is_low_signal_tag "$tag"; then
+		local bundle_idx
+		if [[ -v BUNDLE_IDX[$pathrel] ]]; then
+			bundle_idx="${BUNDLE_IDX[$pathrel]}"
+			BUNDLE_COUNT[bundle_idx]=$((BUNDLE_COUNT[bundle_idx] + 1))
+			if [[ "${BUNDLE_TAGS[bundle_idx]}" != *"$tag"* ]]; then
+				BUNDLE_TAGS[bundle_idx]+=", $tag"
+			fi
+		else
+			bundle_idx="${#BUNDLE_FILES[@]}"
+			BUNDLE_IDX[$pathrel]=$bundle_idx
+			BUNDLE_FILES+=("$pathrel")
+			BUNDLE_COUNT+=("1")
+			BUNDLE_TAGS+=("$tag")
 		fi
 		return
 	fi
@@ -316,13 +461,13 @@ scan_pattern() {
 		split_rg_row "$row"
 		record_finding "$P_PATH" "$P_LINE" "$P_SNIP" "$title"
 	done < <(
-		rg -n \
+		rg_scoped -n \
 			--no-heading \
 			--color never \
 			"${SOURCE_GLOBS[@]}" \
 			"${EXCLUDE_GLOBS[@]}" \
-			"$pattern" \
-			-- "$ROOT" 2>/dev/null || true
+			"${YARN_RELEASE_EXCLUDE_GLOBS[@]}" \
+			"$pattern" 2>/dev/null || true
 	)
 }
 
@@ -353,13 +498,13 @@ scan_encoded_payload_primitives() {
 			record_finding "$P_PATH" "$P_LINE" "$P_SNIP" "$IOC_ENCODED_PRIMITIVE_TITLE"
 		fi
 	done < <(
-		rg -n \
+		rg_scoped -n \
 			--no-heading \
 			--color never \
 			"${SOURCE_GLOBS[@]}" \
 			"${EXCLUDE_GLOBS[@]}" \
-			"$IOC_ENCODED_PRIMITIVE_PATTERN" \
-			-- "$ROOT" 2>/dev/null || true
+			"${YARN_RELEASE_EXCLUDE_GLOBS[@]}" \
+			"$IOC_ENCODED_PRIMITIVE_PATTERN" 2>/dev/null || true
 	)
 }
 
@@ -382,14 +527,25 @@ scan_child_process() {
 		fi
 		((safe == 1)) || record_finding "$P_PATH" "$P_LINE" "$P_SNIP" "$IOC_CHILD_PROCESS_TITLE"
 	done < <(
-		rg -n \
+		rg_scoped -n \
 			--no-heading \
 			--color never \
 			"${SOURCE_GLOBS[@]}" \
 			"${EXCLUDE_GLOBS[@]}" \
-			"$IOC_CHILD_PROCESS_PATTERN" \
-			-- "$ROOT" 2>/dev/null || true
+			"${YARN_RELEASE_EXCLUDE_GLOBS[@]}" \
+			"$IOC_CHILD_PROCESS_PATTERN" 2>/dev/null || true
 	)
+}
+
+# --- yarn release verification ---------------------------------------------------
+
+# sha256_of <file> — the sha256 hex digest, via sha256sum or shasum.
+sha256_of() {
+	if command -v sha256sum >/dev/null 2>&1; then
+		sha256sum "$1" | cut -d' ' -f1
+	else
+		shasum -a 256 "$1" | cut -d' ' -f1
+	fi
 }
 
 # --- clipboard / keystroke / screen capture + exfiltration ---------------------
@@ -453,15 +609,18 @@ scan_capture_exfil() {
 	while IFS= read -r -d '' file; do
 		files+=("$file")
 	done < <(
-		rg --files --null "${IOC_CAPTURE_EXT_GLOBS[@]}" "${EXCLUDE_GLOBS[@]}" -- "$ROOT" 2>/dev/null || true
+		rg_scoped --files --null "${IOC_CAPTURE_EXT_GLOBS[@]}" "${EXCLUDE_GLOBS[@]}" "${YARN_RELEASE_EXCLUDE_GLOBS[@]}" 2>/dev/null || true
 	)
+	# Extensionless is tested on the file name here: a `!*.*` glob would also
+	# prune every directory with a dot in its name, `.devcontainer` included.
 	while IFS= read -r -d '' file; do
+		[[ "${file##*/}" != *.* ]] || continue
 		first="$(head -n 1 "$file" 2>/dev/null || true)"
 		if [[ "$first" == '#!'* ]]; then
 			files+=("$file")
 		fi
 	done < <(
-		rg --files --null --glob '!*.*' "${EXCLUDE_GLOBS[@]}" -- "$ROOT" 2>/dev/null || true
+		rg_scoped --files --null "${EXCLUDE_GLOBS[@]}" 2>/dev/null || true
 	)
 
 	((${#files[@]} > 0)) || return 0
@@ -529,8 +688,7 @@ scan_capture_exfil() {
 #
 # Same contract as scan_pattern, but scoped to an explicit glob set rather than
 # the source-file globs. `--text` makes ripgrep read files it would otherwise
-# skip as binary, and `--hidden` makes it descend into dot-directories such as
-# `.vscode` — both are required for the editor-config and asset checks.
+# skip as binary, which the asset checks need.
 scan_with_globs() {
 	local title="$1"
 	local pattern="$2"
@@ -542,17 +700,21 @@ scan_with_globs() {
 		split_rg_row "$row"
 		record_finding "$P_PATH" "$P_LINE" "$P_SNIP" "$title"
 	done < <(
-		rg -n \
+		rg_scoped -n \
 			--no-heading \
 			--color never \
 			--text \
-			--hidden \
 			"$@" \
 			"${EXCLUDE_GLOBS[@]}" \
-			"$pattern" \
-			-- "$ROOT" 2>/dev/null || true
+			"$pattern" 2>/dev/null || true
 	)
 }
+
+# A base64 data: URL that starts with the WebAssembly magic bytes (AGFzbQ is
+# base64 of "\0asm") is how a real .pnp.cjs or a bundled runtime embeds a wasm
+# blob. When the whole line is only `name = "data:...";`, its length carries no
+# signal, so it is not flagged. Any other code around it still is.
+readonly IOC_EMBEDDED_WASM_RE=$'^[[:space:]]*(var|let|const)?[[:space:]]*[A-Za-z_$][A-Za-z0-9_$]*[[:space:]]*=[[:space:]]*["\']data:application/(octet-stream|wasm);base64,AGFzbQ[A-Za-z0-9+/=]*["\'][[:space:]]*;?[[:space:]]*$'
 
 scan_long_lines() {
 	local row content length
@@ -568,16 +730,21 @@ scan_long_lines() {
 		length="${#content}"
 
 		if ((length > MAX_SOURCE_LINE_LENGTH)); then
-			split_rg_row "$row"
-			record_finding "$P_PATH" "$P_LINE" "$P_SNIP" "source line exceeds ${MAX_SOURCE_LINE_LENGTH} characters"
+			# An embedded WebAssembly data: URL is the one long line that
+			# carries no signal on its own (see IOC_EMBEDDED_WASM_RE).
+			if [[ ! "$content" =~ $IOC_EMBEDDED_WASM_RE ]]; then
+				split_rg_row "$row"
+				record_finding "$P_PATH" "$P_LINE" "$P_SNIP" "source line exceeds ${MAX_SOURCE_LINE_LENGTH} characters"
+			fi
 		fi
 	done < <(
-		rg -n \
+		rg_scoped -n \
 			--no-heading \
 			--color never \
 			"${SOURCE_GLOBS[@]}" \
 			"${EXCLUDE_GLOBS[@]}" \
-			-- '.' "$ROOT" 2>/dev/null || true
+			"${YARN_RELEASE_EXCLUDE_GLOBS[@]}" \
+			'.' 2>/dev/null || true
 	)
 }
 
@@ -632,6 +799,115 @@ scan_package_scripts() {
 				"\(.key): \(.value)"
 			' "$file" 2>/dev/null || true
 		)
+	done
+}
+
+# List Yarn release files from .yarn/releases/ and verify each against the table.
+# A match is informational; a mismatch is a finding at line 1.
+scan_yarn_releases() {
+	local file hash version
+	local -a table_versions=()
+	local -a table_hashes=()
+
+	# Load the checksum table if it exists.
+	if [[ ! -f "$YARN_RELEASES_TABLE" ]]; then
+		YARN_TABLE_MISSING=1
+		# Still scan for release files; treat them all as unverified.
+	else
+		while IFS=$'\t' read -r version hash; do
+			[[ -n "$version" ]] || continue
+			[[ "$version" == \#* ]] && continue
+			[[ -n "$hash" ]] || continue
+			table_versions+=("$version")
+			table_hashes+=("$hash")
+		done <"$YARN_RELEASES_TABLE"
+	fi
+
+	# List release files: .yarn/releases/*.cjs and .yarn/releases/*.js
+	while IFS= read -r -d '' file; do
+		[[ -n "$file" ]] || continue
+
+		# Extract version from filename: yarn-<version>.cjs or .js
+		version="${file##*/}"
+		version="${version#yarn-}"
+		version="${version%.cjs}"
+		version="${version%.js}"
+
+		# Compute the file's sha256.
+		hash="$(sha256_of "$file")"
+
+		# Look up the hash in the table.
+		local found=0
+		local i
+		for ((i = 0; i < ${#table_versions[@]}; i++)); do
+			if [[ "$hash" == "${table_hashes[i]}" ]]; then
+				YARN_V_PATH+=("${file#"$ROOT"/}")
+				YARN_V_VERSION+=("$version")
+				found=1
+				break
+			fi
+		done
+
+		if ((found == 0)); then
+			# Unverified: record as a finding and save the version for the footer.
+			record_finding "$file" 1 "sha256 ${hash}" "$YARN_RELEASE_UNVERIFIED_TITLE"
+			YARN_UNVERIFIED+=("$version")
+		fi
+	done < <(
+		rg_scoped --files --null \
+			--glob '**/.yarn/releases/*.cjs' \
+			--glob '**/.yarn/releases/*.js' \
+			"${EXCLUDE_GLOBS[@]}" 2>/dev/null || true
+	)
+}
+
+# A verified official Yarn release is informational, listed on every run.
+render_yarn_verified() {
+	local i
+	((${#YARN_V_PATH[@]} > 0)) || return 0
+	for ((i = 0; i < ${#YARN_V_PATH[@]}; i++)); do
+		printf '%sam-i-hacked: verified official Yarn release %s (%s)%s\n' \
+			"$C_DIM" "${YARN_V_PATH[i]}" "${YARN_V_VERSION[i]}" "$C_RESET"
+	done
+}
+
+# Footer for a Yarn release that matched no table row: how to check it by hand,
+# and that a newer scanner knows newer releases. Also warns when the table is
+# missing, which is why every release is unverified.
+render_yarn_unverified() {
+	local version
+
+	if ((YARN_TABLE_MISSING == 1)); then
+		printf '\n%sam-i-hacked: warning: Yarn release checksum table not found at %s — treating every Yarn release as unverified.%s\n' \
+			"$C_YELLOW" "$YARN_RELEASES_TABLE" "$C_RESET"
+	fi
+
+	((${#YARN_UNVERIFIED[@]} > 0)) || return 0
+
+	printf '\n%sVerify a Yarn release by hand: hash the matching official tarball and compare it with the sha256 above.%s\n' \
+		"$C_DIM" "$C_RESET"
+	for version in "${YARN_UNVERIFIED[@]}"; do
+		printf '%s  curl -s https://registry.npmjs.org/@yarnpkg/cli-dist/-/cli-dist-%s.tgz | tar -xzO package/bin/yarn.js | shasum -a 256%s\n' \
+			"$C_DIM" "$version" "$C_RESET"
+	done
+	printf '%sA newer am-i-hacked knows newer Yarn releases. If the hash matches, refresh the table with scripts/update-yarn-releases.sh.%s\n' \
+		"$C_DIM" "$C_RESET"
+}
+
+# Build-output summary: one line per bundled file showing match count and tag list.
+# Routine patterns in bundled code are never flagged but are always reported here.
+render_build_output() {
+	local i file count tags
+
+	((${#BUNDLE_FILES[@]} > 0)) || return 0
+
+	printf '\n%sam-i-hacked: build output, routine matches in bundled code not counted:%s\n' \
+		"$C_DIM" "$C_RESET"
+	for ((i = 0; i < ${#BUNDLE_FILES[@]}; i++)); do
+		file="${BUNDLE_FILES[i]}"
+		count="${BUNDLE_COUNT[i]}"
+		tags="${BUNDLE_TAGS[i]}"
+		printf '%s  %s: %d matches (%s)%s\n' "$C_DIM" "$file" "$count" "$tags" "$C_RESET"
 	done
 }
 
@@ -742,7 +1018,7 @@ scan_tracked_env() {
 			continue
 		fi
 		record_finding "$ROOT/$file" 1 "$file (present in the git index)" "Tracked .env file"
-	done < <(git -C "$ROOT" ls-files -- "${IOC_ENV_PATHSPEC[@]}" 2>/dev/null || true)
+	done < <(untrusted_git -C "$ROOT" ls-files -- "${IOC_ENV_PATHSPEC[@]}" 2>/dev/null || true)
 }
 
 # Progress: one line per check on stderr, so a long scan is never a silent wait. On by default
@@ -754,7 +1030,7 @@ else
 	PROGRESS=0
 fi
 STEP=0
-STEP_TOTAL=$((${#IOC_CONTENT_PATTERNS[@]} + ${#IOC_EDITOR_PATTERNS[@]} + ${#IOC_ASSET_PATTERNS[@]} + 6))
+STEP_TOTAL=$((${#IOC_CONTENT_PATTERNS[@]} + ${#IOC_EDITOR_PATTERNS[@]} + ${#IOC_ASSET_PATTERNS[@]} + 7))
 SCAN_START=$SECONDS
 
 progress() {
@@ -800,6 +1076,8 @@ progress "Environment files in the git index"
 scan_tracked_env
 progress "package.json scripts"
 scan_package_scripts
+progress "Yarn release checksums"
+scan_yarn_releases
 
 ((PROGRESS == 1)) && printf 'am-i-hacked: checks done in %ds, %d found\n\n' "$((SECONDS - SCAN_START))" \
 	"$((${#F_PATH[@]} + ${#S_PATH[@]}))" >&2
@@ -810,8 +1088,11 @@ if ((${#F_PATH[@]} > 0 || ${#S_PATH[@]} > 0)); then
 	# the script right here, silently skipping render_suppressed and the
 	# footer below. `|| true` keeps that return value from being anything
 	# other than documentation.
+	render_yarn_verified || true
+	render_build_output || true
 	render_findings || true
 	render_suppressed || true
+	render_yarn_unverified || true
 
 	if ((missing_jq == 1)); then
 		printf '\n%sam-i-hacked: %s could not inspect package.json scripts (jq missing).%s\n' \
@@ -838,6 +1119,9 @@ EOF
 fi
 
 render_suppressed || true
+render_build_output || true
+render_yarn_verified || true
+render_yarn_unverified || true
 
 if ((missing_jq == 1)); then
 	printf '\n%sam-i-hacked: %s could not inspect package.json scripts (jq missing).%s\n' \

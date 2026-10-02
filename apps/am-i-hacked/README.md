@@ -116,6 +116,10 @@ Linuxbrew locations, and otherwise tells you what to install (for example `brew 
 Install `rg` and `jq`
 with `brew install ripgrep jq` or `apt-get install ripgrep jq`.
 
+## 🔒 Privacy
+
+The scanner runs entirely on your machine and sends nothing anywhere. The project scan and host audit make no network calls; the source is open under MIT, so anyone can verify this. Findings stay in your terminal — it is safe to run on private or sensitive code.
+
 The package installs these commands:
 
 | Command | What it runs |
@@ -144,8 +148,10 @@ The package installs these commands:
   [below](#clipboardkeyloggerexfil-detection)
 - Environment files (`.env`, `.env.*`) tracked in the git index
 
-It scans JS/TS/Python/Rust/Ruby/C/C++/C# sources out of the box and skips `node_modules`, build
-output and VCS dirs. Where a bare regex would be noisy it wants context: a decode call only
+It scans JS/TS/Python/Rust/Ruby/C/C++/C# sources out of the box and skips `node_modules` and VCS
+dirs. Build output (bundled code from webpack, esbuild, or ncc) is scanned when committed; untracked build output that `.gitignore` lists is skipped. **In bundled code, only high-signal patterns are reported as findings** — dynamic code execution and network-access patterns routine in minified code are tracked but not flagged; string-table obfuscation, capture/exfiltration and bot tokens still are.
+
+Official Yarn releases in `.yarn/releases` are verified by SHA256 checksum against a table of 71 official releases instead of content-scanned; a mismatch fails. Where a bare regex would be noisy it wants context: a decode call only
 trips near an execution call or a long literal, and a lone ANSI color escape is not a payload.
 
 ## 🖥️ Host audit
@@ -273,9 +279,10 @@ a shebang.
 | Persistence beside capture | `launchctl load`, `~/Library/LaunchAgents`, `crontab -`, `~/.config/autostart` in a script that also captures | Persistence installed by a script that captures input |
 | Capture-shaped file name | name matching `(clip\|key\|screen)[-_ ]?(logger\|monitor\|spy\|grab)` that reads the clipboard or input | Capture-named script reads the clipboard or input |
 
-Files under `node_modules`/`.cache`, build output, and the fixtures dir are
-never scanned, so a README mention or a vendor's own clipboard-library source
-with no exfiltration endpoint does not trip the scan. Reviewed matches can still
+Files under `node_modules` and the fixtures dir are never scanned. Untracked
+build output that `.gitignore` lists is skipped too, so a README mention or a
+vendor's clipboard-library source with no exfiltration endpoint does not trip
+the scan. Reviewed matches can still
 be marked safe with `am-i-hacked-ignore:` (see above).
 
 `am-i-hacked host` audits the machine itself for the persistence side of this

@@ -78,6 +78,10 @@ run = "bash apps/am-i-hacked/bin/scanner.sh ."
 description = "Audit this machine: login items and signatures, crontab, shell startup files, agent config, processes"
 run = "bash apps/am-i-hacked/bin/scanner.sh --system"
 
+[tasks.update-yarn-releases]
+description = "Refresh the yarn release checksum table from the npm registry"
+run = "bash scripts/update-yarn-releases.sh"
+
 [tasks.am-i-being-recorded]
 description = "Audit local capture surfaces and browser extensions (macOS/Linux)"
 run = "bash apps/am-i-being-recorded/bin/am-i-being-recorded.sh"
