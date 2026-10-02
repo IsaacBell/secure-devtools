@@ -14,6 +14,7 @@ CODEOWNERS
 .semgrepignore
 .github/dependabot.yml
 .github/workflows/ci.yml
+.github/workflows/codeant.yml
 .github/workflows/dependency-review.yml
 .github/workflows/gate.yml
 .github/workflows/semgrep.yml
