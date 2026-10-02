@@ -44,7 +44,19 @@ mise run setup   # dev dependencies and git hooks
 mise run check   # shellcheck, shfmt check and the bats tests: what CI runs
 ```
 
-`mise run` lists every task. The git hooks run the same checks before each commit. CI in [`.github/workflows/`](.github/workflows/) runs the checks and tests, this repository's own security gate, a gitleaks secret scan, Semgrep and dependency review. Releases: [docs/RELEASING.md](docs/RELEASING.md). Changes: each package's `CHANGELOG.md`.
+`mise run` lists every task. The git hooks run the same checks before each commit. CI in [`.github/workflows/`](.github/workflows/) runs the checks and tests, this repository's own security gate (`mise run gate`), a gitleaks secret scan, Semgrep, dependency review, and CodeAnt AI scan (opt-in: set the CODEANT_ENABLED repository variable to true and add the CODEANT_API_TOKEN secret). Releases: [docs/RELEASING.md](docs/RELEASING.md). Changes: each package's `CHANGELOG.md`.
+
+## Semgrep
+
+[`secure-semgrep`](apps/secure-semgrep/README.md) is the repository's static-analysis pack: bundled, owned rules for AI agents and bash, plus Semgrep loadout packs you can point at any codebase. It lives in [`apps/secure-semgrep`](apps/secure-semgrep/README.md) and publishes to npm as `secure-semgrep`, mirroring how `am-i-hacked` is published.
+
+Run it over this repository (review mode records findings without breaking the build):
+
+```bash
+$ mise run semgrep
+```
+
+To turn findings into a hard gate, run `mise run semgrep-strict`. In any other repository, use it the same way as a post-`npm install` script — see the [package README](apps/secure-semgrep/README.md) for loadouts (`react`, `ts`, `node`, `py`, `rust`) and CI snippets.
 
 ## Contributing, security and support
 
