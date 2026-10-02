@@ -44,7 +44,7 @@ mise run setup   # dev dependencies and git hooks
 mise run check   # shellcheck, shfmt check and the bats tests: what CI runs
 ```
 
-`mise run` lists every task. The git hooks run the same checks before each commit. CI in [`.github/workflows/`](.github/workflows/) runs the checks and tests, this repository's own security gate (`mise run gate`), a gitleaks secret scan, Semgrep, dependency review, and CodeAnt AI scan (opt-in: set the CODEANT_ENABLED repository variable to true and add the CODEANT_API_TOKEN secret). Releases: [docs/RELEASING.md](docs/RELEASING.md). Changes: each package's `CHANGELOG.md`.
+`mise run` lists every task. The git hooks run the same checks before each commit. CI in [`.github/workflows/`](.github/workflows/) runs the checks and tests, this repository's own security gate (`mise run gate`), a gitleaks secret scan, Semgrep, dependency review, and CodeAnt AI scan. Releases: [docs/RELEASING.md](docs/RELEASING.md). Changes: each package's `CHANGELOG.md`.
 
 ## Semgrep
 

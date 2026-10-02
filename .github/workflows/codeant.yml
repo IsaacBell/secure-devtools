@@ -14,7 +14,6 @@ jobs:
   codeant_scan:
     name: Run CodeAnt CI scan
     runs-on: ubuntu-latest
-    if: ${{ vars.CODEANT_ENABLED == 'true' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
