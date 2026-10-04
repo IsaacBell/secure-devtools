@@ -13,8 +13,10 @@ npm publish needs 2FA.
    mise run publish-dry-run apps/<package>
    ```
 
-3. Publish from a clean `main` (runs `mise run check` first, then `pnpm publish`, then tags
-   `<name>@<version>`):
+3. Publish from a clean `main`. The task checks the npm login first (`pnpm whoami`; if it
+   fails, it runs `pnpm login` and checks again), so an expired login stops it in seconds, not
+   after the test suite. Then it runs `mise run check`, `pnpm publish`, and tags
+   `<name>@<version>`:
 
    ```bash
    mise run publish apps/<package>
