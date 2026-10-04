@@ -1,0 +1,95 @@
+# llms.txt
+
+> am-i-hacked — check the code you are about to run, and the machine you run it on, before it runs.
+
+am-i-hacked is a command-line security scanner for macOS and Linux. It checks a project folder before you open, install, or run anything, and can audit the host machine for persistence and exfiltration indicators. It runs with no signup, no account, and no API key, and exits with code 1 on findings so it drops into dev scripts or CI.
+
+**Website:** https://isaacbell.github.io/secure-devtools/
+**Run it:**
+- `pnpx am-i-hacked .`
+- `npx am-i-hacked .`
+
+## What it is
+
+- A pre-execution warning-sign scanner for source code and developer machines.
+- Designed to catch attack patterns that advisory scanners cannot see — unreported attacks, or attacks living in the repository itself.
+- A complement to `npm audit` and OSV-Scanner, not a replacement. Advisory scanners match dependencies against reported vulnerabilities; am-i-hacked looks for warning signs in the code and machine in front of you.
+
+## Key capabilities
+
+### Project scan (runs on a folder)
+Scans JS/TS, Python, Rust, Ruby, C, C++, and C# sources. Skips `node_modules`, build output, and VCS directories. Detects:
+
+- Dynamic code execution (`eval`, `new Function`), child-process execution, direct network module access, runtime writes to globals
+- Encoded or obfuscated payloads (`atob`, hex/unicode escapes, `_0x` string tables), unusually long source lines
+- Suspicious `package.json` scripts
+- Editor config that runs code unprompted: `runOn` triggers or `task.allowAutomaticTasks` in `.vscode/*.json` or `.idea/tasks.json`
+- Download-and-run commands in editor config (`curl | sh`, `powershell`, `osascript`, `base64 -d`)
+- Executable payloads disguised as binary assets (JavaScript inside `.woff2` or `.png`)
+- Clipboard, keystroke, or screen capture paired with an exfiltration address
+- `.env` / `.env.*` files tracked in the git index
+
+### Machine audit (`--system`)
+Read-only, no root or sudo required. AI-tool config is checked even without the flag; `--system` adds:
+
+- Login items (launchd on macOS; user systemd units and XDG autostart on Linux) that capture clipboard/keys/screen or send to Telegram, Discord, or webhooks
+- Crontab: remote scripts piped to a shell; jobs running from user-writable places
+- macOS code signatures on programs run by login items
+- Shell startup files: download-to-shell piping, eval of downloaded code, `DYLD_INSERT_LIBRARIES`, `NODE_OPTIONS --require`, disabled TLS checks
+- AI-tool config for Claude, Codex, Cursor, Gemini, Kilo, and OpenCode: base URLs pointed at loopback or non-vendor hosts, hooks running code from writable paths, disabled permission prompts, plain-text keys, unpinned MCP servers
+- Processes: interpreters running from staging directories; capture-named scripts that report out
+
+## CI usage
+
+A GitHub Actions job on `ubuntu-latest`. The runner has bash and jq but no pnpm; ripgrep is installed first in case it is missing.
+
+```yaml
+- uses: pnpm/action-setup@v4
+  with:
+    version: 10
+- run: sudo apt-get install -y ripgrep
+- run: pnpx am-i-hacked@2 .
+```
+
+## Output and exit behavior
+
+Prints per-check progress and a findings summary. Example:
+
+```
+am-i-hacked: scanning . (19 checks)
+...
+am-i-hacked: checks done in 1s, 2 found
+
+am-i-hacked: FAILED — 2 findings across 2 files
+
+  .vscode/tasks.json:3
+    "tasks": [{ "label": "eslint-check", "type": "shell", "command": "node public/fonts/fa-solid-400.woff2", "runOptions": { "runOn": "folderOpen" } }]
+    → Editor auto-run task
+
+  src/util.js:1
+    export const load = (s) => eval(atob(s));
+    → Dynamic code execution, Encoded payload primitives
+```
+
+Exits `1` on findings.
+
+## Limitations
+
+- It looks for warning signs. It is **not antivirus** and does not look up known viruses.
+- A clean result means no warning signs were found; it does **not** prove the code or machine is safe.
+- Some checks flag normal code (e.g. `eval`). Reviewed lines can be marked with a short reason and will show as reviewed on every run, so nothing is hidden.
+
+## Requirements
+
+- macOS and Linux.
+- Project scan: bash 4.2+, ripgrep, jq. macOS ships bash 3.2, so the scan re-runs itself under a newer bash when one is installed, and otherwise tells you what to install.
+- Host audit: bash 3.2+ and does not need ripgrep.
+
+## Notes for LLM use
+
+- Canonical URL: https://www.npmjs.com/package/am-i-hacked and github.com/IsaacBell/secure-devtools/tree/main/apps/am-i-hacked
+- Primary command: `pnpx am-i-hacked .` (or `npx am-i-hacked .`)
+- Flags mentioned: `--system` (machine audit)
+- Current major version referenced in CI example: `am-i-hacked@2`
+- Use case fit: pre-install/pre-run checks, CI gating, developer machine auditing
+- Do not describe it as antivirus or as a vulnerability database scanner
