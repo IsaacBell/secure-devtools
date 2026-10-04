@@ -2,6 +2,11 @@
 
 Newest first. One line per change. Default-behavior changes marked **CHANGED**. Package versions in brackets.
 
+## 2026-10-02
+
+### Skills
+- Added `skills/third-party-skill-intake/SKILL.md`: vet a third-party agent skill, plugin or setup recipe before using it. Fetch it as data at a pinned commit, scan it, read it, record where it came from, and never run its installer.
+
 ## 2026-10-01 [am-i-hacked 2.0.0]
 
 **BLUF:** `am-i-compromised` is renamed `am-i-hacked` and released as 2.0.0, the first npm release since 1.0.0. It includes everything below. The package changelog, [`apps/am-i-hacked/CHANGELOG.md`](apps/am-i-hacked/CHANGELOG.md), lists the full set of changes since 1.0.0.

@@ -20,7 +20,7 @@ pnpx am-i-hacked .     # or: npx am-i-hacked .
 | [`am-i-being-recorded`](apps/am-i-being-recorded/README.md) | Which browser extension is behind a screen-recording indicator, and what else on the machine can capture you. | From this repository |
 | [`secure-semgrep`](apps/secure-semgrep/README.md) | Semgrep rules and loadout packs for AI-agent, bash and web code. Needs `semgrep`. | From this repository |
 
-Agent skills in [`skills/`](skills/): [quarantine-review](skills/quarantine-review/SKILL.md) (inspect an untrusted repository without running any of it), [login-item-triage](skills/login-item-triage/SKILL.md) and [jujutsu](skills/jujutsu/SKILL.md).
+Agent skills in [`skills/`](skills/): [quarantine-review](skills/quarantine-review/SKILL.md) (inspect an untrusted repository without running any of it), [third-party-skill-intake](skills/third-party-skill-intake/SKILL.md) (vet a skill or plugin from a URL without running its installer), [login-item-triage](skills/login-item-triage/SKILL.md) and [jujutsu](skills/jujutsu/SKILL.md).
 
 ## Why this one?
 
