@@ -1,10 +1,15 @@
 # am-i-being-recorded
 
+[![npm version](https://img.shields.io/npm/v/am-i-being-recorded)](https://www.npmjs.com/package/am-i-being-recorded)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/IsaacBell/secure-devtools/actions/workflows/ci.yml/badge.svg)](https://github.com/IsaacBell/secure-devtools/actions/workflows/ci.yml)
 
 Find out **which browser extension is recording your screen** — and what else on
 the machine can capture you.
+
+```sh
+pnpx am-i-being-recorded     # or: npx am-i-being-recorded
+```
 
 The sibling of [`am-i-hacked`](https://www.npmjs.com/package/am-i-hacked):
 that one audits your *code*, this one audits your *machine*.
@@ -13,6 +18,31 @@ macOS attributes an active capture to the *application*, never the tab or
 extension responsible. A purple indicator that says "Brave Browser is recording
 your screen" is accurate but not actionable. This tool turns that attribution
 back into a name.
+
+## Installation
+
+Requires `jq` to read extension manifests. Everything else is preinstalled on
+macOS and most Linux distros.
+
+```sh
+# macOS
+brew install jq
+
+# Debian/Ubuntu
+apt-get install jq
+```
+
+Run without installing:
+
+```sh
+pnpx am-i-being-recorded
+```
+
+Install as a dev dependency:
+
+```sh
+pnpm add -D am-i-being-recorded   # or: npm install -D am-i-being-recorded
+```
 
 ## What it checks
 
@@ -40,21 +70,13 @@ Only the newest installed version of an extension is reported once per profile;
 Chromium leaves older version directories behind, and they are not loaded.
 
 **Live context (not findings).** On macOS: whether `screensharingd` and
-`replayd` are running, and which apps hold camera/microphone/screen-recording
-grants in the TCC privacy database, each with its code signer and Team ID
-(`signed: Zoom Video Communications, Inc. [BJ4HAAB9B3]`, `unsigned`, `ad-hoc
-signed`). An unsigned app holding a capture grant is worth a look. On Linux: which process holds a camera
-device. These lines are context for a human; findings come only from extension
-capabilities, so there is no "known good app" allowlist to maintain.
-
-## Requirements
-
-| Dependency | Needed for | Install |
-| --- | --- | --- |
-| `bash` 4+ | running the tool | preinstalled on macOS/Linux |
-| `jq` | reading extension manifests | `brew install jq` / `apt-get install jq` |
-| `sqlite3` | macOS TCC grants (optional) | preinstalled on macOS |
-| `lsof` | Linux camera holders (optional) | preinstalled on most distros |
+`replayd` are running, and which apps hold camera, microphone, and
+screen-recording grants in the TCC privacy database, each with its code signer
+and Team ID (`signed: Zoom Video Communications, Inc. [BJ4HAAB9B3]`,
+`unsigned`, `ad-hoc signed`). An unsigned app holding a capture grant is worth
+a look. On Linux: which process holds a `/dev/video*` camera device. These
+lines are context for a human; findings come only from extension capabilities,
+so there is no "known good app" allowlist to maintain.
 
 ## Usage
 
@@ -72,7 +94,7 @@ am-i-being-recorded --strict
 am-i-being-recorded --root ./fixtures --no-live
 ```
 
-The command is also installed as a short alias, `aibr`.
+The command is also installed as the short alias `aibr`.
 
 Findings are severity-tagged and printed highest first. The default mode is
 **evidence**: findings are reported and the exit status stays `0`. `--strict`
@@ -107,14 +129,23 @@ An extension installed in several profiles shows up once per profile.
   scope.
 - This is not a malware scanner. Treat it as triage that names a suspect.
 
-## Development
+## Contributing
+
+Bug reports and pull requests are welcome at
+<https://github.com/IsaacBell/secure-devtools/issues>.
 
 ```sh
-pnpm test          # bats test suite
+# Clone the monorepo and work inside this package
+cd apps/am-i-being-recorded
+pnpm test          # bats test suite (runs against synthetic fixtures, not your real browser data)
 pnpm lint          # shellcheck
 pnpm format:check  # shfmt
 pnpm check         # all of the above
 ```
 
-The test suite drives the filesystem pass against synthetic profile trees, so
-it runs without touching the host's real browser data and passes on Linux CI.
+The test suite drives the filesystem pass against synthetic profile trees so it
+runs without touching the host's real browser data and passes on Linux CI.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
