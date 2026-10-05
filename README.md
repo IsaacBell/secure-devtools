@@ -7,17 +7,18 @@ pnpx am-i-hacked .     # or: npx am-i-hacked .
 ```
 
 [![CI](https://github.com/IsaacBell/secure-devtools/actions/workflows/ci.yml/badge.svg)](https://github.com/IsaacBell/secure-devtools/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/am-i-hacked)](https://www.npmjs.com/package/am-i-hacked)
+[![npm am-i-hacked](https://img.shields.io/npm/v/am-i-hacked?label=am-i-hacked)](https://www.npmjs.com/package/am-i-hacked)
+[![npm am-i-being-recorded](https://img.shields.io/npm/v/am-i-being-recorded?label=am-i-being-recorded)](https://www.npmjs.com/package/am-i-being-recorded)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Status:** actively maintained. `am-i-hacked` 2.0.0 is the current release, renamed from `am-i-compromised`. macOS and Linux.
+**Status:** actively maintained. `am-i-hacked` 2.0.1 and `am-i-being-recorded` 1.0.0 are the current releases. macOS and Linux.
 
 ## Tools
 
 | Tool | What it checks | How to run |
 | --- | --- | --- |
 | [`am-i-hacked`](apps/am-i-hacked/README.md) | A project folder, for malicious-code indicators: editor tasks that run on folder open, payloads disguised as asset files, obfuscation, capture code paired with an exfiltration endpoint, `.env` files in the git index, risky `package.json` scripts. With `--system`, this machine: login and startup items and their code signatures, crontab, shell startup files, AI-tool config, running processes. | `pnpx am-i-hacked` |
-| [`am-i-being-recorded`](apps/am-i-being-recorded/README.md) | Which browser extension is behind a screen-recording indicator, and what else on the machine can capture you. | From this repository |
+| [`am-i-being-recorded`](apps/am-i-being-recorded/README.md) | Which browser extension is behind a screen-recording indicator, and what else on the machine can capture you. | `pnpx am-i-being-recorded` |
 | [`secure-semgrep`](apps/secure-semgrep/README.md) | Semgrep rules and loadout packs for AI-agent, bash and web code. Needs `semgrep`. | From this repository |
 
 Agent skills in [`skills/`](skills/): [quarantine-review](skills/quarantine-review/SKILL.md) (inspect an untrusted repository without running any of it), [third-party-skill-intake](skills/third-party-skill-intake/SKILL.md) (vet a skill or plugin from a URL without running its installer), [login-item-triage](skills/login-item-triage/SKILL.md) and [jujutsu](skills/jujutsu/SKILL.md).

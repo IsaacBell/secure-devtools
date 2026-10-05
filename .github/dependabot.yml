@@ -10,6 +10,26 @@ updates:
       - npm
       - dependencies
 
+  - package-ecosystem: npm
+    directory: /apps/am-i-being-recorded
+    schedule:
+      interval: daily
+    cooldown:
+      default-days: 7
+    labels:
+      - npm
+      - dependencies
+
+  - package-ecosystem: npm
+    directory: /apps/secure-semgrep
+    schedule:
+      interval: daily
+    cooldown:
+      default-days: 7
+    labels:
+      - npm
+      - dependencies
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
