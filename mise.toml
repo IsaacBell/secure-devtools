@@ -87,9 +87,9 @@ description = "Audit local capture surfaces and browser extensions (macOS/Linux)
 run = "bash apps/am-i-being-recorded/bin/am-i-being-recorded.sh"
 
 [tasks.publish]
-description = "Publish one package to npm (2FA), then tag it. Usage: mise run publish apps/<package>"
-depends = ["check"]
-run = "bash scripts/release.sh publish"
+description = "Check the npm login, run the checks, publish one package to npm (2FA), then tag it. Usage: mise run publish apps/<package>"
+raw = true
+run = ["bash scripts/release.sh login", { task = "check" }, "bash scripts/release.sh publish"]
 
 [tasks.publish-dry-run]
 description = "List the files one package would publish. Usage: mise run publish-dry-run apps/<package>"
