@@ -1,0 +1,41 @@
+rules:
+  - id: ssrf-unchecked-url-rust
+    languages: [rust]
+    severity: WARNING
+    message: >-
+      This request's URL is not a fixed string in the source and does not
+      pass through a guard function first. If the URL can be influenced from
+      outside this server's own configuration, an attacker can point it at
+      the server's private network or its cloud metadata address
+      (server-side request forgery). Validate the scheme, port and resolved
+      address before the request goes out — see the ssrf-safe-fetch skill.
+      This rule only looks at `reqwest`; a call named `.get`/`.post` on an
+      unrelated type can also match.
+    metadata:
+      cwe: "CWE-918: Server-Side Request Forgery (SSRF)"
+      owasp:
+        - "A10:2021 - Server-Side Request Forgery"
+      category: security
+      subcategory: [vuln]
+      confidence: LOW
+      likelihood: MEDIUM
+      impact: HIGH
+      technology: [rust, reqwest]
+      references:
+        - https://owasp.org/www-community/attacks/Server_Side_Request_Forgery
+    patterns:
+      - pattern-either:
+          - pattern: reqwest::get($URL)
+          - pattern: $CLIENT.get($URL)
+          - pattern: $CLIENT.post($URL)
+          - pattern: $CLIENT.put($URL)
+          - pattern: $CLIENT.patch($URL)
+          - pattern: $CLIENT.delete($URL)
+      - metavariable-pattern:
+          metavariable: $URL
+          patterns:
+            - pattern-not: "\"...\""
+            - pattern-not: assert_public_url(...)
+            - pattern-not: assert_public_url($X)?
+            - pattern-not: safe_fetch(...)
+            - pattern-not: safe_fetch($X)?

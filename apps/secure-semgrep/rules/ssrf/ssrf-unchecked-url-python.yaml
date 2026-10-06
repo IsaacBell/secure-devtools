@@ -1,0 +1,47 @@
+rules:
+  - id: ssrf-unchecked-url-python
+    languages: [python]
+    severity: WARNING
+    message: >-
+      This request's URL is not a fixed string in the source and does not pass
+      through a guard function first. If the URL can be influenced from
+      outside this server's own configuration, an attacker can point it at
+      the server's private network or its cloud metadata address
+      (server-side request forgery). Validate the scheme, port and resolved
+      address before the request goes out — see the ssrf-safe-fetch skill.
+    metadata:
+      cwe: "CWE-918: Server-Side Request Forgery (SSRF)"
+      owasp:
+        - "A10:2021 - Server-Side Request Forgery"
+      category: security
+      subcategory: [vuln]
+      confidence: MEDIUM
+      likelihood: MEDIUM
+      impact: HIGH
+      technology: [python, requests, httpx, urllib]
+      references:
+        - https://owasp.org/www-community/attacks/Server_Side_Request_Forgery
+    patterns:
+      - pattern-either:
+          - pattern: requests.get($URL, ...)
+          - pattern: requests.post($URL, ...)
+          - pattern: requests.put($URL, ...)
+          - pattern: requests.patch($URL, ...)
+          - pattern: requests.delete($URL, ...)
+          - pattern: requests.head($URL, ...)
+          - pattern: requests.request($METHOD, $URL, ...)
+          - pattern: httpx.get($URL, ...)
+          - pattern: httpx.post($URL, ...)
+          - pattern: httpx.put($URL, ...)
+          - pattern: httpx.patch($URL, ...)
+          - pattern: httpx.delete($URL, ...)
+          - pattern: httpx.request($METHOD, $URL, ...)
+          - pattern: urllib.request.urlopen($URL)
+      - metavariable-pattern:
+          metavariable: $URL
+          patterns:
+            - pattern-not: "\"...\""
+            - pattern-not: f"..."
+            - pattern-not: check_public_url(...)
+            - pattern-not: assert_public_url(...)
+            - pattern-not: safe_fetch(...)

@@ -21,7 +21,7 @@ pnpx am-i-hacked .     # or: npx am-i-hacked .
 | [`am-i-being-recorded`](apps/am-i-being-recorded/README.md) | Which browser extension is behind a screen-recording indicator, and what else on the machine can capture you. | `pnpx am-i-being-recorded` |
 | [`secure-semgrep`](apps/secure-semgrep/README.md) | Semgrep rules and loadout packs for AI-agent, bash and web code. Needs `semgrep`. | From this repository |
 
-Agent skills in [`skills/`](skills/): [quarantine-review](skills/quarantine-review/SKILL.md) (inspect an untrusted repository without running any of it), [third-party-skill-intake](skills/third-party-skill-intake/SKILL.md) (vet a skill or plugin from a URL without running its installer), [login-item-triage](skills/login-item-triage/SKILL.md) and [jujutsu](skills/jujutsu/SKILL.md).
+Agent skills in [`skills/`](skills/): [quarantine-review](skills/quarantine-review/SKILL.md) (inspect an untrusted repository without running any of it), [secure-skill-pull](skills/secure-skill-pull/SKILL.md) (vet a skill or plugin from a URL without running its installer), [create-skill](skills/create-skill/SKILL.md) (write, check and publish an agent skill), [skill-publish-review](skills/skill-publish-review/SKILL.md) (review skills before they go into a public repository), [ssrf-safe-fetch](skills/ssrf-safe-fetch/SKILL.md) (validate the URL and the resolved address before a server fetches it), [login-item-triage](skills/login-item-triage/SKILL.md) and [jujutsu](skills/jujutsu/SKILL.md).
 
 ## Why this one?
 

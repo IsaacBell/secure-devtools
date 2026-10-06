@@ -24,6 +24,10 @@ Bundled (in this package, under `rules/`) — you own and extend these:
   abuse, and more (Python / TypeScript / Go / Java / Ruby / others).
 - `rules/bash` — bash security & correctness: `IFS` tampering, unsafe `curl |
   bash`, `curl ... | eval`, and unquoted-expansion footguns.
+- `rules/ssrf` — server-side request forgery (SSRF): a request whose URL is not
+  a fixed string and does not pass through a guard function, a client that
+  follows redirects automatically for such a URL, and TLS certificate
+  verification turned off. JavaScript / TypeScript / Python / Rust.
 
 Loadouts (pulled from Semgrep's registry at scan time, so you don't vendor
 them): `py`, `js`, `ts`, `react`, `node`, `rust`.
@@ -32,6 +36,27 @@ them): `py`, `js`, `ts`, `react`, `node`, `rust`.
 > `p/default`, `p/security-audit`, and the per-language packs. Vendoring them
 > bloats this package and collides with the packs. You own the *bespoke* rules;
 > you *compose* the maintained ones.
+
+## SSRF rules
+
+The `rules/ssrf` bundle flags server code that fetches a URL it did not get
+from its own fixed configuration, the shape that lets an attacker point the
+server at its private network or the cloud metadata address. It covers three
+patterns, each across JavaScript/TypeScript, Python and Rust:
+
+- **Unchecked URL** — `fetch`, `axios`, `got`, `requests`, `httpx`, `urllib`,
+  `reqwest` and similar called with a URL that is not a fixed string and has
+  not passed through a guard function.
+- **Automatic redirects** — a client that follows redirects for a URL that is
+  not fixed and not guarded, so an allowed host can redirect to a forbidden one.
+- **TLS verification disabled** — `rejectUnauthorized: false`,
+  `verify=False`, or `danger_accept_invalid_certs(true)`.
+
+Every rule is a `WARNING`: it reports, it does not block. A finding is a
+question, not a verdict — a non-literal URL can still be safe when it comes
+from the server's own fixed configuration. To fix and to test, see the
+[`ssrf-safe-fetch`](https://github.com/IsaacBell/secure-devtools/blob/main/skills/ssrf-safe-fetch/SKILL.md)
+skill.
 
 ## Requirements
 

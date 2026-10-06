@@ -1,0 +1,42 @@
+rules:
+  - id: ssrf-auto-redirect-python
+    languages: [python]
+    severity: WARNING
+    message: >-
+      This request is explicitly configured to follow redirects automatically
+      (`allow_redirects=True` / `follow_redirects=True`) for a URL that is not
+      a fixed string and is not checked by a guard function. A server that is
+      allowed can redirect the request to one that is not (its own private
+      network or cloud metadata address). Turn off automatic redirects
+      (`allow_redirects=False` / `follow_redirects=False`) and check each hop
+      by hand before following it. This rule only flags an explicit
+      `allow_redirects=True` / `follow_redirects=True` (and the httpx default
+      is already `False`); a requests call that omits the option follows
+      redirects by default but is not caught here. See the ssrf-safe-fetch
+      skill.
+    metadata:
+      cwe: "CWE-918: Server-Side Request Forgery (SSRF)"
+      owasp:
+        - "A10:2021 - Server-Side Request Forgery"
+      category: security
+      subcategory: [vuln]
+      confidence: MEDIUM
+      likelihood: LOW
+      impact: HIGH
+      technology: [python, requests, httpx]
+      references:
+        - https://owasp.org/www-community/attacks/Server_Side_Request_Forgery
+    patterns:
+      - pattern-either:
+          - pattern: requests.get($URL, ..., allow_redirects=True, ...)
+          - pattern: requests.request($METHOD, $URL, ..., allow_redirects=True, ...)
+          - pattern: httpx.get($URL, ..., follow_redirects=True, ...)
+          - pattern: httpx.request($METHOD, $URL, ..., follow_redirects=True, ...)
+      - metavariable-pattern:
+          metavariable: $URL
+          patterns:
+            - pattern-not: "\"...\""
+            - pattern-not: f"..."
+            - pattern-not: check_public_url(...)
+            - pattern-not: assert_public_url(...)
+            - pattern-not: safe_fetch(...)
