@@ -42,6 +42,7 @@ Pass extra semgrep flags after -- (scan only):
 LOADOUTS (bundled rules ai + bash always run):
   ai      AI-agent / LLM-provider best-practice rules (bundled)
   bash    Bash security & correctness rules (bundled)
+  ssrf    Server-side request forgery rules: unchecked URLs, auto redirects, TLS checks off (bundled, opt-in)
   py      Semgrep p/python
   js      Semgrep p/javascript
   ts      Semgrep p/typescript
@@ -79,6 +80,7 @@ append_loadout() {
 	case "$name" in
 	ai) configs+=("${RULES_DIR}/ai") ;;
 	bash) configs+=("${RULES_DIR}/bash") ;;
+	ssrf) configs+=("${RULES_DIR}/ssrf") ;;
 	py) configs+=("p/python") ;;
 	js) configs+=("p/javascript") ;;
 	ts) configs+=("p/typescript") ;;

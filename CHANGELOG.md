@@ -2,10 +2,21 @@
 
 Newest first. One line per change. Default-behavior changes marked **CHANGED**. Package versions in brackets.
 
+## 2026-10-05
+
+### Skills
+- Added `skills/create-skill/SKILL.md`: write, check and publish an agent skill (a folder with a `SKILL.md`). Covers frontmatter, privacy and secret checks, third-party content, QA and the publish steps.
+- Added `skills/skill-publish-review/SKILL.md`: review agent skills before they go into a public repository. Finds leaked personal or internal detail, broken frontmatter, unfinished work and text copied from somewhere else, runs independent reviewers in parallel and merges their verdicts.
+- Added `skills/ssrf-safe-fetch/SKILL.md`: write or review server code that fetches a URL it did not get from its own fixed configuration. Validate the scheme, port and resolved address before the request, follow redirects by hand, and what to test.
+- `skills/quarantine-review`, `skills/login-item-triage` and `skills/secure-skill-pull` frontmatter now parses as YAML: their descriptions are quoted, so a loader no longer skips them.
+
+### secure-semgrep
+- New `rules/ssrf` rules, all warnings: a request whose URL is not a fixed string and does not pass through a guard function; a client that follows redirects automatically for such a URL; and TLS certificate verification turned off (`rejectUnauthorized: false`, `verify=False`, `danger_accept_invalid_certs(true)`). JavaScript/TypeScript, Python and Rust.
+
 ## 2026-10-02
 
 ### Skills
-- Added `skills/third-party-skill-intake/SKILL.md`: vet a third-party agent skill, plugin or setup recipe before using it. Fetch it as data at a pinned commit, scan it, read it, record where it came from, and never run its installer.
+- Added `skills/secure-skill-pull/SKILL.md`: vet a third-party agent skill, plugin or setup recipe before using it. Fetch it as data at a pinned commit, scan it, read it, record where it came from, and never run its installer.
 
 ## 2026-10-01 [am-i-hacked 2.0.0]
 

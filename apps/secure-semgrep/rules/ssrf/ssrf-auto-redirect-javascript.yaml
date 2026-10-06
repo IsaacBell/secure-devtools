@@ -1,0 +1,76 @@
+rules:
+  - id: ssrf-auto-redirect-javascript
+    languages: [js, ts]
+    severity: WARNING
+    message: >-
+      This request is explicitly configured to follow redirects automatically
+      (`maxRedirects` greater than 0) for a URL that is not a fixed string and
+      is not checked by a guard function. A server that is allowed can redirect
+      the request to one that is not (its own private network or cloud metadata
+      address). Turn off automatic redirects (`maxRedirects: 0`) and check
+      each hop by hand before following it. This rule only flags an explicit
+      `maxRedirects` option; a call that omits it is not caught here. See the
+      ssrf-safe-fetch skill.
+    metadata:
+      cwe: "CWE-918: Server-Side Request Forgery (SSRF)"
+      owasp:
+        - "A10:2021 - Server-Side Request Forgery"
+      category: security
+      subcategory: [vuln]
+      confidence: MEDIUM
+      likelihood: LOW
+      impact: HIGH
+      technology: [javascript, typescript, node, axios, got]
+      references:
+        - https://owasp.org/www-community/attacks/Server_Side_Request_Forgery
+    patterns:
+      - pattern-either:
+          - pattern: "axios($URL, { ..., maxRedirects: $N, ... })"
+          - pattern: "axios.get($URL, { ..., maxRedirects: $N, ... })"
+          - pattern: "axios.post($URL, $DATA, { ..., maxRedirects: $N, ... })"
+      - metavariable-pattern:
+          metavariable: $N
+          patterns:
+            - pattern-not: "0"
+      - metavariable-pattern:
+          metavariable: $URL
+          patterns:
+            - pattern-not: "\"...\""
+            - pattern-not: "'...'"
+            - pattern-not: checkPublicUrl(...)
+            - pattern-not: assertPublicUrl(...)
+            - pattern-not: safeFetch(...)
+  - id: ssrf-auto-redirect-javascript-got
+    languages: [js, ts]
+    severity: WARNING
+    message: >-
+      This request is explicitly configured to follow redirects automatically
+      (`followRedirect: true`) for a URL that is not a fixed string and is not
+      checked by a guard function. A server that is allowed can redirect the
+      request to one that is not (its own private network or cloud metadata
+      address). Turn off automatic redirects (`followRedirect: false`, or
+      `redirect: { followRedirect: false }`) and check each hop by hand before
+      following it. This rule only flags an explicit `followRedirect: true`; a
+      call that omits it is not caught here. See the ssrf-safe-fetch skill.
+    metadata:
+      cwe: "CWE-918: Server-Side Request Forgery (SSRF)"
+      owasp:
+        - "A10:2021 - Server-Side Request Forgery"
+      category: security
+      subcategory: [vuln]
+      confidence: MEDIUM
+      likelihood: LOW
+      impact: HIGH
+      technology: [javascript, typescript, node, got]
+      references:
+        - https://owasp.org/www-community/attacks/Server_Side_Request_Forgery
+    patterns:
+      - pattern: "got($URL, { ..., followRedirect: true, ... })"
+      - metavariable-pattern:
+          metavariable: $URL
+          patterns:
+            - pattern-not: "\"...\""
+            - pattern-not: "'...'"
+            - pattern-not: checkPublicUrl(...)
+            - pattern-not: assertPublicUrl(...)
+            - pattern-not: safeFetch(...)

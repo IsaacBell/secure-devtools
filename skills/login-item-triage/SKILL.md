@@ -1,6 +1,6 @@
 ---
 name: login-item-triage
-description: Decide whether a macOS login item or background item is legitimate or planted. Use when a user sees a "Background Items Added" notification, an unfamiliar name under System Settings > Login Items, or asks "did I just get compromised?" about something that runs at login. Maps the displayed name to its launchd plist and binary, checks the code signature and Team ID against the vendor, reads any script payload without running it, and preserves evidence before anything is removed. Automated equivalent: `pnpx am-i-hacked --system --verbose`.
+description: 'Decide whether a macOS login item or background item is legitimate or planted. Use when a user sees a "Background Items Added" notification, an unfamiliar name under System Settings > Login Items, or asks "did I just get compromised?" about something that runs at login. Maps the displayed name to its launchd plist and binary, checks the code signature and Team ID against the vendor, reads any script payload without running it, and preserves evidence before anything is removed. Automated equivalent: `pnpx am-i-hacked --system --verbose`.'
 version: 1.0.0
 verified-against: "am-i-hacked 2.0.0"
 ---

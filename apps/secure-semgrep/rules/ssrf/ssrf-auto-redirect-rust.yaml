@@ -1,0 +1,28 @@
+rules:
+  - id: ssrf-auto-redirect-rust
+    languages: [rust]
+    severity: WARNING
+    message: >-
+      This client is explicitly built with a redirect policy that follows a
+      bounded number of hops (`redirect(Policy::limited(..))`) and may not
+      re-check each hop's address. A server that is allowed can redirect the
+      request to one that is not (its own private network or cloud metadata
+      address). Build the client with
+      `.redirect(reqwest::redirect::Policy::none())` and check each hop by
+      hand before following it. This rule only flags an explicit
+      `Policy::limited(..)`; a builder that never calls `.redirect(...)` (which
+      also follows redirects by default) is not caught here. See the
+      ssrf-safe-fetch skill.
+    metadata:
+      cwe: "CWE-918: Server-Side Request Forgery (SSRF)"
+      owasp:
+        - "A10:2021 - Server-Side Request Forgery"
+      category: security
+      subcategory: [vuln]
+      confidence: LOW
+      likelihood: LOW
+      impact: HIGH
+      technology: [rust, reqwest]
+      references:
+        - https://owasp.org/www-community/attacks/Server_Side_Request_Forgery
+    pattern: $BUILDER.redirect(reqwest::redirect::Policy::limited($N))

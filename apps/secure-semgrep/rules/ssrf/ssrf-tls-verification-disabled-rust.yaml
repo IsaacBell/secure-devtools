@@ -1,0 +1,25 @@
+rules:
+  - id: ssrf-tls-verification-disabled-rust
+    languages: [rust]
+    severity: WARNING
+    message: >-
+      TLS certificate verification is turned off
+      (`danger_accept_invalid_certs(true)`). Without it, a network attacker,
+      or a redirect to an address the attacker controls, can intercept or
+      redirect the request unnoticed. Remove it; if a private CA is the real
+      problem, add its certificate with `Certificate::from_pem` and
+      `ClientBuilder::add_root_certificate` instead. See the ssrf-safe-fetch
+      skill.
+    metadata:
+      cwe: "CWE-295: Improper Certificate Validation"
+      owasp:
+        - "A02:2021 - Cryptographic Failures"
+      category: security
+      subcategory: [vuln]
+      confidence: HIGH
+      likelihood: LOW
+      impact: HIGH
+      technology: [rust, reqwest]
+      references:
+        - https://owasp.org/www-community/attacks/Server_Side_Request_Forgery
+    pattern: $BUILDER.danger_accept_invalid_certs(true)
