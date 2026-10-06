@@ -10,6 +10,7 @@ pnpx am-i-hacked .     # or: npx am-i-hacked .
 [![npm am-i-hacked](https://img.shields.io/npm/v/am-i-hacked?label=am-i-hacked)](https://www.npmjs.com/package/am-i-hacked)
 [![npm am-i-being-recorded](https://img.shields.io/npm/v/am-i-being-recorded?label=am-i-being-recorded)](https://www.npmjs.com/package/am-i-being-recorded)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![skills.sh](https://skills.sh/b/IsaacBell/secure-devtools)](https://skills.sh/IsaacBell/secure-devtools)
 
 **Status:** actively maintained. `am-i-hacked` 2.0.1 and `am-i-being-recorded` 1.0.0 are the current releases. macOS and Linux.
 
