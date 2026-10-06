@@ -22,7 +22,18 @@ pnpx am-i-hacked .     # or: npx am-i-hacked .
 | [`am-i-being-recorded`](apps/am-i-being-recorded/README.md) | Which browser extension is behind a screen-recording indicator, and what else on the machine can capture you. | `pnpx am-i-being-recorded` |
 | [`secure-semgrep`](apps/secure-semgrep/README.md) | Semgrep rules and loadout packs for AI-agent, bash and web code. Needs `semgrep`. | From this repository |
 
-Agent skills in [`skills/`](skills/): [quarantine-review](skills/quarantine-review/SKILL.md) (inspect an untrusted repository without running any of it), [secure-skill-pull](skills/secure-skill-pull/SKILL.md) (vet a skill or plugin from a URL without running its installer), [create-skill](skills/create-skill/SKILL.md) (write, check and publish an agent skill), [skill-publish-review](skills/skill-publish-review/SKILL.md) (review skills before they go into a public repository), [ssrf-safe-fetch](skills/ssrf-safe-fetch/SKILL.md) (validate the URL and the resolved address before a server fetches it), [login-item-triage](skills/login-item-triage/SKILL.md) and [jujutsu](skills/jujutsu/SKILL.md).
+### Agent skills
+
+Install all seven skills for your user account, or pick one:
+
+```sh
+npx skills add IsaacBell/secure-devtools -g
+npx skills add IsaacBell/secure-devtools --skill ssrf-safe-fetch
+```
+
+Drop `-g` to install into the current project, and add `--list` to see the skills without installing. `pnpx skills add` works the same way. The `skills` command reports anonymous install counts to skills.sh; set `DISABLE_TELEMETRY=1` to turn that off.
+
+The skills, in [`skills/`](skills/): [quarantine-review](skills/quarantine-review/SKILL.md) (inspect an untrusted repository without running any of it), [secure-skill-pull](skills/secure-skill-pull/SKILL.md) (vet a skill or plugin from a URL without running its installer), [create-skill](skills/create-skill/SKILL.md) (write, check and publish an agent skill), [skill-publish-review](skills/skill-publish-review/SKILL.md) (review skills before they go into a public repository), [ssrf-safe-fetch](skills/ssrf-safe-fetch/SKILL.md) (validate the URL and the resolved address before a server fetches it), [login-item-triage](skills/login-item-triage/SKILL.md) and [jujutsu](skills/jujutsu/SKILL.md).
 
 ## Why this one?
 
@@ -68,4 +79,4 @@ To turn findings into a hard gate, run `mise run semgrep-strict`. In any other r
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE). Third-party notices are in [NOTICE.md](NOTICE.md).
