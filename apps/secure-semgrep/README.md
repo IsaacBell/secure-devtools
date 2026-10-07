@@ -30,7 +30,8 @@ Bundled (in this package, under `rules/`) — you own and extend these:
   verification turned off. JavaScript / TypeScript / Python / Rust.
 
 Loadouts (pulled from Semgrep's registry at scan time, so you don't vendor
-them): `py`, `js`, `ts`, `react`, `node`, `rust`.
+them): `py`, `js`, `ts`, `react`, `node`, `rust`. The bundled `ssrf` rules are
+opt-in with an explicit `-L ssrf`.
 
 > **Why not vendor hundreds of registry rules?** Semgrep already ships those in
 > `p/default`, `p/security-audit`, and the per-language packs. Vendoring them
@@ -142,6 +143,7 @@ In CI:
 | --- | --- |
 | `ai` | `rules/ai` (bundled) |
 | `bash` | `rules/bash` (bundled) |
+| `ssrf` | `rules/ssrf` (bundled, opt-in) |
 | `py` | `p/python` |
 | `js` | `p/javascript` |
 | `ts` | `p/typescript` |

@@ -10,7 +10,7 @@
 pnpx am-i-hacked .        # or: npx am-i-hacked .
 ```
 
-**Status:** 2.0.1, macOS and Linux. Formerly published as `am-i-compromised`; the old command name still works. Changes are in [CHANGELOG.md](CHANGELOG.md).
+**Status:** 2.0.1, macOS and Linux. The next release adds a dark-corner system scan, Python virtualenv integrity and `--max-findings`; the tables below document that next-release state, and [CHANGELOG.md](CHANGELOG.md) marks it Unreleased. Formerly published as `am-i-compromised`; the old command name still works.
 
 ## Install and run
 

@@ -122,6 +122,8 @@
   .card { min-inline-size: 0; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; }
   .card h3 { font-size: var(--step-1); margin-block-end: 0.6rem; }
   .card p { font-size: var(--step--1); }
+  .card-run { margin-block-start: 0.9rem; }
+  .card-run code { color: var(--text); }
 
   .copyblock {
     display: flex; align-items: flex-start; gap: 0.75rem; margin-block-start: 1rem;
@@ -221,16 +223,19 @@
         <article class="card">
           <h3><a href="https://github.com/IsaacBell/secure-devtools/blob/main/apps/am-i-hacked/README.md">am-i-hacked</a></h3>
           <p class="muted">Checks a project folder before you open, install or run it — and, with <code>--system</code>, the machine — for supply-chain and dev-environment attack indicators.</p>
+          <p class="card-run"><code>pnpx am-i-hacked .</code></p>
         </article>
 
         <article class="card">
           <h3><a href="https://github.com/IsaacBell/secure-devtools/blob/main/apps/am-i-being-recorded/README.md">am-i-being-recorded</a></h3>
           <p class="muted">Names the browser extension behind a screen-recording indicator, and what else on the machine can capture you.</p>
+          <p class="card-run"><code>pnpx am-i-being-recorded</code></p>
         </article>
 
         <article class="card">
           <h3><a href="https://github.com/IsaacBell/secure-devtools/blob/main/apps/secure-semgrep/README.md">secure-semgrep</a></h3>
-          <p class="muted">A thin Semgrep CLI that runs bundled AI-agent and bash security rules plus maintained loadout packs. Needs <code>semgrep</code>.</p>
+          <p class="muted">A thin Semgrep CLI that runs bundled AI-agent, bash and SSRF security rules plus maintained registry loadouts. Needs <code>semgrep</code>.</p>
+          <p class="card-run"><code>pnpx secure-semgrep ./src</code></p>
         </article>
 
       </div>
@@ -283,10 +288,11 @@ pnpx am-i-hacked --system   # also audit this machine</code></pre>
 
 <footer class="site-footer">
   <div class="wrap">
-    <p class="muted">MIT licensed. Plain shell, zero npm runtime dependencies.</p>
+    <p class="muted">MIT licensed. Plain shell, zero npm runtime dependencies. Built by <a href="https://ikewebstudio.com">Ike Web Studio</a>.</p>
     <nav class="footer-nav" aria-label="Project links">
       <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
       <a href="https://www.npmjs.com/package/am-i-hacked">npm</a>
+      <a href="llms.txt">llms.txt</a>
       <a href="https://github.com/IsaacBell/secure-devtools/security/advisories/new">Report a security issue</a>
       <a href="https://github.com/IsaacBell/secure-devtools/security/advisories">Security advisories</a>
       <a href="https://ko-fi.com/ibell">Sponsor</a>
