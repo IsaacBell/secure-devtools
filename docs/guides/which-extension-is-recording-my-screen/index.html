@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Which browser extension is recording my screen? Find it on macOS and Linux</title>
+<meta name="description" content="macOS says &quot;Brave Browser is recording your screen&quot; but not which tab or extension. am-i-being-recorded reads Chromium-family browser profiles and names the extensions that can capture the display or a tab.">
+<meta name="author" content="Isaac Bell">
+<link rel="canonical" href="https://isaacbell.github.io/secure-devtools/guides/which-extension-is-recording-my-screen/">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="alternate" type="text/plain" title="llms.txt" href="../../llms.txt">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#15181d">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="secure-devtools">
+<meta property="og:title" content="Which browser extension is recording my screen? Find it on macOS and Linux">
+<meta property="og:description" content="macOS says &quot;Brave Browser is recording your screen&quot; but not which tab or extension. am-i-being-recorded reads Chromium-family browser profiles and names the extensions that can capture the display or a tab.">
+<meta property="og:url" content="https://isaacbell.github.io/secure-devtools/guides/which-extension-is-recording-my-screen/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Which browser extension is recording my screen? Find it on macOS and Linux">
+<meta name="twitter:description" content="macOS says &quot;Brave Browser is recording your screen&quot; but not which tab or extension. am-i-being-recorded reads Chromium-family browser profiles and names the extensions that can capture the display or a tab.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "@id": "https://isaacbell.github.io/secure-devtools/guides/which-extension-is-recording-my-screen/#article",
+  "headline": "Which browser extension is recording my screen?",
+  "description": "macOS says \"Brave Browser is recording your screen\" but not which tab or extension. am-i-being-recorded reads Chromium-family browser profiles and names the extensions that can capture the display or a tab.",
+  "url": "https://isaacbell.github.io/secure-devtools/guides/which-extension-is-recording-my-screen/",
+  "mainEntityOfPage": "https://isaacbell.github.io/secure-devtools/guides/which-extension-is-recording-my-screen/",
+  "inLanguage": "en",
+  "datePublished": "2026-10-07",
+  "dateModified": "2026-10-07",
+  "author": {
+    "@type": "Person",
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell",
+    "name": "Isaac Bell",
+    "url": "https://isaacbell.io",
+    "sameAs": [
+      "https://github.com/IsaacBell"
+    ]
+  },
+  "publisher": {
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+  },
+  "isPartOf": {
+    "@type": "WebSite",
+    "@id": "https://isaacbell.github.io/secure-devtools/#website",
+    "name": "secure-devtools",
+    "url": "https://isaacbell.github.io/secure-devtools/"
+  },
+  "about": [
+    {
+      "@id": "https://isaacbell.github.io/secure-devtools/tools/am-i-being-recorded/#software"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://isaacbell.github.io/secure-devtools/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Guides",
+      "item": "https://isaacbell.github.io/secure-devtools/guides/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "Which browser extension is recording my screen?",
+      "item": "https://isaacbell.github.io/secure-devtools/guides/which-extension-is-recording-my-screen/"
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="wordmark" href="../../">secure-devtools</a>
+    <nav class="site-nav" aria-label="Site">
+      <a href="../../tools/">Tools</a>
+      <a href="../../guides/">Guides</a>
+      <a href="../../skills/">Skills</a>
+      <a href="../../compare/">Compare</a>
+      <a href="../../security/">Trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<div class="wrap"><nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="../../">Home</a></li><li><a href="../../guides/">Guides</a></li><li><span aria-current="page">Which browser extension is recording my screen?</span></li></ol></nav></div>
+<article class="wrap article">
+  <header class="page-head">
+    <h1>Which browser extension is recording my screen?</h1>
+    <p class="byline muted">By <a href="https://isaacbell.io">Isaac Bell</a> · Updated <time datetime="2026-10-07">7 October 2026</time> · Applies to am-i-being-recorded 1.0.0</p>
+  </header>
+  <div class="answer"><p>macOS attributes a screen recording to the application, never to the tab or extension behind it. Run <code>npx am-i-being-recorded</code>: it reads Chromium-family browser profiles (Chrome, Brave, Edge, Chromium, Vivaldi) and names each extension with display-capture, tab-capture or debugger permissions, with its ID, version and profile. Disable that extension at <code>chrome://extensions</code> and restart the browser.</p></div>
+  <div class="prose">
+<h2 id="run">Run it</h2>
+<pre class="block"><code>npx am-i-being-recorded</code></pre>
+<p>It needs <code>jq</code> (<code>brew install jq</code> or <code>apt-get install jq</code>). It reads files on your machine and makes no network calls.</p>
+
+<h2 id="output">What the answer looks like</h2>
+<pre class="block"><code>  CRITICAL Example Screen Recorder (aaaabbbbccccddddeeeeffffgggghhhh) v1.2.3
+           Google/Chrome/Default - Can capture the entire display (screen recording)
+  HIGH     Example Screen Recorder (aaaabbbbccccddddeeeeffffgggghhhh) v1.2.3
+           Google/Chrome/Default - Capture permission plus an offscreen document can outlive the visible tab</code></pre>
+<p>A "stuck" recording indicator is usually an extension holding a display stream from an offscreen document. Disable or remove it in <code>chrome://extensions</code> (or <code>brave://extensions</code>), then restart the browser so the indicator clears.</p>
+
+<h2 id="permissions">Permissions it flags</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Permission</th><th>Severity</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td><code>desktopCapture</code></td><td>CRITICAL</td><td>Can record the entire display</td></tr>
+    <tr><td><code>tabCapture</code></td><td>HIGH</td><td>Can record the active tab's audio and video</td></tr>
+    <tr><td><code>debugger</code></td><td>HIGH</td><td>Full tab control over the DevTools protocol</td></tr>
+    <tr><td><code>nativeMessaging</code></td><td>MEDIUM</td><td>Can launch a native helper process</td></tr>
+    <tr><td><code>userScripts</code></td><td>MEDIUM</td><td>Can inject scripts into pages</td></tr>
+    <tr><td><code>management</code></td><td>LOW</td><td>Can enable or disable other extensions</td></tr>
+  </tbody>
+</table></div>
+<p>Two combinations escalate: display capture with access to every site, and any capture permission with an <code>offscreen</code> document.</p>
+
+<h2 id="context">Other things that can capture you</h2>
+<p>On macOS it also prints context, not findings: whether the screen-sharing daemons are running, and which apps hold camera, microphone and screen-recording permission, each with its code signer and Team ID. An unsigned app with a capture permission is worth a look. Reading the screen-recording permissions needs root or Full Disk Access; the tool says so rather than guessing. On Linux it shows which process holds a camera device.</p>
+
+<h2 id="limits">Limits</h2>
+<ul>
+  <li>It reports capability, not proof of an active stream. A recorder you installed on purpose is flagged too.</li>
+  <li>Safari and Firefox extensions, standalone recorder apps, and a web page's own screen-share prompt are out of scope.</li>
+  <li>It is triage that names a suspect, not a malware scanner.</li>
+</ul>
+<p>Use <code>--strict</code> to make any finding exit <code>1</code>, and <code>--min-severity HIGH</code> to show only the loud ones.</p>
+  </div>
+  <aside class="related" aria-labelledby="related"><h2 id="related">Related</h2><ul><li><a href="../../tools/am-i-being-recorded/">am-i-being-recorded reference</a></li><li><a href="../../guides/audit-developer-machine/">How to check whether a developer machine is compromised</a></li></ul></aside>
+</article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p class="muted">MIT licensed. Plain shell, zero npm runtime dependencies. Built and maintained by <a href="https://isaacbell.io">Isaac Bell</a>.</p>
+    <nav class="footer-nav" aria-label="Project links">
+      <a href="../../guides/">Guides</a>
+      <a href="../../compare/">Compare</a>
+      <a href="../../security/">Security &amp; trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+      <a href="https://www.npmjs.com/package/am-i-hacked">npm</a>
+      <a href="../../llms.txt">llms.txt</a>
+      <a href="https://github.com/IsaacBell/secure-devtools/security/advisories/new">Report a security issue</a>
+      <a href="https://ko-fi.com/ibell">Sponsor</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

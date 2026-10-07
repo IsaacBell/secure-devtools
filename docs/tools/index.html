@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tools: am-i-hacked, am-i-being-recorded and secure-semgrep — secure-devtools</title>
+<meta name="description" content="Reference pages for the secure-devtools command-line tools: am-i-hacked, am-i-being-recorded and secure-semgrep. What each detects, how to run it, flags, exit codes and limits.">
+<meta name="author" content="Isaac Bell">
+<link rel="canonical" href="https://isaacbell.github.io/secure-devtools/tools/">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="alternate" type="text/plain" title="llms.txt" href="../llms.txt">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#15181d">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="secure-devtools">
+<meta property="og:title" content="Tools: am-i-hacked, am-i-being-recorded and secure-semgrep — secure-devtools">
+<meta property="og:description" content="Reference pages for the secure-devtools command-line tools: am-i-hacked, am-i-being-recorded and secure-semgrep. What each detects, how to run it, flags, exit codes and limits.">
+<meta property="og:url" content="https://isaacbell.github.io/secure-devtools/tools/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Tools: am-i-hacked, am-i-being-recorded and secure-semgrep — secure-devtools">
+<meta name="twitter:description" content="Reference pages for the secure-devtools command-line tools: am-i-hacked, am-i-being-recorded and secure-semgrep. What each detects, how to run it, flags, exit codes and limits.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "@id": "https://isaacbell.github.io/secure-devtools/tools/",
+  "name": "Tools",
+  "description": "Reference pages for the secure-devtools command-line tools: am-i-hacked, am-i-being-recorded and secure-semgrep. What each detects, how to run it, flags, exit codes and limits.",
+  "url": "https://isaacbell.github.io/secure-devtools/tools/",
+  "isPartOf": {
+    "@id": "https://isaacbell.github.io/secure-devtools/#website"
+  },
+  "dateModified": "2026-10-07",
+  "mainEntity": {
+    "@type": "ItemList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "url": "https://isaacbell.github.io/secure-devtools/tools/am-i-hacked/",
+        "name": "am-i-hacked"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "url": "https://isaacbell.github.io/secure-devtools/tools/am-i-being-recorded/",
+        "name": "am-i-being-recorded"
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "url": "https://isaacbell.github.io/secure-devtools/tools/secure-semgrep/",
+        "name": "secure-semgrep"
+      }
+    ]
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://isaacbell.github.io/secure-devtools/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Tools",
+      "item": "https://isaacbell.github.io/secure-devtools/tools/"
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="wordmark" href="../">secure-devtools</a>
+    <nav class="site-nav" aria-label="Site">
+      <a href="../tools/" aria-current="page">Tools</a>
+      <a href="../guides/">Guides</a>
+      <a href="../skills/">Skills</a>
+      <a href="../compare/">Compare</a>
+      <a href="../security/">Trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<div class="wrap"><nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="../">Home</a></li><li><span aria-current="page">Tools</span></li></ol></nav></div>
+<section class="wrap">
+  <header class="page-head">
+    <h1>Tools</h1>
+    <p class="sub">Three command-line tools for macOS and Linux. Each runs with <code>npx</code>, needs no account, and exits non-zero on findings.</p>
+  </header>
+  <div class="cards cards--guides">
+<article class="card"><h3><a href="../tools/am-i-hacked/">am-i-hacked</a></h3><p class="muted">am-i-hacked is an open-source indicator-of-compromise scanner for developers. It checks a project folder for malicious-code indicators before you open, install or run it, and with --system audits a macOS or Linux machine for persistence, capture tools and risky AI-tool config.</p></article>
+<article class="card"><h3><a href="../tools/am-i-being-recorded/">am-i-being-recorded</a></h3><p class="muted">am-i-being-recorded names the Chromium-family browser extension behind a screen-recording indicator, and lists what else on a macOS or Linux machine can capture your screen, camera or microphone.</p></article>
+<article class="card"><h3><a href="../tools/secure-semgrep/">secure-semgrep</a></h3><p class="muted">secure-semgrep is a thin Semgrep CLI that runs bundled security rules for AI and LLM agent code, MCP servers, agent hooks, SKILL.md files, bash scripts and SSRF, plus Semgrep&#x27;s maintained registry packs, in one command locally or in CI.</p></article>
+  </div>
+</section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p class="muted">MIT licensed. Plain shell, zero npm runtime dependencies. Built and maintained by <a href="https://isaacbell.io">Isaac Bell</a>.</p>
+    <nav class="footer-nav" aria-label="Project links">
+      <a href="../guides/">Guides</a>
+      <a href="../compare/">Compare</a>
+      <a href="../security/">Security &amp; trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+      <a href="https://www.npmjs.com/package/am-i-hacked">npm</a>
+      <a href="../llms.txt">llms.txt</a>
+      <a href="https://github.com/IsaacBell/secure-devtools/security/advisories/new">Report a security issue</a>
+      <a href="https://ko-fi.com/ibell">Sponsor</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

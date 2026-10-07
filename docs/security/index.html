@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Security, trust and threat model — secure-devtools</title>
+<meta name="description" content="How secure-devtools is built and released: plain bash with zero npm runtime dependencies, read-only scans with no network calls or telemetry, the threat model, the test and CI setup, the release process and how to report a vulnerability.">
+<meta name="author" content="Isaac Bell">
+<link rel="canonical" href="https://isaacbell.github.io/secure-devtools/security/">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="alternate" type="text/plain" title="llms.txt" href="../llms.txt">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#15181d">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="secure-devtools">
+<meta property="og:title" content="Security, trust and threat model — secure-devtools">
+<meta property="og:description" content="How secure-devtools is built and released: plain bash with zero npm runtime dependencies, read-only scans with no network calls or telemetry, the threat model, the test and CI setup, the release process and how to report a vulnerability.">
+<meta property="og:url" content="https://isaacbell.github.io/secure-devtools/security/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Security, trust and threat model — secure-devtools">
+<meta name="twitter:description" content="How secure-devtools is built and released: plain bash with zero npm runtime dependencies, read-only scans with no network calls or telemetry, the threat model, the test and CI setup, the release process and how to report a vulnerability.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "@id": "https://isaacbell.github.io/secure-devtools/security/#article",
+  "headline": "Security, trust and threat model",
+  "description": "How secure-devtools is built and released: plain bash with zero npm runtime dependencies, read-only scans with no network calls or telemetry, the threat model, the test and CI setup, the release process and how to report a vulnerability.",
+  "url": "https://isaacbell.github.io/secure-devtools/security/",
+  "mainEntityOfPage": "https://isaacbell.github.io/secure-devtools/security/",
+  "inLanguage": "en",
+  "datePublished": "2026-10-07",
+  "dateModified": "2026-10-07",
+  "author": {
+    "@type": "Person",
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell",
+    "name": "Isaac Bell",
+    "url": "https://isaacbell.io",
+    "sameAs": [
+      "https://github.com/IsaacBell"
+    ]
+  },
+  "publisher": {
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+  },
+  "isPartOf": {
+    "@type": "WebSite",
+    "@id": "https://isaacbell.github.io/secure-devtools/#website",
+    "name": "secure-devtools",
+    "url": "https://isaacbell.github.io/secure-devtools/"
+  },
+  "about": [
+    {
+      "@id": "https://isaacbell.github.io/secure-devtools/tools/am-i-hacked/#software"
+    },
+    {
+      "@id": "https://isaacbell.github.io/secure-devtools/tools/am-i-being-recorded/#software"
+    },
+    {
+      "@id": "https://isaacbell.github.io/secure-devtools/tools/secure-semgrep/#software"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://isaacbell.github.io/secure-devtools/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Security, trust and threat model",
+      "item": "https://isaacbell.github.io/secure-devtools/security/"
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="wordmark" href="../">secure-devtools</a>
+    <nav class="site-nav" aria-label="Site">
+      <a href="../tools/">Tools</a>
+      <a href="../guides/">Guides</a>
+      <a href="../skills/">Skills</a>
+      <a href="../compare/">Compare</a>
+      <a href="../security/" aria-current="page">Trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<div class="wrap"><nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="../">Home</a></li><li><span aria-current="page">Security, trust and threat model</span></li></ol></nav></div>
+<article class="wrap article">
+  <header class="page-head">
+    <h1>Security, trust and threat model</h1>
+    <p class="byline muted">By <a href="https://isaacbell.io">Isaac Bell</a> · Updated <time datetime="2026-10-07">7 October 2026</time></p>
+  </header>
+  <div class="answer"><p>secure-devtools is open source under the MIT license and maintained by Isaac Bell. The tools are plain bash with zero npm runtime dependencies. am-i-hacked and am-i-being-recorded are read-only and make no network calls; none of the tools collects telemetry. Each package is tested in CI and released with npm two-factor authentication. Vulnerabilities are reported privately through GitHub security advisories.</p></div>
+  <div class="prose">
+<h2 id="what-runs">What runs on your machine</h2>
+<ul>
+  <li>Each tool is a bash script. The npm packages have zero runtime dependencies and ship only <code>bin/</code>, <code>README.md</code>, <code>LICENSE</code> and, for am-i-hacked and am-i-being-recorded, <code>CHANGELOG.md</code>; secure-semgrep also ships its <code>rules/</code>.</li>
+  <li><code>npx</code> downloads the package from npm. To pin what runs, use a version (<code>npx am-i-hacked@2</code>) or install it as a dev dependency with a lockfile.</li>
+  <li>Releases are tagged <code>&lt;name&gt;@&lt;version&gt;</code> in the repository.</li>
+</ul>
+
+<h2 id="behavior">Permissions and network behavior</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Tool</th><th>Reads</th><th>Writes</th><th>Network</th></tr></thead>
+  <tbody>
+    <tr><td>am-i-hacked (folder)</td><td>Files under the scanned folder</td><td>Nothing</td><td>None</td></tr>
+    <tr><td>am-i-hacked <code>--system</code></td><td>Login items, crontab, shell startup files, AI-tool config, process list; runs <code>codesign</code> read-only on macOS</td><td>Nothing</td><td>None. No root or sudo.</td></tr>
+    <tr><td>safe-pull</td><td>Incoming commits</td><td>Fast-forwards your branch only when the inspection is clean</td><td><code>git fetch</code> from your remote</td></tr>
+    <tr><td>am-i-being-recorded</td><td>Browser profile folders, process list, macOS privacy database where permitted</td><td>Nothing</td><td>None</td></tr>
+    <tr><td>secure-semgrep</td><td>The code you point it at</td><td>Nothing of its own</td><td>Semgrep downloads registry packs; <code>-N</code> uses bundled rules only</td></tr>
+  </tbody>
+</table></div>
+<p>The tools collect no telemetry and need no account or API key. Secret values found in config are never printed. The <code>skills</code> installer CLI, which is a separate project, reports anonymous install counts to skills.sh; set <code>DISABLE_TELEMETRY=1</code> to turn that off.</p>
+
+<h2 id="threat-model">Threat model</h2>
+<p><strong>In scope:</strong> attacks that reach a developer through code they are about to open, install or run, and the persistence, capture and tool-config changes such attacks leave on the machine. Examples: an editor task that runs on folder open, a malicious install script, an obfuscated payload, a capture tool sending to a Telegram bot, a hook added to an AI coding tool, a tampered login item.</p>
+<p><strong>Out of scope:</strong> known-vulnerable dependency versions (use an advisory scanner), known malware signatures (use antivirus or EDR), kernel or firmware compromise, and anything that hides from a read-only user-level scan. The scanners can miss malware and can flag code that is fine.</p>
+<p>A detection bypass, a way to make a scan pass while the thing it should catch is present, is treated as a security vulnerability.</p>
+
+<h2 id="testing">Testing and CI</h2>
+<ul>
+  <li>Each package has a Bats test suite. Lint and format run with <code>shellcheck</code> and <code>shfmt</code>. <code>mise run check</code> runs all of it, locally and in CI.</li>
+  <li>The repository's own security gate runs am-i-hacked on every pull request. It uses <code>pull_request_target</code> with the workflow, scanner and toolchain from the base branch, checks out the pull request as data only, and has a read-only token and no secrets.</li>
+  <li>CI also runs a gitleaks secret scan, Semgrep, GitHub dependency review and a CodeAnt AI scan. Actions are pinned to commit SHAs.</li>
+</ul>
+
+<h2 id="release">Release process</h2>
+<ul>
+  <li>Each package is released on its own from a clean <code>main</code>, with npm two-factor authentication.</li>
+  <li>The release script runs the full check first, refuses a version already on npm, and refuses any package with lifecycle scripts (<code>prepare</code>, <code>prepack</code>, <code>postinstall</code> and the like) that would run during pack, publish or install.</li>
+  <li>Each package has a changelog. Behavior changes are marked <strong>CHANGED</strong>.</li>
+</ul>
+
+<h2 id="disclosure">Reporting a vulnerability</h2>
+<p>Report privately through a <a href="https://github.com/IsaacBell/secure-devtools/security/advisories/new">GitHub security advisory</a>, not a public issue. Only the latest release of each package gets security fixes. Published fixes are listed under <a href="https://github.com/IsaacBell/secure-devtools/security/advisories">security advisories</a>. The full policy is in <a href="https://github.com/IsaacBell/secure-devtools/blob/main/SECURITY.md">SECURITY.md</a>.</p>
+
+<h2 id="project">Project facts</h2>
+<ul>
+  <li>Maintainer: <a href="https://isaacbell.io">Isaac Bell</a> (<a href="https://github.com/IsaacBell">@IsaacBell</a>).</li>
+  <li>License: MIT. Third-party notices are in <a href="https://github.com/IsaacBell/secure-devtools/blob/main/NOTICE.md">NOTICE.md</a>.</li>
+  <li>Platforms: macOS and Linux.</li>
+  <li>Current releases: am-i-hacked 2.0.1, am-i-being-recorded 1.0.0, secure-semgrep 1.0.1.</li>
+  <li>Plans: <a href="https://github.com/IsaacBell/secure-devtools/blob/main/ROADMAP.md">ROADMAP.md</a>.</li>
+</ul>
+  </div>
+  <aside class="related" aria-labelledby="related"><h2 id="related">Related</h2><ul><li><a href="../compare/">What each tool catches, and what it misses</a></li></ul></aside>
+</article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p class="muted">MIT licensed. Plain shell, zero npm runtime dependencies. Built and maintained by <a href="https://isaacbell.io">Isaac Bell</a>.</p>
+    <nav class="footer-nav" aria-label="Project links">
+      <a href="../guides/">Guides</a>
+      <a href="../compare/">Compare</a>
+      <a href="../security/">Security &amp; trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+      <a href="https://www.npmjs.com/package/am-i-hacked">npm</a>
+      <a href="../llms.txt">llms.txt</a>
+      <a href="https://github.com/IsaacBell/secure-devtools/security/advisories/new">Report a security issue</a>
+      <a href="https://ko-fi.com/ibell">Sponsor</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

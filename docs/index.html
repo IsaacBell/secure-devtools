@@ -3,224 +3,144 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>secure-devtools: security tools for the code you run</title>
-<meta name="description" content="Plain-shell security tools for the code you are about to run and the machine you run it on: am-i-hacked, am-i-being-recorded, secure-semgrep, and agent skills. Local, no signup, no API key.">
-<link rel="canonical" href="/secure-devtools/">
+<title>secure-devtools: open-source security tools for the code you run</title>
+<meta name="description" content="secure-devtools is a free, open-source security toolkit for developers: command-line tools that check code, repositories, AI-generated projects and agent skills for malicious or insecure code before you run them, and check the macOS or Linux machine you run them on. No signup, account or API key.">
+<meta name="author" content="Isaac Bell">
+<link rel="canonical" href="https://isaacbell.github.io/secure-devtools/">
+<link rel="stylesheet" href="assets/site.css">
+<link rel="alternate" type="text/plain" title="llms.txt" href="llms.txt">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#15181d">
 <meta property="og:type" content="website">
-<meta property="og:title" content="secure-devtools: security tools for the code you run">
-<meta property="og:description" content="Plain-shell checkers for the code you are about to run, and the machine you run it on.">
+<meta property="og:site_name" content="secure-devtools">
+<meta property="og:title" content="secure-devtools: open-source security tools for the code you run">
+<meta property="og:description" content="secure-devtools is a free, open-source security toolkit for developers: command-line tools that check code, repositories, AI-generated projects and agent skills for malicious or insecure code before you run them, and check the macOS or Linux machine you run them on. No signup, account or API key.">
 <meta property="og:url" content="https://isaacbell.github.io/secure-devtools/">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="secure-devtools: security tools for the code you run">
-<meta name="twitter:description" content="Plain-shell checkers for the code you are about to run, and the machine you run it on.">
-<meta name="twitter:url" content="https://isaacbell.github.io/secure-devtools/">
+<meta name="twitter:title" content="secure-devtools: open-source security tools for the code you run">
+<meta name="twitter:description" content="secure-devtools is a free, open-source security toolkit for developers: command-line tools that check code, repositories, AI-generated projects and agent skills for malicious or insecure code before you run them, and check the macOS or Linux machine you run them on. No signup, account or API key.">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "@id": "https://isaacbell.github.io/secure-devtools/#software",
-  "name": "secure-devtools",
-  "description": "Plain-shell security tools for the code you are about to run and the machine you run it on: am-i-hacked, am-i-being-recorded and secure-semgrep. Run with npx; no signup, no account, no API key.",
-  "isAccessibleForFree": true,
-  "applicationCategory": "SecurityApplication",
-  "operatingSystem": "macOS, Linux",
-  "url": "https://isaacbell.github.io/secure-devtools/",
-  "sameAs": ["https://github.com/IsaacBell/secure-devtools"],
-  "license": "https://github.com/IsaacBell/secure-devtools/blob/main/LICENSE",
-  "author": {
-    "@type": "Person",
-    "name": "Isaac Bell",
-    "url": "https://isaacbell.io",
-    "sameAs": ["https://github.com/IsaacBell"]
-  }
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://isaacbell.github.io/secure-devtools/#website",
+      "url": "https://isaacbell.github.io/secure-devtools/",
+      "name": "secure-devtools",
+      "description": "secure-devtools is a free, open-source security toolkit for developers: command-line tools that check code, repositories, AI-generated projects and agent skills for malicious or insecure code before you run them, and check the macOS or Linux machine you run them on. No signup, account or API key.",
+      "inLanguage": "en",
+      "publisher": {
+        "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+      }
+    },
+    {
+      "@type": "Person",
+      "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell",
+      "name": "Isaac Bell",
+      "url": "https://isaacbell.io",
+      "sameAs": [
+        "https://github.com/IsaacBell"
+      ]
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://isaacbell.github.io/secure-devtools/#software",
+      "name": "secure-devtools",
+      "description": "Plain-shell security tools for the code you are about to run and the machine you run it on: am-i-hacked, am-i-being-recorded and secure-semgrep, plus agent skills. Run with npx; no signup, account or API key.",
+      "url": "https://isaacbell.github.io/secure-devtools/",
+      "codeRepository": "https://github.com/IsaacBell/secure-devtools",
+      "programmingLanguage": "Shell",
+      "runtimePlatform": "macOS, Linux",
+      "license": "https://opensource.org/license/mit",
+      "isAccessibleForFree": true,
+      "author": {
+        "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+      },
+      "maintainer": {
+        "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+      },
+      "sameAs": [
+        "https://github.com/IsaacBell/secure-devtools"
+      ],
+      "hasPart": [
+        {
+          "@id": "https://isaacbell.github.io/secure-devtools/tools/am-i-hacked/#software"
+        },
+        {
+          "@id": "https://isaacbell.github.io/secure-devtools/tools/am-i-being-recorded/#software"
+        },
+        {
+          "@id": "https://isaacbell.github.io/secure-devtools/tools/secure-semgrep/#software"
+        }
+      ],
+      "keywords": [
+        "supply-chain security",
+        "malicious code detection",
+        "AI-generated code security",
+        "AI agent security",
+        "malicious repository",
+        "VS Code tasks.json folderOpen",
+        "developer machine audit",
+        "SSRF",
+        "Semgrep rules",
+        "agent skills"
+      ]
+    },
+    {
+      "@type": "ItemList",
+      "name": "secure-devtools tools",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "url": "https://isaacbell.github.io/secure-devtools/tools/am-i-hacked/",
+          "name": "am-i-hacked"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "url": "https://isaacbell.github.io/secure-devtools/tools/am-i-being-recorded/",
+          "name": "am-i-being-recorded"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "url": "https://isaacbell.github.io/secure-devtools/tools/secure-semgrep/",
+          "name": "secure-semgrep"
+        }
+      ]
+    }
+  ]
 }
 </script>
-<style>
-@layer reset, tokens, base, components, utilities;
-
-@layer reset {
-  *, *::before, *::after { box-sizing: border-box; }
-  * { margin: 0; }
-  html { -webkit-text-size-adjust: 100%; }
-  body { min-height: 100svh; }
-  img, svg { display: block; max-width: 100%; }
-  button { font: inherit; color: inherit; }
-  a { color: inherit; }
-}
-
-@layer tokens {
-  :root {
-    --bg: oklch(0.185 0.013 265);
-    --bg-elev: oklch(0.225 0.014 265);
-    --bg-code: oklch(0.145 0.015 265);
-    --border: oklch(0.325 0.016 265);
-    --text: oklch(0.94 0.006 265);
-    --muted: oklch(0.76 0.014 265);
-    --accent: oklch(0.82 0.16 160);
-    --accent-ink: oklch(0.18 0.02 265);
-    --focus: oklch(0.86 0.13 205);
-    --radius: 0.75rem;
-
-    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-
-    --step--1: clamp(0.83rem, 0.8rem + 0.15vw, 0.9rem);
-    --step-0: clamp(1rem, 0.96rem + 0.2vw, 1.08rem);
-    --step-1: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);
-    --step-2: clamp(1.6rem, 1.35rem + 1.2vw, 2.25rem);
-    --step-3: clamp(2.2rem, 1.6rem + 3vw, 3.5rem);
-    --step-4: clamp(2.8rem, 1.7rem + 5vw, 5rem);
-  }
-}
-
-@layer base {
-  body {
-    font-family: var(--sans);
-    background: var(--bg);
-    color: var(--text);
-    font-size: var(--step-0);
-    line-height: 1.6;
-    min-height: 100svh;
-    overflow-x: clip;
-  }
-  h1, h2, h3 { font-weight: 650; line-height: 1.15; text-wrap: balance; }
-  p { text-wrap: pretty; }
-  code { font-family: var(--mono); }
-  a { text-underline-offset: 0.2em; }
-  :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
-  ::selection { background: var(--accent); color: var(--accent-ink); }
-}
-
-@layer components {
-  .wrap { width: min(100% - 2.5rem, 68rem); margin-inline: auto; }
-
-  .site-header { border-block-end: 1px solid var(--border); }
-  .site-header .wrap {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 1rem; min-height: 3.5rem; padding-block: 0.75rem;
-  }
-  .wordmark { font-family: var(--mono); font-weight: 700; font-size: var(--step-0); letter-spacing: -0.01em; text-decoration: none; }
-  .wordmark::before { content: "$ "; color: var(--accent); }
-  .tag { font-size: var(--step--1); }
-
-  .hero { padding-block: clamp(3rem, 9vw, 7rem) clamp(2rem, 6vw, 4rem); }
-  .hero-inner { max-width: 46rem; }
-  h1 { font-size: var(--step-4); letter-spacing: -0.025em; }
-  h1 .hl { color: var(--accent); font-family: var(--mono); font-weight: 700; }
-  .lede { margin-block-start: 1.25rem; font-size: var(--step-1); color: var(--muted); max-width: 38rem; }
-
-  .cmd {
-    display: flex; align-items: center; gap: 0.75rem;
-    max-width: 32rem; margin-block-start: 2rem;
-    padding: 0.35rem 0.35rem 0.35rem 1rem;
-    background: var(--bg-code); border: 1px solid var(--border); border-radius: 999px;
-  }
-  .cmd-pre { flex: 1 1 auto; min-width: 0; overflow-x: auto; }
-  .cmd-pre code { font-size: var(--step-0); white-space: pre; }
-  .alt { margin-block-start: 0.85rem; font-size: var(--step--1); color: var(--muted); }
-  .alt code { color: var(--text); }
-
-  .actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-block-start: 1.75rem; }
-
-  .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
-    min-height: 2.75rem; padding-block: 0.5rem; padding-inline: 1.25rem;
-    border-radius: 999px; border: 1px solid transparent;
-    font: inherit; font-weight: 600; line-height: 1; text-decoration: none; cursor: pointer;
-  }
-  .btn--primary { background: var(--accent); color: var(--accent-ink); }
-  .btn--ghost { background: transparent; border-color: var(--border); color: var(--text); }
-  .copy { flex: 0 0 auto; padding-inline: 1rem; }
-  .copy[data-copied] { border-color: var(--accent); color: var(--accent); }
-
-  .section { padding-block: clamp(2.5rem, 6vw, 4.5rem); }
-  .section-title { font-size: var(--step-2); }
-  .caption { margin-block-start: 0.5rem; font-size: var(--step--1); }
-
-  .cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; margin-block-start: 1.75rem; }
-  .card { min-inline-size: 0; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; }
-  .card h3 { font-size: var(--step-1); margin-block-end: 0.6rem; }
-  .card p { font-size: var(--step--1); }
-  .card-run { margin-block-start: 0.9rem; }
-  .card-run code { color: var(--text); }
-
-  .copyblock {
-    display: flex; align-items: flex-start; gap: 0.75rem; margin-block-start: 1rem;
-    padding: 0.7rem 0.7rem 0.7rem 1rem;
-    background: var(--bg-code); border: 1px solid var(--border); border-radius: var(--radius);
-  }
-  .code-pre { flex: 1 1 auto; min-width: 0; overflow-x: auto; }
-  .code-pre code { font-size: var(--step--1); white-space: pre; color: var(--text); }
-
-  .checks { display: grid; grid-template-columns: 1fr; gap: 2.5rem; margin-block-start: 1.75rem; }
-  .check-col > p { font-size: var(--step--1); margin-block-start: 0.6rem; }
-  .checks-list { list-style: none; display: grid; gap: 0.7rem; margin-block-start: 1rem; }
-  .checks-list li { position: relative; padding-inline-start: 1.5rem; font-size: var(--step--1); color: var(--muted); }
-  .checks-list li::before {
-    content: "→"; position: absolute; inset-inline-start: 0; inset-block-start: 0;
-    color: var(--accent); font-family: var(--mono);
-  }
-
-  .terminal {
-    margin-block-start: 1.25rem; padding: 1.25rem;
-    background: var(--bg-code); border: 1px solid var(--border); border-radius: var(--radius);
-    font-family: var(--mono); font-size: var(--step--1); line-height: 1.55;
-    color: var(--text); white-space: pre; overflow-x: auto; max-width: 100%;
-  }
-
-  .site-footer { border-block-start: 1px solid var(--border); margin-block-start: clamp(2.5rem, 6vw, 4.5rem); padding-block: 2rem; }
-  .site-footer .wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
-  .footer-nav { display: flex; flex-wrap: wrap; gap: 0.25rem 1.5rem; }
-  .footer-nav a { display: inline-flex; align-items: center; min-height: 2.75rem; }
-}
-
-@layer utilities {
-  .muted { color: var(--muted); }
-  .sr-only {
-    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-    overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
-  }
-}
-
-@media (45rem <= width < 72rem) {
-  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .cards > :last-child { grid-column: 1 / -1; }
-}
-
-@media (width >= 72rem) {
-  .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .checks { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3rem; }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .btn, .card, .wordmark, .footer-nav a {
-    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
-  }
-  .btn:hover { transform: translateY(-1px); }
-  .btn--ghost:hover { border-color: var(--accent); color: var(--accent); }
-  .card:hover { border-color: var(--accent); transform: translateY(-2px); }
-  .wordmark:hover, .footer-nav a:hover { color: var(--accent); }
-}
-</style>
 </head>
 <body>
 
+<a class="skip" href="#main">Skip to content</a>
 <header class="site-header">
   <div class="wrap">
-    <a class="wordmark" href="https://github.com/IsaacBell/secure-devtools">secure-devtools</a>
-    <span class="tag muted">macOS &amp; Linux</span>
+    <a class="wordmark" href="./">secure-devtools</a>
+    <nav class="site-nav" aria-label="Site">
+      <a href="tools/">Tools</a>
+      <a href="guides/">Guides</a>
+      <a href="skills/">Skills</a>
+      <a href="compare/">Compare</a>
+      <a href="security/">Trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+    </nav>
   </div>
 </header>
 
-<main>
+<main id="main">
+
 
   <section class="hero">
     <div class="wrap">
       <div class="hero-inner">
         <h1>Security tools for the <span class="hl">code you run</span></h1>
-        <p class="lede">Shell scripts that check a project before you run it, and the machine you run it on. They run on your computer, with no signup, account or API key.</p>
+        <p class="lede"><strong>secure-devtools is a free, open-source security toolkit for developers who need to check code before running it.</strong> Its command-line tools check repositories, AI-generated projects and agent skills for malicious or insecure code, and check the machine you run them on.</p>
+        <p class="sub">They look for editor tasks that run when a folder opens, malicious install scripts, obfuscated payloads, persistence and screen-capture software, risky AI coding tool config, insecure AI-agent code and SSRF. They are plain shell scripts that run locally on macOS and Linux, with no signup, account or API key, and exit non-zero on findings so they drop into a dev script or CI.</p>
 
         <div class="cmd">
           <pre class="cmd-pre"><code id="hero-cmd">npx am-i-hacked</code></pre>
@@ -229,7 +149,8 @@
         <p class="alt">Scans the folder you are in. Add <code>--system</code> to check this machine too.</p>
 
         <div class="actions">
-          <a class="btn btn--primary" href="https://github.com/IsaacBell/secure-devtools">View on GitHub</a>
+          <a class="btn btn--primary" href="guides/">Read the guides</a>
+          <a class="btn btn--ghost" href="https://github.com/IsaacBell/secure-devtools">View on GitHub</a>
           <a class="btn btn--ghost" href="https://www.npmjs.com/package/am-i-hacked">npm</a>
         </div>
       </div>
@@ -239,23 +160,23 @@
   <section class="section" aria-labelledby="tools">
     <div class="wrap">
       <h2 class="section-title" id="tools">Tools</h2>
-      <div class="cards">
+      <div class="cards cards--tools">
 
         <article class="card">
-          <h3><a href="https://github.com/IsaacBell/secure-devtools/blob/main/apps/am-i-hacked/README.md">am-i-hacked</a></h3>
-          <p class="muted">Looks for signs of malicious code in a project before you open, install or run it. With <code>--system</code>, it also checks this machine.</p>
+          <h3><a href="tools/am-i-hacked/">am-i-hacked</a></h3>
+          <p class="muted">Looks for signs of malicious code in a project before you open, install or run it. With <code>--system</code>, it also checks this machine for persistence, capture tools and risky AI-tool config.</p>
           <p class="card-run"><code>npx am-i-hacked</code></p>
         </article>
 
         <article class="card">
-          <h3><a href="https://github.com/IsaacBell/secure-devtools/blob/main/apps/am-i-being-recorded/README.md">am-i-being-recorded</a></h3>
+          <h3><a href="tools/am-i-being-recorded/">am-i-being-recorded</a></h3>
           <p class="muted">Names the browser extension behind a screen-recording indicator, and what else on the machine can capture you.</p>
           <p class="card-run"><code>npx am-i-being-recorded</code></p>
         </article>
 
         <article class="card">
-          <h3><a href="https://github.com/IsaacBell/secure-devtools/blob/main/apps/secure-semgrep/README.md">secure-semgrep</a></h3>
-          <p class="muted">Runs Semgrep with security rules for AI-agent code, shell scripts and server-side requests, plus Semgrep's own rule sets for common languages. Needs <code>semgrep</code> installed.</p>
+          <h3><a href="tools/secure-semgrep/">secure-semgrep</a></h3>
+          <p class="muted">Runs Semgrep with security rules for AI-agent code, MCP servers, agent hooks, shell scripts and server-side requests, plus Semgrep's own rule sets for common languages. Needs <code>semgrep</code> installed.</p>
           <p class="card-run"><code>npx secure-semgrep ./src</code></p>
         </article>
 
@@ -263,10 +184,73 @@
     </div>
   </section>
 
+  <section class="section" aria-labelledby="detects">
+    <div class="wrap">
+      <h2 class="section-title" id="detects">What secure-devtools can help detect</h2>
+      <p class="section-intro">Warning signs, not proof. The tools are not antivirus and do not look up known malware; a clean result means no warning signs were found. <a href="compare/">How they compare with npm audit, Semgrep and antivirus.</a></p>
+      <div class="checks">
+
+        <div class="check-col">
+          <h3>In a project, before you run it</h3>
+          <ul class="checks-list">
+            <li><a href="guides/malicious-editor-config/">Editor tasks that run when a folder opens</a>, and download-and-run commands in editor config</li>
+            <li><a href="guides/supply-chain-attack-checks/">Malicious install scripts</a> in <code>package.json</code> that download, decode or eval</li>
+            <li>Obfuscated or encoded payloads, unusually long lines and dynamic code execution</li>
+            <li>Executable payloads disguised as fonts, images or other assets</li>
+            <li>Clipboard, keystroke or screen capture paired with an exfiltration endpoint</li>
+            <li>Committed <code>.env</code> files and tampered Yarn releases</li>
+            <li>Risky AI-tool config in the repository: <code>.claude/settings.json</code>, <code>.mcp.json</code></li>
+          </ul>
+        </div>
+
+        <div class="check-col">
+          <h3>On your machine</h3>
+          <ul class="checks-list">
+            <li><a href="guides/macos-login-items/">Login items and launch agents</a>, systemd user units, autostart entries and crontab, with macOS code signatures</li>
+            <li>Shell startup files that pipe remote scripts, inject libraries, hijack <code>sudo</code> or <code>ssh</code>, or redirect AI API traffic</li>
+            <li><a href="guides/audit-developer-machine/">AI coding tool config</a> for Claude Code, Codex, Cursor, Gemini CLI, OpenCode and Kilo Code: permission bypass, plain-text keys, unpinned MCP servers, hooks</li>
+            <li>Running processes that run capture scripts or scripts from staging folders</li>
+            <li><a href="guides/which-extension-is-recording-my-screen/">Browser extensions that can record your screen</a> or a tab</li>
+          </ul>
+        </div>
+
+        <div class="check-col">
+          <h3>In code you write or review</h3>
+          <ul class="checks-list">
+            <li><a href="guides/ai-generated-code-security/">Insecure LLM and AI-agent code</a>: hardcoded provider keys, model output passed to exec, user input in system prompts</li>
+            <li>MCP server command injection, tool poisoning and typosquatted tool names</li>
+            <li><a href="guides/vet-agent-skills/">Risky agent skills and hooks</a>: prompt injection, exfiltration, hidden Unicode</li>
+            <li>Shell hazards: <code>curl | bash</code>, eval of downloads, <code>IFS</code> tampering</li>
+            <li><a href="guides/prevent-ssrf/">SSRF</a>: unchecked URL fetches, automatic redirects, disabled TLS verification</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="guides">
+    <div class="wrap">
+      <h2 class="section-title" id="guides">Guides</h2>
+      <p class="section-intro">One question per page, answered completely: the risk, the steps, what the tools catch and what they do not.</p>
+      <div class="cards cards--guides">
+        <article class="card"><h3><a href="guides/inspect-untrusted-repository/">How to safely inspect an untrusted repository before you run it</a></h3></article>
+        <article class="card"><h3><a href="guides/ai-generated-code-security/">Is AI-generated code safe to run? How to check it first</a></h3></article>
+        <article class="card"><h3><a href="guides/malicious-editor-config/">How to detect malicious VS Code tasks that run when a folder opens</a></h3></article>
+        <article class="card"><h3><a href="guides/supply-chain-attack-checks/">How to catch a supply-chain attack that npm audit misses</a></h3></article>
+        <article class="card"><h3><a href="guides/vet-agent-skills/">How to vet an AI agent skill, plugin or MCP server before installing it</a></h3></article>
+        <article class="card"><h3><a href="guides/audit-developer-machine/">How to check whether your developer machine is compromised</a></h3></article>
+        <article class="card"><h3><a href="guides/macos-login-items/">Is this macOS login item or background item malware?</a></h3></article>
+        <article class="card"><h3><a href="guides/which-extension-is-recording-my-screen/">Which browser extension is recording my screen?</a></h3></article>
+        <article class="card"><h3><a href="guides/prevent-ssrf/">How to prevent SSRF when your server fetches a user-supplied URL</a></h3></article>
+      </div>
+    </div>
+  </section>
+
   <section class="section" aria-labelledby="am-i-hacked">
     <div class="wrap">
       <h2 class="section-title" id="am-i-hacked">am-i-hacked</h2>
-      <p>The folder scan reads a project before you open, install or run anything: dynamic code execution, obfuscated payloads, editor tasks that run on folder open, payloads disguised as asset files, clipboard capture paired with an exfiltration endpoint, and <code>.env</code> files in the git index. <code>--system</code> adds the machine: login persistence and code signatures, crontab, shell startup files, AI-tool config, and running processes. It exits <code>1</code> on findings, so it drops into a dev script or CI.</p>
+      <p class="section-intro">The folder scan reads a project before you open, install or run anything: dynamic code execution, obfuscated payloads, editor tasks that run on folder open, payloads disguised as asset files, clipboard capture paired with an exfiltration endpoint, and <code>.env</code> files in the git index. <code>--system</code> adds the machine: login persistence and code signatures, crontab, shell startup files, AI-tool config, and running processes. It exits <code>1</code> on findings, so it drops into a dev script or CI.</p>
 
       <div class="copyblock">
         <pre class="code-pre"><code id="scan-cmd">npx am-i-hacked            # scan the folder you are in
@@ -274,34 +258,41 @@ npx am-i-hacked --system   # also check this machine</code></pre>
         <button type="button" class="btn btn--ghost copy" data-copy="scan-cmd" aria-label="Copy command"><span class="copy-label" aria-live="polite">Copy</span></button>
       </div>
 
-      <p class="caption muted">It reports warning signs, not proof of safety: a clean result does not prove the code or machine is safe. Read the <a href="https://github.com/IsaacBell/secure-devtools/blob/main/apps/am-i-hacked/README.md">am-i-hacked README</a> for the flags and suppression syntax.</p>
+      <p class="caption muted">It reports warning signs, not proof of safety: a clean result does not prove the code or machine is safe. The <a href="tools/am-i-hacked/">am-i-hacked reference</a> has the full list of checks, flags, exit codes and suppression syntax.</p>
     </div>
   </section>
 
   <section class="section" aria-labelledby="skills">
     <div class="wrap">
       <h2 class="section-title" id="skills">Agent skills</h2>
-      <p class="caption muted">Install all of them with <code>npx skills add IsaacBell/secure-devtools -g</code>, or one with <code>--skill &lt;name&gt;</code>.</p>
-      <div class="checks">
-
+      <p class="section-intro">Instructions an AI coding agent loads when the task matches. Install all of them with <code>npx skills add IsaacBell/secure-devtools -g</code>, or one with <code>--skill &lt;name&gt;</code>. <a href="skills/">What each one does.</a></p>
+      <div class="checks checks--two">
         <div class="check-col">
           <ul class="checks-list">
-            <li><a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/quarantine-review/SKILL.md">quarantine-review</a> — inspect an untrusted repository without running any of it.</li>
-            <li><a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/secure-skill-pull/SKILL.md">secure-skill-pull</a> — vet a skill or plugin from a URL without running its installer.</li>
-            <li><a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/create-skill/SKILL.md">create-skill</a> — write, check and publish an agent skill.</li>
-            <li><a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/skill-publish-review/SKILL.md">skill-publish-review</a> — review skills before they go into a public repository.</li>
+            <li><a href="skills/#quarantine-review">quarantine-review</a> — inspect an untrusted repository without running any of it.</li>
+            <li><a href="skills/#secure-skill-pull">secure-skill-pull</a> — vet a skill, plugin or MCP server from a URL without running its installer.</li>
+            <li><a href="skills/#create-skill">create-skill</a> — write, check and publish an agent skill.</li>
+            <li><a href="skills/#skill-publish-review">skill-publish-review</a> — review skills before they go into a public repository.</li>
+            <li><a href="skills/#ssrf-safe-fetch">ssrf-safe-fetch</a> — validate the URL and the resolved address before a server fetches it.</li>
+            <li><a href="skills/#login-item-triage">login-item-triage</a> — decide whether a macOS login item is legitimate or planted.</li>
+            <li><a href="skills/#jujutsu">jujutsu</a> — use the Jujutsu (jj) version-control system safely as an agent.</li>
           </ul>
         </div>
-
-        <div class="check-col">
-          <ul class="checks-list">
-            <li><a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/ssrf-safe-fetch/SKILL.md">ssrf-safe-fetch</a> — validate the URL and the resolved address before a server fetches it.</li>
-            <li><a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/login-item-triage/SKILL.md">login-item-triage</a> — the manual method behind am-i-hacked's login-item signature checks.</li>
-            <li><a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/jujutsu/SKILL.md">jujutsu</a> — use the jujutsu (<code>jj</code>) version-control system.</li>
-          </ul>
-        </div>
-
       </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="trust">
+    <div class="wrap">
+      <h2 class="section-title" id="trust">Why you can check it</h2>
+      <ul class="checks-list">
+        <li>Open source under the MIT license, maintained by <a href="https://isaacbell.io">Isaac Bell</a>.</li>
+        <li>Plain bash with zero npm runtime dependencies: you can read every line that runs.</li>
+        <li>The scanners are read-only, make no network calls and collect no telemetry.</li>
+        <li>Bats test suites, shellcheck and shfmt in CI, plus a gitleaks secret scan, Semgrep and a security gate that runs am-i-hacked on every pull request.</li>
+        <li>Vulnerabilities are reported privately through GitHub security advisories.</li>
+      </ul>
+      <p class="caption muted"><a href="security/">Security, trust and threat model</a></p>
     </div>
   </section>
 
@@ -309,18 +300,19 @@ npx am-i-hacked --system   # also check this machine</code></pre>
 
 <footer class="site-footer">
   <div class="wrap">
-    <p class="muted">MIT licensed. Plain shell, zero npm runtime dependencies. Built by <a href="https://isaacbell.io">Isaac Bell</a>.</p>
+    <p class="muted">MIT licensed. Plain shell, zero npm runtime dependencies. Built and maintained by <a href="https://isaacbell.io">Isaac Bell</a>.</p>
     <nav class="footer-nav" aria-label="Project links">
+      <a href="guides/">Guides</a>
+      <a href="compare/">Compare</a>
+      <a href="security/">Security &amp; trust</a>
       <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
       <a href="https://www.npmjs.com/package/am-i-hacked">npm</a>
       <a href="llms.txt">llms.txt</a>
       <a href="https://github.com/IsaacBell/secure-devtools/security/advisories/new">Report a security issue</a>
-      <a href="https://github.com/IsaacBell/secure-devtools/security/advisories">Security advisories</a>
       <a href="https://ko-fi.com/ibell">Sponsor</a>
     </nav>
   </div>
 </footer>
-
 <script>
 (function () {
   var buttons = document.querySelectorAll('[data-copy]');
@@ -344,6 +336,5 @@ npx am-i-hacked --system   # also check this machine</code></pre>
   }
 })();
 </script>
-
 </body>
 </html>

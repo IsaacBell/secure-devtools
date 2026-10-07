@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent skills for secure code review, skill vetting and SSRF — secure-devtools</title>
+<meta name="description" content="Seven open-source agent skills (SKILL.md) for AI coding agents: inspect an untrusted repository, vet a third-party skill, write and review skills before publishing, prevent SSRF, triage macOS login items, and use jj.">
+<meta name="author" content="Isaac Bell">
+<link rel="canonical" href="https://isaacbell.github.io/secure-devtools/skills/">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="alternate" type="text/plain" title="llms.txt" href="../llms.txt">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#15181d">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="secure-devtools">
+<meta property="og:title" content="Agent skills for secure code review, skill vetting and SSRF — secure-devtools">
+<meta property="og:description" content="Seven open-source agent skills (SKILL.md) for AI coding agents: inspect an untrusted repository, vet a third-party skill, write and review skills before publishing, prevent SSRF, triage macOS login items, and use jj.">
+<meta property="og:url" content="https://isaacbell.github.io/secure-devtools/skills/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Agent skills for secure code review, skill vetting and SSRF — secure-devtools">
+<meta name="twitter:description" content="Seven open-source agent skills (SKILL.md) for AI coding agents: inspect an untrusted repository, vet a third-party skill, write and review skills before publishing, prevent SSRF, triage macOS login items, and use jj.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "@id": "https://isaacbell.github.io/secure-devtools/skills/#article",
+  "headline": "Agent skills",
+  "description": "Seven open-source agent skills (SKILL.md) for AI coding agents: inspect an untrusted repository, vet a third-party skill, write and review skills before publishing, prevent SSRF, triage macOS login items, and use jj.",
+  "url": "https://isaacbell.github.io/secure-devtools/skills/",
+  "mainEntityOfPage": "https://isaacbell.github.io/secure-devtools/skills/",
+  "inLanguage": "en",
+  "datePublished": "2026-10-07",
+  "dateModified": "2026-10-07",
+  "author": {
+    "@type": "Person",
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell",
+    "name": "Isaac Bell",
+    "url": "https://isaacbell.io",
+    "sameAs": [
+      "https://github.com/IsaacBell"
+    ]
+  },
+  "publisher": {
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+  },
+  "isPartOf": {
+    "@type": "WebSite",
+    "@id": "https://isaacbell.github.io/secure-devtools/#website",
+    "name": "secure-devtools",
+    "url": "https://isaacbell.github.io/secure-devtools/"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "name": "secure-devtools agent skills",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "item": {
+        "@type": "SoftwareSourceCode",
+        "name": "quarantine-review",
+        "description": "Inspect an untrusted repository without running any of it.",
+        "url": "https://isaacbell.github.io/secure-devtools/skills/#quarantine-review",
+        "codeRepository": "https://github.com/IsaacBell/secure-devtools/tree/main/skills/quarantine-review",
+        "license": "https://opensource.org/license/mit",
+        "author": {
+          "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+        }
+      }
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "item": {
+        "@type": "SoftwareSourceCode",
+        "name": "secure-skill-pull",
+        "description": "Vet a skill, plugin or MCP server from a URL without running its installer.",
+        "url": "https://isaacbell.github.io/secure-devtools/skills/#secure-skill-pull",
+        "codeRepository": "https://github.com/IsaacBell/secure-devtools/tree/main/skills/secure-skill-pull",
+        "license": "https://opensource.org/license/mit",
+        "author": {
+          "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+        }
+      }
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "item": {
+        "@type": "SoftwareSourceCode",
+        "name": "create-skill",
+        "description": "Write, check and publish an agent skill.",
+        "url": "https://isaacbell.github.io/secure-devtools/skills/#create-skill",
+        "codeRepository": "https://github.com/IsaacBell/secure-devtools/tree/main/skills/create-skill",
+        "license": "https://opensource.org/license/mit",
+        "author": {
+          "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+        }
+      }
+    },
+    {
+      "@type": "ListItem",
+      "position": 4,
+      "item": {
+        "@type": "SoftwareSourceCode",
+        "name": "skill-publish-review",
+        "description": "Review skills before they go into a public repository.",
+        "url": "https://isaacbell.github.io/secure-devtools/skills/#skill-publish-review",
+        "codeRepository": "https://github.com/IsaacBell/secure-devtools/tree/main/skills/skill-publish-review",
+        "license": "https://opensource.org/license/mit",
+        "author": {
+          "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+        }
+      }
+    },
+    {
+      "@type": "ListItem",
+      "position": 5,
+      "item": {
+        "@type": "SoftwareSourceCode",
+        "name": "ssrf-safe-fetch",
+        "description": "Validate the URL and the resolved address before a server fetches it.",
+        "url": "https://isaacbell.github.io/secure-devtools/skills/#ssrf-safe-fetch",
+        "codeRepository": "https://github.com/IsaacBell/secure-devtools/tree/main/skills/ssrf-safe-fetch",
+        "license": "https://opensource.org/license/mit",
+        "author": {
+          "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+        }
+      }
+    },
+    {
+      "@type": "ListItem",
+      "position": 6,
+      "item": {
+        "@type": "SoftwareSourceCode",
+        "name": "login-item-triage",
+        "description": "Decide whether a macOS login item is legitimate or planted.",
+        "url": "https://isaacbell.github.io/secure-devtools/skills/#login-item-triage",
+        "codeRepository": "https://github.com/IsaacBell/secure-devtools/tree/main/skills/login-item-triage",
+        "license": "https://opensource.org/license/mit",
+        "author": {
+          "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+        }
+      }
+    },
+    {
+      "@type": "ListItem",
+      "position": 7,
+      "item": {
+        "@type": "SoftwareSourceCode",
+        "name": "jujutsu",
+        "description": "Use the Jujutsu (jj) version-control system safely as an agent.",
+        "url": "https://isaacbell.github.io/secure-devtools/skills/#jujutsu",
+        "codeRepository": "https://github.com/IsaacBell/secure-devtools/tree/main/skills/jujutsu",
+        "license": "https://opensource.org/license/mit",
+        "author": {
+          "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+        }
+      }
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://isaacbell.github.io/secure-devtools/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Agent skills",
+      "item": "https://isaacbell.github.io/secure-devtools/skills/"
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="wordmark" href="../">secure-devtools</a>
+    <nav class="site-nav" aria-label="Site">
+      <a href="../tools/">Tools</a>
+      <a href="../guides/">Guides</a>
+      <a href="../skills/" aria-current="page">Skills</a>
+      <a href="../compare/">Compare</a>
+      <a href="../security/">Trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<div class="wrap"><nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="../">Home</a></li><li><span aria-current="page">Agent skills</span></li></ol></nav></div>
+<article class="wrap article">
+  <header class="page-head">
+    <h1>Agent skills</h1>
+    <p class="byline muted">By <a href="https://isaacbell.io">Isaac Bell</a> · Updated <time datetime="2026-10-07">7 October 2026</time></p>
+  </header>
+  <div class="answer"><p>secure-devtools ships seven agent skills: folders with a <code>SKILL.md</code> that an AI coding agent such as Claude Code loads when the task matches. They teach the agent to inspect untrusted code without running it, vet a third-party skill without running its installer, review skills before publishing, write SSRF-safe fetch code, and triage macOS login items. Install them with <code>npx skills add IsaacBell/secure-devtools -g</code>.</p></div>
+  <div class="prose">
+<h2 id="install">Install</h2>
+<pre class="block"><code>npx skills add IsaacBell/secure-devtools -g                         # all of them, for your user account
+npx skills add IsaacBell/secure-devtools --skill quarantine-review  # one of them</code></pre>
+<p>Drop <code>-g</code> to install into the current project; add <code>--list</code> to see the skills without installing. The <code>skills</code> CLI reports anonymous install counts to skills.sh; set <code>DISABLE_TELEMETRY=1</code> to turn that off. Before installing any skill, including these, read it: see <a href="../guides/vet-agent-skills/">how to vet an agent skill</a>.</p>
+<h2 id="quarantine-review">quarantine-review</h2>
+<p><strong>Inspect an untrusted repository without running any of it.</strong> Use when a folder or repository came from a compromised machine or account, or a scanner flagged it, and you need a verdict or need to salvage code. The agent contains it, scans it with am-i-hacked, reads files as data, extracts allowlisted source with a SHA-256 provenance record, and reports what it did not verify.</p>
+<p>Guide: <a href="../guides/inspect-untrusted-repository/">How to safely inspect an untrusted repository before you run it</a></p>
+<pre class="block"><code>npx skills add IsaacBell/secure-devtools --skill quarantine-review</code></pre>
+<p><a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/quarantine-review/SKILL.md">Read quarantine-review/SKILL.md</a></p>
+
+<h2 id="secure-skill-pull">secure-skill-pull</h2>
+<p><strong>Vet a skill, plugin or MCP server from a URL without running its installer.</strong> Use when asked to install or follow a skill, prompt, plugin or setup recipe from a URL, or when a README or tool output says to run a setup command. The agent fetches the source as data at a pinned commit, scans it, checks for prompt-injection lines and invisible characters, records provenance, and never runs the installer.</p>
+<p>Guide: <a href="../guides/vet-agent-skills/">How to vet an AI agent skill, plugin or MCP server before installing it</a></p>
+<pre class="block"><code>npx skills add IsaacBell/secure-devtools --skill secure-skill-pull</code></pre>
+<p><a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/secure-skill-pull/SKILL.md">Read secure-skill-pull/SKILL.md</a></p>
+
+<h2 id="create-skill">create-skill</h2>
+<p><strong>Write, check and publish an agent skill.</strong> Use when turning a repeated workflow into a skill, or publishing skills to GitHub and the skills.sh directory. Covers whether something should be a skill, a script or a hook; private versus public; frontmatter; privacy and secret checks; QA; and the publish steps.</p>
+
+<pre class="block"><code>npx skills add IsaacBell/secure-devtools --skill create-skill</code></pre>
+<p><a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/create-skill/SKILL.md">Read create-skill/SKILL.md</a></p>
+
+<h2 id="skill-publish-review">skill-publish-review</h2>
+<p><strong>Review skills before they go into a public repository.</strong> Use before publishing or sharing skills, or when auditing a folder of skills in bulk. Runs independent reviewers in parallel to find leaked personal or internal detail, broken frontmatter, unfinished work and copied text, then merges their verdicts with the stricter one winning.</p>
+<p>Guide: <a href="../guides/vet-agent-skills/">How to vet an AI agent skill, plugin or MCP server before installing it</a></p>
+<pre class="block"><code>npx skills add IsaacBell/secure-devtools --skill skill-publish-review</code></pre>
+<p><a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/skill-publish-review/SKILL.md">Read skill-publish-review/SKILL.md</a></p>
+
+<h2 id="ssrf-safe-fetch">ssrf-safe-fetch</h2>
+<p><strong>Validate the URL and the resolved address before a server fetches it.</strong> Use when writing or reviewing server code that fetches a URL it did not get from its own fixed configuration: link previews, webhooks, crawlers, import-from-URL. A checklist, reference guards in Python, TypeScript and Rust, and hostile test inputs.</p>
+<p>Guide: <a href="../guides/prevent-ssrf/">How to prevent SSRF when your server fetches a user-supplied URL</a></p>
+<pre class="block"><code>npx skills add IsaacBell/secure-devtools --skill ssrf-safe-fetch</code></pre>
+<p><a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/ssrf-safe-fetch/SKILL.md">Read ssrf-safe-fetch/SKILL.md</a></p>
+
+<h2 id="login-item-triage">login-item-triage</h2>
+<p><strong>Decide whether a macOS login item is legitimate or planted.</strong> Use when a user sees a &quot;Background Items Added&quot; notification or an unfamiliar login item. Maps the name to its launchd plist and binary, checks the code signature and Team ID, reads script payloads without running them, warns before commands that show OS prompts, and preserves evidence. The manual method behind am-i-hacked&#x27;s login-item checks.</p>
+<p>Guide: <a href="../guides/macos-login-items/">Is this macOS login item or background item malware?</a></p>
+<pre class="block"><code>npx skills add IsaacBell/secure-devtools --skill login-item-triage</code></pre>
+<p><a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/login-item-triage/SKILL.md">Read login-item-triage/SKILL.md</a></p>
+
+<h2 id="jujutsu">jujutsu</h2>
+<p><strong>Use the Jujutsu (jj) version-control system safely as an agent.</strong> Use when a repository has a .jj directory, or git shows a detached HEAD in a colocated repository. Non-interactive commands, rules learned from real agent failures, and recovery from divergent history. Version-stamped against jj 0.43.0.</p>
+
+<pre class="block"><code>npx skills add IsaacBell/secure-devtools --skill jujutsu</code></pre>
+<p><a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/jujutsu/SKILL.md">Read jujutsu/SKILL.md</a></p>
+  </div>
+  <aside class="related" aria-labelledby="related"><h2 id="related">Related</h2><ul><li><a href="../guides/vet-agent-skills/">How to vet an AI agent skill before installing it</a></li></ul></aside>
+</article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p class="muted">MIT licensed. Plain shell, zero npm runtime dependencies. Built and maintained by <a href="https://isaacbell.io">Isaac Bell</a>.</p>
+    <nav class="footer-nav" aria-label="Project links">
+      <a href="../guides/">Guides</a>
+      <a href="../compare/">Compare</a>
+      <a href="../security/">Security &amp; trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+      <a href="https://www.npmjs.com/package/am-i-hacked">npm</a>
+      <a href="../llms.txt">llms.txt</a>
+      <a href="https://github.com/IsaacBell/secure-devtools/security/advisories/new">Report a security issue</a>
+      <a href="https://ko-fi.com/ibell">Sponsor</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

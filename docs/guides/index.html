@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Developer security guides: untrusted repositories, AI-generated code, agent skills — secure-devtools</title>
+<meta name="description" content="Question-by-question guides to checking code before you run it: untrusted repositories, AI-generated code, malicious VS Code tasks, supply-chain attacks, agent skills, compromised machines, macOS login items, screen recording and SSRF.">
+<meta name="author" content="Isaac Bell">
+<link rel="canonical" href="https://isaacbell.github.io/secure-devtools/guides/">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="alternate" type="text/plain" title="llms.txt" href="../llms.txt">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#15181d">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="secure-devtools">
+<meta property="og:title" content="Developer security guides: untrusted repositories, AI-generated code, agent skills — secure-devtools">
+<meta property="og:description" content="Question-by-question guides to checking code before you run it: untrusted repositories, AI-generated code, malicious VS Code tasks, supply-chain attacks, agent skills, compromised machines, macOS login items, screen recording and SSRF.">
+<meta property="og:url" content="https://isaacbell.github.io/secure-devtools/guides/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Developer security guides: untrusted repositories, AI-generated code, agent skills — secure-devtools">
+<meta name="twitter:description" content="Question-by-question guides to checking code before you run it: untrusted repositories, AI-generated code, malicious VS Code tasks, supply-chain attacks, agent skills, compromised machines, macOS login items, screen recording and SSRF.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "@id": "https://isaacbell.github.io/secure-devtools/guides/",
+  "name": "Guides",
+  "description": "Question-by-question guides to checking code before you run it: untrusted repositories, AI-generated code, malicious VS Code tasks, supply-chain attacks, agent skills, compromised machines, macOS login items, screen recording and SSRF.",
+  "url": "https://isaacbell.github.io/secure-devtools/guides/",
+  "isPartOf": {
+    "@id": "https://isaacbell.github.io/secure-devtools/#website"
+  },
+  "dateModified": "2026-10-07",
+  "mainEntity": {
+    "@type": "ItemList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "url": "https://isaacbell.github.io/secure-devtools/guides/inspect-untrusted-repository/",
+        "name": "How to safely inspect an untrusted repository before you run it"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "url": "https://isaacbell.github.io/secure-devtools/guides/ai-generated-code-security/",
+        "name": "Is AI-generated code safe to run? How to check it first"
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "url": "https://isaacbell.github.io/secure-devtools/guides/malicious-editor-config/",
+        "name": "How to detect malicious VS Code tasks that run when a folder opens"
+      },
+      {
+        "@type": "ListItem",
+        "position": 4,
+        "url": "https://isaacbell.github.io/secure-devtools/guides/supply-chain-attack-checks/",
+        "name": "How to catch a supply-chain attack that npm audit misses"
+      },
+      {
+        "@type": "ListItem",
+        "position": 5,
+        "url": "https://isaacbell.github.io/secure-devtools/guides/vet-agent-skills/",
+        "name": "How to vet an AI agent skill, plugin or MCP server before installing it"
+      },
+      {
+        "@type": "ListItem",
+        "position": 6,
+        "url": "https://isaacbell.github.io/secure-devtools/guides/audit-developer-machine/",
+        "name": "How to check whether your developer machine is compromised"
+      },
+      {
+        "@type": "ListItem",
+        "position": 7,
+        "url": "https://isaacbell.github.io/secure-devtools/guides/macos-login-items/",
+        "name": "Is this macOS login item or background item malware?"
+      },
+      {
+        "@type": "ListItem",
+        "position": 8,
+        "url": "https://isaacbell.github.io/secure-devtools/guides/which-extension-is-recording-my-screen/",
+        "name": "Which browser extension is recording my screen?"
+      },
+      {
+        "@type": "ListItem",
+        "position": 9,
+        "url": "https://isaacbell.github.io/secure-devtools/guides/prevent-ssrf/",
+        "name": "How to prevent SSRF when your server fetches a user-supplied URL"
+      }
+    ]
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://isaacbell.github.io/secure-devtools/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Guides",
+      "item": "https://isaacbell.github.io/secure-devtools/guides/"
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="wordmark" href="../">secure-devtools</a>
+    <nav class="site-nav" aria-label="Site">
+      <a href="../tools/">Tools</a>
+      <a href="../guides/" aria-current="page">Guides</a>
+      <a href="../skills/">Skills</a>
+      <a href="../compare/">Compare</a>
+      <a href="../security/">Trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<div class="wrap"><nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="../">Home</a></li><li><span aria-current="page">Guides</span></li></ol></nav></div>
+<section class="wrap">
+  <header class="page-head">
+    <h1>Guides</h1>
+    <p class="sub">Each guide answers one question completely: what the risk is, what to do step by step, what the tools catch, and what they do not.</p>
+  </header>
+  <div class="cards cards--guides">
+<article class="card"><h3><a href="../guides/inspect-untrusted-repository/">How to safely inspect an untrusted repository before you run it</a></h3><p class="muted">Check a cloned or downloaded repository for malicious code without opening, installing or running it: contain it, scan it with am-i-hacked, read the flagged files as text, and only then decide.</p></article>
+<article class="card"><h3><a href="../guides/ai-generated-code-security/">Is AI-generated code safe to run? How to check it first</a></h3><p class="muted">How to check code written by an AI coding assistant or agent (Claude Code, Cursor, GitHub Copilot, Codex and others) for malicious or insecure patterns before you run it, using am-i-hacked and secure-semgrep.</p></article>
+<article class="card"><h3><a href="../guides/malicious-editor-config/">How to detect malicious VS Code tasks that run when a folder opens</a></h3><p class="muted">A .vscode/tasks.json task with runOn set to folderOpen runs a command as soon as you open a folder. How the attack works, how to spot it, and how to scan for it with am-i-hacked before opening a repository.</p></article>
+<article class="card"><h3><a href="../guides/supply-chain-attack-checks/">How to catch a supply-chain attack that npm audit misses</a></h3><p class="muted">npm audit, OSV-Scanner and Snyk match dependencies against published advisories. An attack committed into a repository, or one not yet reported, is invisible to them. How to add indicator-based checks with am-i-hacked to a dev script, a git pull and CI.</p></article>
+<article class="card"><h3><a href="../guides/vet-agent-skills/">How to vet an AI agent skill, plugin or MCP server before installing it</a></h3><p class="muted">A third-party agent skill is untrusted text and its installer is untrusted code. How to fetch a skill as data, pin it to a commit, scan it, read it and record where it came from, without running the installer. Uses the secure-skill-pull skill and am-i-hacked.</p></article>
+<article class="card"><h3><a href="../guides/audit-developer-machine/">How to check whether your developer machine is compromised</a></h3><p class="muted">A read-only audit of a macOS or Linux developer machine with am-i-hacked --system: login persistence and code signatures, crontab, shell startup files, AI coding tool config, running processes and the folders tooling installs code into.</p></article>
+<article class="card"><h3><a href="../guides/macos-login-items/">Is this macOS login item or background item malware?</a></h3><p class="muted">How to decide whether a macOS login item or &quot;Background Items Added&quot; entry is legitimate: map the name to its launchd plist, check the program&#x27;s code signature and Team ID against the vendor, read script payloads without running them, and preserve evidence.</p></article>
+<article class="card"><h3><a href="../guides/which-extension-is-recording-my-screen/">Which browser extension is recording my screen?</a></h3><p class="muted">macOS says &quot;Brave Browser is recording your screen&quot; but not which tab or extension. am-i-being-recorded reads Chromium-family browser profiles and names the extensions that can capture the display or a tab.</p></article>
+<article class="card"><h3><a href="../guides/prevent-ssrf/">How to prevent SSRF when your server fetches a user-supplied URL</a></h3><p class="muted">A checklist for server-side request forgery (SSRF): allow only http and https on ports 80 and 443, resolve the host and reject every non-public address, follow redirects by hand, cap size and time, and connect to the address you checked. With hostile test inputs and Semgrep rules.</p></article>
+  </div>
+</section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p class="muted">MIT licensed. Plain shell, zero npm runtime dependencies. Built and maintained by <a href="https://isaacbell.io">Isaac Bell</a>.</p>
+    <nav class="footer-nav" aria-label="Project links">
+      <a href="../guides/">Guides</a>
+      <a href="../compare/">Compare</a>
+      <a href="../security/">Security &amp; trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+      <a href="https://www.npmjs.com/package/am-i-hacked">npm</a>
+      <a href="../llms.txt">llms.txt</a>
+      <a href="https://github.com/IsaacBell/secure-devtools/security/advisories/new">Report a security issue</a>
+      <a href="https://ko-fi.com/ibell">Sponsor</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

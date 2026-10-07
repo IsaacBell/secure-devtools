@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>am-i-being-recorded: find which browser extension is recording your screen</title>
+<meta name="description" content="am-i-being-recorded names the Chromium-family browser extension behind a screen-recording indicator, and lists what else on a macOS or Linux machine can capture your screen, camera or microphone.">
+<meta name="author" content="Isaac Bell">
+<link rel="canonical" href="https://isaacbell.github.io/secure-devtools/tools/am-i-being-recorded/">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="alternate" type="text/plain" title="llms.txt" href="../../llms.txt">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#15181d">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="secure-devtools">
+<meta property="og:title" content="am-i-being-recorded: find which browser extension is recording your screen">
+<meta property="og:description" content="am-i-being-recorded names the Chromium-family browser extension behind a screen-recording indicator, and lists what else on a macOS or Linux machine can capture your screen, camera or microphone.">
+<meta property="og:url" content="https://isaacbell.github.io/secure-devtools/tools/am-i-being-recorded/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="am-i-being-recorded: find which browser extension is recording your screen">
+<meta name="twitter:description" content="am-i-being-recorded names the Chromium-family browser extension behind a screen-recording indicator, and lists what else on a macOS or Linux machine can capture your screen, camera or microphone.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "@id": "https://isaacbell.github.io/secure-devtools/tools/am-i-being-recorded/#article",
+  "headline": "am-i-being-recorded",
+  "description": "am-i-being-recorded names the Chromium-family browser extension behind a screen-recording indicator, and lists what else on a macOS or Linux machine can capture your screen, camera or microphone.",
+  "url": "https://isaacbell.github.io/secure-devtools/tools/am-i-being-recorded/",
+  "mainEntityOfPage": "https://isaacbell.github.io/secure-devtools/tools/am-i-being-recorded/",
+  "inLanguage": "en",
+  "datePublished": "2026-10-07",
+  "dateModified": "2026-10-07",
+  "author": {
+    "@type": "Person",
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell",
+    "name": "Isaac Bell",
+    "url": "https://isaacbell.io",
+    "sameAs": [
+      "https://github.com/IsaacBell"
+    ]
+  },
+  "publisher": {
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+  },
+  "isPartOf": {
+    "@type": "WebSite",
+    "@id": "https://isaacbell.github.io/secure-devtools/#website",
+    "name": "secure-devtools",
+    "url": "https://isaacbell.github.io/secure-devtools/"
+  },
+  "about": [
+    {
+      "@id": "https://isaacbell.github.io/secure-devtools/tools/am-i-being-recorded/#software"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "@id": "https://isaacbell.github.io/secure-devtools/tools/am-i-being-recorded/#software",
+  "name": "am-i-being-recorded",
+  "description": "am-i-being-recorded names the Chromium-family browser extension behind a screen-recording indicator, and lists what else on a macOS or Linux machine can capture your screen, camera or microphone.",
+  "url": "https://isaacbell.github.io/secure-devtools/tools/am-i-being-recorded/",
+  "applicationCategory": "SecurityApplication",
+  "applicationSubCategory": "Command-line tool",
+  "operatingSystem": "macOS, Linux",
+  "softwareVersion": "1.0.0",
+  "softwareRequirements": "bash and jq",
+  "license": "https://opensource.org/license/mit",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "downloadUrl": "https://www.npmjs.com/package/am-i-being-recorded",
+  "sameAs": [
+    "https://www.npmjs.com/package/am-i-being-recorded",
+    "https://github.com/IsaacBell/secure-devtools/tree/main/apps/am-i-being-recorded"
+  ],
+  "author": {
+    "@type": "Person",
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell",
+    "name": "Isaac Bell",
+    "url": "https://isaacbell.io",
+    "sameAs": [
+      "https://github.com/IsaacBell"
+    ]
+  },
+  "maintainer": {
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+  },
+  "isPartOf": {
+    "@id": "https://isaacbell.github.io/secure-devtools/#software"
+  },
+  "alternateName": [
+    "aibr"
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://isaacbell.github.io/secure-devtools/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Tools",
+      "item": "https://isaacbell.github.io/secure-devtools/tools/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "am-i-being-recorded",
+      "item": "https://isaacbell.github.io/secure-devtools/tools/am-i-being-recorded/"
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="wordmark" href="../../">secure-devtools</a>
+    <nav class="site-nav" aria-label="Site">
+      <a href="../../tools/">Tools</a>
+      <a href="../../guides/">Guides</a>
+      <a href="../../skills/">Skills</a>
+      <a href="../../compare/">Compare</a>
+      <a href="../../security/">Trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<div class="wrap"><nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="../../">Home</a></li><li><a href="../../tools/">Tools</a></li><li><span aria-current="page">am-i-being-recorded</span></li></ol></nav></div>
+<article class="wrap article">
+  <header class="page-head">
+    <h1>am-i-being-recorded</h1>
+    <p class="byline muted">By <a href="https://isaacbell.io">Isaac Bell</a> · Updated <time datetime="2026-10-07">7 October 2026</time> · Version 1.0.0 · <a href="https://www.npmjs.com/package/am-i-being-recorded">npm</a> · <a href="https://github.com/IsaacBell/secure-devtools/tree/main/apps/am-i-being-recorded">source</a></p>
+  </header>
+  <div class="answer"><p>am-i-being-recorded is a command-line tool that names the browser extension behind a screen-recording indicator. macOS only tells you which app is recording; <code>npx am-i-being-recorded</code> reads Chrome, Brave, Edge, Chromium and Vivaldi profiles and flags each extension that can capture the display or a tab, with its ID, version and profile. It also lists which apps hold camera, microphone and screen-recording permission.</p></div>
+  <div class="prose">
+<h2 id="run">Install and run</h2>
+<pre class="block"><code>npx am-i-being-recorded                       # every detected browser profile
+npx am-i-being-recorded --min-severity HIGH   # only the loud findings
+npx am-i-being-recorded --strict              # exit 1 on any finding</code></pre>
+<p>Needs <code>jq</code>. Short alias: <code>aibr</code>. It reads local files and process lists, and makes no network calls.</p>
+
+<h2 id="detects">What it detects</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Extension permission</th><th>Severity</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td><code>desktopCapture</code></td><td>CRITICAL</td><td>Can record the entire display</td></tr>
+    <tr><td><code>tabCapture</code></td><td>HIGH</td><td>Can record the active tab's audio and video</td></tr>
+    <tr><td><code>debugger</code></td><td>HIGH</td><td>Full tab control over the DevTools protocol</td></tr>
+    <tr><td><code>nativeMessaging</code></td><td>MEDIUM</td><td>Can launch a native helper process</td></tr>
+    <tr><td><code>userScripts</code></td><td>MEDIUM</td><td>Can inject scripts into pages</td></tr>
+    <tr><td><code>management</code></td><td>LOW</td><td>Can enable or disable other extensions</td></tr>
+  </tbody>
+</table></div>
+<p>Escalations: display capture plus access to every site, and any capture permission plus an <code>offscreen</code> document, which lets a stream outlive the tab that started it.</p>
+<p>Live context on macOS: whether <code>screensharingd</code> and <code>replayd</code> are running, and which apps hold camera, microphone and screen-recording grants, each with its code signer and Team ID. On Linux: which process holds a <code>/dev/video*</code> camera. These lines are context, not findings.</p>
+
+<h2 id="exit">Exit codes</h2>
+<p>Default mode is evidence: findings are printed and the exit status is <code>0</code>. <code>--strict</code> makes any reported finding exit <code>1</code>.</p>
+
+<h2 id="limits">What it does not do</h2>
+<ul>
+  <li>It reports capability, not proof of an active stream.</li>
+  <li>Safari and Firefox extensions, standalone recorder apps, and a page's own screen-share prompt are out of scope.</li>
+  <li>macOS screen-recording grants need root or Full Disk Access to read; the tool says when it cannot.</li>
+  <li>It is not a malware scanner.</li>
+</ul>
+
+<h2 id="facts">Facts</h2>
+<p>Plain bash, zero npm runtime dependencies, MIT licensed. Source: <a href="https://github.com/IsaacBell/secure-devtools/tree/main/apps/am-i-being-recorded">apps/am-i-being-recorded</a>.</p>
+  </div>
+  <aside class="related" aria-labelledby="related"><h2 id="related">Related</h2><ul><li><a href="../../guides/which-extension-is-recording-my-screen/">Which browser extension is recording my screen?</a></li><li><a href="../../guides/audit-developer-machine/">How to check whether a developer machine is compromised</a></li></ul></aside>
+</article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p class="muted">MIT licensed. Plain shell, zero npm runtime dependencies. Built and maintained by <a href="https://isaacbell.io">Isaac Bell</a>.</p>
+    <nav class="footer-nav" aria-label="Project links">
+      <a href="../../guides/">Guides</a>
+      <a href="../../compare/">Compare</a>
+      <a href="../../security/">Security &amp; trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+      <a href="https://www.npmjs.com/package/am-i-hacked">npm</a>
+      <a href="../../llms.txt">llms.txt</a>
+      <a href="https://github.com/IsaacBell/secure-devtools/security/advisories/new">Report a security issue</a>
+      <a href="https://ko-fi.com/ibell">Sponsor</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

