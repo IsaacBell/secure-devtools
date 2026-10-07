@@ -220,7 +220,7 @@
     <div class="wrap">
       <div class="hero-inner">
         <h1>Security tools for the <span class="hl">code you run</span></h1>
-        <p class="lede">Plain-shell checkers for the code you are about to run, and the machine you run it on. Local, no signup, no account, no API key.</p>
+        <p class="lede">Shell scripts that check a project before you run it, and the machine you run it on. They run on your computer, with no signup, account or API key.</p>
 
         <div class="cmd">
           <pre class="cmd-pre"><code id="hero-cmd">npx am-i-hacked</code></pre>
@@ -243,7 +243,7 @@
 
         <article class="card">
           <h3><a href="https://github.com/IsaacBell/secure-devtools/blob/main/apps/am-i-hacked/README.md">am-i-hacked</a></h3>
-          <p class="muted">Checks a project folder before you open, install or run it — and, with <code>--system</code>, the machine — for supply-chain and dev-environment attack indicators.</p>
+          <p class="muted">Looks for signs of malicious code in a project before you open, install or run it. With <code>--system</code>, it also checks this machine.</p>
           <p class="card-run"><code>npx am-i-hacked</code></p>
         </article>
 
@@ -255,7 +255,7 @@
 
         <article class="card">
           <h3><a href="https://github.com/IsaacBell/secure-devtools/blob/main/apps/secure-semgrep/README.md">secure-semgrep</a></h3>
-          <p class="muted">A thin Semgrep CLI that runs bundled AI-agent, bash and SSRF security rules plus maintained registry loadouts. Needs <code>semgrep</code>.</p>
+          <p class="muted">Runs Semgrep with security rules for AI-agent code, shell scripts and server-side requests, plus Semgrep's own rule sets for common languages. Needs <code>semgrep</code> installed.</p>
           <p class="card-run"><code>npx secure-semgrep ./src</code></p>
         </article>
 
