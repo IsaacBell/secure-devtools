@@ -323,9 +323,9 @@ vi_check_bin() {
 # scan_venv_integrity <dir> — scan a virtualenv. Returns immediately when the
 # folder has no `*.dist-info/RECORD`.
 scan_venv_integrity() {
-	local root="${1:-.}" record sp walk_err
+	local root="${1:-.}" record sp walk_err venv_root
 	local -a sp_dirs
-	local seen_sp="|"
+	local seen_sp="|" seen_vroot="|"
 
 	VROOT="$(cd -- "$root" 2>/dev/null && pwd)" || {
 		echo "am-i-hacked: venv integrity: cannot open $root" >&2
@@ -358,10 +358,19 @@ scan_venv_integrity() {
 		vi_check_pth "$sp"
 		vi_check_startup "$sp"
 		vi_check_distinfos "$sp"
+
+		case "$sp" in
+			*/lib/*/site-packages)
+				venv_root="${sp%/lib/*/site-packages}"
+				case "$seen_vroot" in *"|$venv_root|"*) ;; *)
+					seen_vroot="${seen_vroot}${venv_root}|"
+					vi_check_bin "$venv_root"
+				esac
+				;;
+		esac
 	done
 
 	vi_hash_all
-	vi_check_bin "$VROOT"
 	return 0
 }
 
