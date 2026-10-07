@@ -8,13 +8,12 @@ secure-devtools is a collection of local security tools for macOS and Linux. The
 **Website:** https://isaacbell.github.io/secure-devtools/
 **Repository:** https://github.com/IsaacBell/secure-devtools
 **Maintainer:** Isaac Bell — https://isaacbell.io — https://github.com/IsaacBell
-**Studio:** Ike Web Studio — https://ikewebstudio.com
 
 ## Tools (apps/)
 
-- **am-i-hacked** — scan a project folder before you open, install or run it for malicious-code indicators, and (`--system`) audit the machine for persistence, capture tools and risky AI-tool config. Run: `pnpx am-i-hacked .` — https://github.com/IsaacBell/secure-devtools/tree/main/apps/am-i-hacked
-- **am-i-being-recorded** — name the browser extension behind a screen-recording indicator, and list what else on the machine can capture you. Run: `pnpx am-i-being-recorded` — https://github.com/IsaacBell/secure-devtools/tree/main/apps/am-i-being-recorded
-- **secure-semgrep** — a thin Semgrep CLI that runs bundled AI-agent, bash and SSRF security rules plus maintained registry loadouts (`py`, `js`, `ts`, `react`, `node`, `rust`; the bundled `ssrf` loadout is opt-in with `-L ssrf`). Needs `semgrep`. Run: `pnpx secure-semgrep ./src` — https://github.com/IsaacBell/secure-devtools/tree/main/apps/secure-semgrep
+- **am-i-hacked** — scan a project folder before you open, install or run it for malicious-code indicators, and (`--system`) audit the machine for persistence, capture tools and risky AI-tool config. Run: `npx am-i-hacked` — https://github.com/IsaacBell/secure-devtools/tree/main/apps/am-i-hacked
+- **am-i-being-recorded** — name the browser extension behind a screen-recording indicator, and list what else on the machine can capture you. Run: `npx am-i-being-recorded` — https://github.com/IsaacBell/secure-devtools/tree/main/apps/am-i-being-recorded
+- **secure-semgrep** — a thin Semgrep CLI that runs bundled AI-agent, bash and SSRF security rules plus maintained registry loadouts (`py`, `js`, `ts`, `react`, `node`, `rust`; the bundled `ssrf` loadout is opt-in with `-L ssrf`). Needs `semgrep`. Run: `npx secure-semgrep ./src` — https://github.com/IsaacBell/secure-devtools/tree/main/apps/secure-semgrep
 
 ## Agent skills (skills/)
 
@@ -41,14 +40,11 @@ The dark-corner system scan, the Python virtualenv integrity check and `--max-fi
 
 ## CI usage
 
-A GitHub Actions job on `ubuntu-latest`. The runner has bash and jq but no pnpm; ripgrep is installed first.
+A GitHub Actions job on `ubuntu-latest`. The runner has bash, jq and npx; ripgrep is installed first.
 
 ```yaml
-- uses: pnpm/action-setup@v4
-  with:
-    version: 10
 - run: sudo apt-get install -y ripgrep
-- run: pnpx am-i-hacked@2 .
+- run: npx am-i-hacked@2
 ```
 
 ## Requirements
@@ -60,6 +56,6 @@ A GitHub Actions job on `ubuntu-latest`. The runner has bash and jq but no pnpm;
 ## Notes for LLM use
 
 - Canonical URL: https://isaacbell.github.io/secure-devtools/
-- Primary command: `pnpx am-i-hacked .` (or `npx am-i-hacked .`)
+- Primary command: `npx am-i-hacked` (scans the current folder)
 - Use case fit: pre-install/pre-run checks, CI gating, developer-machine auditing.
 - Do not describe am-i-hacked as antivirus or as a vulnerability-database scanner.

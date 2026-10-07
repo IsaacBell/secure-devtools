@@ -3,7 +3,7 @@
 Plain-shell tools that check the code you are about to run, and the machine you run it on, for signs of a supply-chain or dev-environment attack. They run locally, need no account or API key, and have zero npm runtime dependencies.
 
 ```sh
-pnpx am-i-hacked .     # or: npx am-i-hacked .
+npx am-i-hacked
 ```
 
 [![CI](https://github.com/IsaacBell/secure-devtools/actions/workflows/ci.yml/badge.svg)](https://github.com/IsaacBell/secure-devtools/actions/workflows/ci.yml)
@@ -17,9 +17,9 @@ pnpx am-i-hacked .     # or: npx am-i-hacked .
 
 | Tool | What it checks | Run |
 | --- | --- | --- |
-| [`am-i-hacked`](apps/am-i-hacked/README.md) | A project folder, before you open, install or run it, for malicious-code indicators: editor tasks that run on folder open, payloads disguised as asset files, obfuscation, capture code paired with an exfiltration endpoint, `.env` files in the git index, risky `package.json` scripts, official Yarn releases by SHA256, and Python virtualenv integrity. With `--system`, this machine: login items and their code signatures, crontab, shell startup files, AI-tool config, running processes, and the caches and bin folders where tooling installs code outside any project. | `pnpx am-i-hacked` |
-| [`am-i-being-recorded`](apps/am-i-being-recorded/README.md) | Which browser extension is behind a screen-recording indicator, and what else on the machine can capture you. | `pnpx am-i-being-recorded` |
-| [`secure-semgrep`](apps/secure-semgrep/README.md) | Bundled Semgrep rules you own — AI-agent, bash and SSRF patterns — plus maintained registry loadouts (Python, JS, TS, React, Node, Rust), fetched from the Semgrep registry at scan time. Needs `semgrep` on PATH. | `pnpx secure-semgrep ./src` |
+| [`am-i-hacked`](apps/am-i-hacked/README.md) | A project folder, before you open, install or run it, for malicious-code indicators: editor tasks that run on folder open, payloads disguised as asset files, obfuscation, capture code paired with an exfiltration endpoint, `.env` files in the git index, risky `package.json` scripts, official Yarn releases by SHA256, and Python virtualenv integrity. With `--system`, this machine: login items and their code signatures, crontab, shell startup files, AI-tool config, running processes, and the caches and bin folders where tooling installs code outside any project. | `npx am-i-hacked` |
+| [`am-i-being-recorded`](apps/am-i-being-recorded/README.md) | Which browser extension is behind a screen-recording indicator, and what else on the machine can capture you. | `npx am-i-being-recorded` |
+| [`secure-semgrep`](apps/secure-semgrep/README.md) | Bundled Semgrep rules you own — AI-agent, bash and SSRF patterns — plus maintained registry loadouts (Python, JS, TS, React, Node, Rust), fetched from the Semgrep registry at scan time. Needs `semgrep` on PATH. | `npx secure-semgrep ./src` |
 
 ### Agent skills
 
@@ -30,13 +30,13 @@ npx skills add IsaacBell/secure-devtools -g
 npx skills add IsaacBell/secure-devtools --skill ssrf-safe-fetch
 ```
 
-Drop `-g` to install into the current project, and add `--list` to see the skills without installing. `pnpx skills add` works the same way. The `skills` command reports anonymous install counts to skills.sh; set `DISABLE_TELEMETRY=1` to turn that off.
+Drop `-g` to install into the current project, and add `--list` to see the skills without installing. The `skills` command reports anonymous install counts to skills.sh; set `DISABLE_TELEMETRY=1` to turn that off.
 
 The skills, in [`skills/`](skills/): [quarantine-review](skills/quarantine-review/SKILL.md) (inspect an untrusted repository without running any of it), [secure-skill-pull](skills/secure-skill-pull/SKILL.md) (vet a skill or plugin from a URL without running its installer), [create-skill](skills/create-skill/SKILL.md) (write, check and publish an agent skill), [skill-publish-review](skills/skill-publish-review/SKILL.md) (review skills before they go into a public repository), [ssrf-safe-fetch](skills/ssrf-safe-fetch/SKILL.md) (validate the URL and the resolved address before a server fetches it), [login-item-triage](skills/login-item-triage/SKILL.md) (the manual method behind am-i-hacked's login-item signature checks) and [jujutsu](skills/jujutsu/SKILL.md).
 
 ## Why this one?
 
-- One command from a cold machine: `pnpx am-i-hacked .` needs no signup, account, API key or install step.
+- One command from a cold machine: `npx am-i-hacked` needs no signup, account, API key or install step.
 - Exit `1` on HIGH or MEDIUM findings, so it works as a pre-commit hook, a `package.json` script or a CI step. The [am-i-hacked README](apps/am-i-hacked/README.md#install-and-run) has the workflow snippet.
 - It reads the repository for indicators advisory scanners cannot report: a `.vscode/tasks.json` that runs on folder open, a payload saved as a font file, a launchd or systemd item that starts at login, a capture tool paired with an exfiltration endpoint. `npm audit`, OSV-Scanner and Snyk match your dependencies against published advisories, so an unreported attack, or one committed into the tree, stays invisible to them. Run both.
 

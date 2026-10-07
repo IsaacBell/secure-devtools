@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>secure-devtools: security tools for the code you run</title>
 <meta name="description" content="Plain-shell security tools for the code you are about to run and the machine you run it on: am-i-hacked, am-i-being-recorded, secure-semgrep, and agent skills. Local, no signup, no API key.">
-<link rel="canonical" href="/secure-devtools/">
+<link rel="canonical" href="https://isaacbell.github.io/secure-devtools/">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#15181d">
 <meta property="og:type" content="website">
@@ -20,28 +20,20 @@
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
+  "@id": "https://isaacbell.github.io/secure-devtools/#software",
   "name": "secure-devtools",
+  "description": "Plain-shell security tools for the code you are about to run and the machine you run it on: am-i-hacked, am-i-being-recorded and secure-semgrep. Run with npx; no signup, no account, no API key.",
+  "isAccessibleForFree": true,
   "applicationCategory": "SecurityApplication",
   "operatingSystem": "macOS, Linux",
   "url": "https://isaacbell.github.io/secure-devtools/",
-  "codeRepository": "https://github.com/IsaacBell/secure-devtools",
+  "sameAs": ["https://github.com/IsaacBell/secure-devtools"],
   "license": "https://github.com/IsaacBell/secure-devtools/blob/main/LICENSE",
   "author": {
     "@type": "Person",
     "name": "Isaac Bell",
     "url": "https://isaacbell.io",
-    "sameAs": [
-      "https://isaacbell.io",
-      "https://github.com/IsaacBell"
-    ]
-  },
-  "publisher": {
-    "@type": "Organization",
-    "name": "Ike Web Studio",
-    "url": "https://ikewebstudio.com",
-    "sameAs": [
-      "https://ikewebstudio.com"
-    ]
+    "sameAs": ["https://github.com/IsaacBell"]
   }
 }
 </script>
@@ -231,10 +223,10 @@
         <p class="lede">Plain-shell checkers for the code you are about to run, and the machine you run it on. Local, no signup, no account, no API key.</p>
 
         <div class="cmd">
-          <pre class="cmd-pre"><code id="hero-cmd">pnpx am-i-hacked .</code></pre>
+          <pre class="cmd-pre"><code id="hero-cmd">npx am-i-hacked</code></pre>
           <button type="button" class="btn btn--ghost copy" data-copy="hero-cmd" aria-label="Copy command"><span class="copy-label" aria-live="polite">Copy</span></button>
         </div>
-        <p class="alt">or <code>npx am-i-hacked .</code> &middot; a folder scan by default, <code>--system</code> also audits the machine</p>
+        <p class="alt">Scans the folder you are in. Add <code>--system</code> to check this machine too.</p>
 
         <div class="actions">
           <a class="btn btn--primary" href="https://github.com/IsaacBell/secure-devtools">View on GitHub</a>
@@ -252,19 +244,19 @@
         <article class="card">
           <h3><a href="https://github.com/IsaacBell/secure-devtools/blob/main/apps/am-i-hacked/README.md">am-i-hacked</a></h3>
           <p class="muted">Checks a project folder before you open, install or run it — and, with <code>--system</code>, the machine — for supply-chain and dev-environment attack indicators.</p>
-          <p class="card-run"><code>pnpx am-i-hacked .</code></p>
+          <p class="card-run"><code>npx am-i-hacked</code></p>
         </article>
 
         <article class="card">
           <h3><a href="https://github.com/IsaacBell/secure-devtools/blob/main/apps/am-i-being-recorded/README.md">am-i-being-recorded</a></h3>
           <p class="muted">Names the browser extension behind a screen-recording indicator, and what else on the machine can capture you.</p>
-          <p class="card-run"><code>pnpx am-i-being-recorded</code></p>
+          <p class="card-run"><code>npx am-i-being-recorded</code></p>
         </article>
 
         <article class="card">
           <h3><a href="https://github.com/IsaacBell/secure-devtools/blob/main/apps/secure-semgrep/README.md">secure-semgrep</a></h3>
           <p class="muted">A thin Semgrep CLI that runs bundled AI-agent, bash and SSRF security rules plus maintained registry loadouts. Needs <code>semgrep</code>.</p>
-          <p class="card-run"><code>pnpx secure-semgrep ./src</code></p>
+          <p class="card-run"><code>npx secure-semgrep ./src</code></p>
         </article>
 
       </div>
@@ -277,8 +269,8 @@
       <p>The folder scan reads a project before you open, install or run anything: dynamic code execution, obfuscated payloads, editor tasks that run on folder open, payloads disguised as asset files, clipboard capture paired with an exfiltration endpoint, and <code>.env</code> files in the git index. <code>--system</code> adds the machine: login persistence and code signatures, crontab, shell startup files, AI-tool config, and running processes. It exits <code>1</code> on findings, so it drops into a dev script or CI.</p>
 
       <div class="copyblock">
-        <pre class="code-pre"><code id="scan-cmd">pnpx am-i-hacked .          # folder scan
-pnpx am-i-hacked --system   # also audit this machine</code></pre>
+        <pre class="code-pre"><code id="scan-cmd">npx am-i-hacked            # scan the folder you are in
+npx am-i-hacked --system   # also check this machine</code></pre>
         <button type="button" class="btn btn--ghost copy" data-copy="scan-cmd" aria-label="Copy command"><span class="copy-label" aria-live="polite">Copy</span></button>
       </div>
 
@@ -317,7 +309,7 @@ pnpx am-i-hacked --system   # also audit this machine</code></pre>
 
 <footer class="site-footer">
   <div class="wrap">
-    <p class="muted">MIT licensed. Plain shell, zero npm runtime dependencies. Built by <a href="https://ikewebstudio.com">Ike Web Studio</a>.</p>
+    <p class="muted">MIT licensed. Plain shell, zero npm runtime dependencies. Built by <a href="https://isaacbell.io">Isaac Bell</a>.</p>
     <nav class="footer-nav" aria-label="Project links">
       <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
       <a href="https://www.npmjs.com/package/am-i-hacked">npm</a>

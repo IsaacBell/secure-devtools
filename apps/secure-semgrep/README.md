@@ -73,8 +73,7 @@ macOS and Linux are supported. `SEMGREP_BIN` overrides the `semgrep` on PATH.
 No install required — fetch and run on demand:
 
 ```sh
-npx secure-semgrep ./src            # npm
-pnpx secure-semgrep ./src       # pnpm
+npx secure-semgrep ./src
 ```
 
 Runs the bundled AI + bash rules plus `p/default` and `p/security-audit`.
@@ -86,7 +85,6 @@ Install as a dev dependency for a `web`/`security` script:
 
 ```sh
 npm install --save-dev secure-semgrep
-# or: pnpm add -D secure-semgrep
 ```
 
 ## Usage

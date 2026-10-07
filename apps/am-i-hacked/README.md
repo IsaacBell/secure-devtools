@@ -7,7 +7,7 @@
 `am-i-hacked` checks the code you are about to run, and the machine you run it on, for signs of a supply-chain or dev-environment attack. It is an indicator-of-compromise scanner, not antivirus: a clean result means no warning signs were found, not that anything is proven safe.
 
 ```sh
-pnpx am-i-hacked .        # or: npx am-i-hacked .
+npx am-i-hacked
 ```
 
 **Status:** 2.0.1, macOS and Linux. The next release adds a dark-corner system scan, Python virtualenv integrity and `--max-findings`; the tables below document that next-release state, and [CHANGELOG.md](CHANGELOG.md) marks it Unreleased. Formerly published as `am-i-compromised`; the old command name still works.
@@ -17,14 +17,14 @@ pnpx am-i-hacked .        # or: npx am-i-hacked .
 No install needed:
 
 ```sh
-pnpx am-i-hacked .          # scan a folder (default: the current directory)
-pnpx am-i-hacked --system   # also audit this machine
+npx am-i-hacked            # scan the folder you are in
+npx am-i-hacked --system   # also check this machine
 ```
 
 As a dev dependency:
 
 ```sh
-pnpm add -D am-i-hacked     # or: npm install --save-dev am-i-hacked
+npm install --save-dev am-i-hacked
 ```
 
 | Scan | Needs |
@@ -37,17 +37,14 @@ macOS ships bash 3.2, so the folder scan re-runs itself under a newer bash when 
 Before a dev server:
 
 ```json
-{ "scripts": { "dev": "am-i-hacked . && next dev" } }
+{ "scripts": { "dev": "am-i-hacked && next dev" } }
 ```
 
-In CI (GitHub Actions on `ubuntu-latest`; the runner has bash and jq but no pnpm and no ripgrep):
+In CI (GitHub Actions on `ubuntu-latest`; the runner has bash, jq and npx but no ripgrep):
 
 ```yaml
-- uses: pnpm/action-setup@v4
-  with:
-    version: 10
 - run: sudo apt-get install -y ripgrep
-- run: pnpx am-i-hacked@2 .
+- run: npx am-i-hacked@2
 ```
 
 ## What it checks
@@ -68,7 +65,7 @@ The folder scan also checks its own AI-tool config (`.claude/settings*.json`, `.
 | `<dir>` | folder | Directory to scan (default: the current directory). |
 | `host` | folder | Check a folder's AI-tool config only: `am-i-hacked host [dir]`. |
 | `--system` | both | Also audit the whole machine. Alias: `--full-system-scan`. |
-| `--max-findings N` | folder | Maximum findings printed (default: 1000). The true total and a per-rule count are always shown. |
+| `--max-findings N` | folder | Maximum findings printed, 1 to 999999999 (default: 1000). The true total and a per-rule count are always shown. |
 | `-v`, `--verbose` | system | Also list informational items and every persistence entry, with its signer. |
 | `-h`, `--help` | both | Show usage. |
 

@@ -8,7 +8,7 @@ Find out **which browser extension is recording your screen** — and what else 
 the machine can capture you.
 
 ```sh
-pnpx am-i-being-recorded     # or: npx am-i-being-recorded
+npx am-i-being-recorded
 ```
 
 The sibling of [`am-i-hacked`](https://www.npmjs.com/package/am-i-hacked):
@@ -35,13 +35,13 @@ apt-get install jq
 Run without installing:
 
 ```sh
-pnpx am-i-being-recorded
+npx am-i-being-recorded
 ```
 
 Install as a dev dependency:
 
 ```sh
-pnpm add -D am-i-being-recorded   # or: npm install -D am-i-being-recorded
+npm install --save-dev am-i-being-recorded
 ```
 
 ## What it checks
