@@ -101,3 +101,4 @@ Newest first. One line per change. Default-behavior changes marked **CHANGED**. 
 
 - Initial release of am-i-compromised.
 - Scanner reporting improved, test suite hardened, demo added. npm release procedure documented.
+

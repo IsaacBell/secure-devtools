@@ -30,7 +30,8 @@ Bundled (in this package, under `rules/`) — you own and extend these:
   verification turned off. JavaScript / TypeScript / Python / Rust.
 
 Loadouts (pulled from Semgrep's registry at scan time, so you don't vendor
-them): `py`, `js`, `ts`, `react`, `node`, `rust`.
+them): `py`, `js`, `ts`, `react`, `node`, `rust`. The bundled `ssrf` rules are
+opt-in with an explicit `-L ssrf`.
 
 > **Why not vendor hundreds of registry rules?** Semgrep already ships those in
 > `p/default`, `p/security-audit`, and the per-language packs. Vendoring them
@@ -72,8 +73,7 @@ macOS and Linux are supported. `SEMGREP_BIN` overrides the `semgrep` on PATH.
 No install required — fetch and run on demand:
 
 ```sh
-npx secure-semgrep ./src            # npm
-pnpx secure-semgrep ./src       # pnpm
+npx secure-semgrep ./src
 ```
 
 Runs the bundled AI + bash rules plus `p/default` and `p/security-audit`.
@@ -85,7 +85,6 @@ Install as a dev dependency for a `web`/`security` script:
 
 ```sh
 npm install --save-dev secure-semgrep
-# or: pnpm add -D secure-semgrep
 ```
 
 ## Usage
@@ -142,6 +141,7 @@ In CI:
 | --- | --- |
 | `ai` | `rules/ai` (bundled) |
 | `bash` | `rules/bash` (bundled) |
+| `ssrf` | `rules/ssrf` (bundled, opt-in) |
 | `py` | `p/python` |
 | `js` | `p/javascript` |
 | `ts` | `p/typescript` |

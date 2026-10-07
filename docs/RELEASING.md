@@ -41,7 +41,7 @@ would run during pack, publish or install.
 at the new name:
 
 ```bash
-pnpm deprecate am-i-compromised "Renamed to am-i-hacked. Run: pnpx am-i-hacked"
+pnpm deprecate am-i-compromised "Renamed to am-i-hacked. Run: npx am-i-hacked"
 ```
 
 ## Public repository

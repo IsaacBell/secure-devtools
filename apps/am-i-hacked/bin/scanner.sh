@@ -49,7 +49,7 @@ set -euo pipefail
 # --system is shorthand for `host --system`. No ;& here: this runs on bash 3.2.
 if [[ "${1:-}" == "host" || "${1:-}" == "--system" || "${1:-}" == "--full-system-scan" ]]; then
 	[[ "$1" == "host" ]] && shift
-	exec bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/host-audit.sh" "$@"
+	exec bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/system-scan.sh" "$@"
 fi
 
 # The source scan uses associative arrays and `[[ -v arr[key] ]]`, which need bash 4.2+. macOS ships 3.2 as
@@ -71,7 +71,36 @@ if ! command -v rg >/dev/null 2>&1; then
 	exit 1
 fi
 
-ARG_ROOT="${1:-.}"
+# Argument parsing. The only flag is --max-findings N, which caps how many
+# findings the report lists; the default lives here, not in an environment
+# variable. Everything that is not the flag is the directory to scan.
+MAX_FINDINGS=1000
+ARG_ROOT=""
+while (($# > 0)); do
+	case "$1" in
+	--max-findings)
+		# 1 to 9 digits, no leading zero: bash reads 08 as bad octal, and 0 would
+		# list nothing.
+		if [[ -z "${2:-}" || ! "${2:-}" =~ ^[1-9][0-9]{0,8}$ ]]; then
+			echo "am-i-hacked: --max-findings requires a whole number from 1 to 999999999" >&2
+			echo "usage: am-i-hacked [<directory>] [--max-findings N]  (defaults to the current directory)" >&2
+			exit 2
+		fi
+		MAX_FINDINGS="$2"
+		shift 2
+		;;
+	*)
+		if [[ -n "$ARG_ROOT" ]]; then
+			echo "am-i-hacked: unexpected argument '$1'" >&2
+			echo "usage: am-i-hacked [<directory>] [--max-findings N]  (defaults to the current directory)" >&2
+			exit 2
+		fi
+		ARG_ROOT="$1"
+		shift
+		;;
+	esac
+done
+ARG_ROOT="${ARG_ROOT:-.}"
 
 if [[ ! -d "$ARG_ROOT" ]]; then
 	echo "am-i-hacked: '$ARG_ROOT' is not a directory" >&2
@@ -83,7 +112,7 @@ ROOT="$(cd "$ARG_ROOT" && pwd)"
 
 readonly MAX_SOURCE_LINE_LENGTH=4000
 readonly MAX_SNIPPET=240
-readonly MAX_FINDINGS=100
+readonly MAX_FINDINGS
 
 readonly SOURCE_GLOBS=(
 	--glob '*.js'
@@ -117,6 +146,8 @@ readonly FIXTURES_DIRNAME="__security_gate_fixtures__"
 # Indicator definitions live in one file, shared with safe-pull.sh.
 # shellcheck source=bin/ioc-patterns.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/ioc-patterns.sh"
+# shellcheck source=bin/venv-integrity.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/venv-integrity.sh"
 
 # INCLUDE_FIXTURES=1 disables the fixtures-dir exclusion so the fixtures
 # themselves can be scanned as a self-test of the detection logic. Default
@@ -158,10 +189,12 @@ readonly TRACKED_IGNORED
 # every argument except the search path. A second pass covers the tracked
 # ignored files the same --glob set selects; ripgrep applies globs only to what
 # it finds by walking, so that pass lists them by walking with no ignore rules.
+# --text always: ripgrep skips a file with a NUL byte as binary, so one NUL in a
+# comment would hide a whole source file that node or python still runs.
 rg_scoped() {
 	local args=("$@") globs=() extra=() file i
 
-	rg --hidden --no-ignore-dot "$@" -- "$ROOT" || true
+	rg --hidden --no-ignore-dot --text "$@" -- "$ROOT" || true
 	((${#TRACKED_IGNORED[@]} > 0)) || return 0
 
 	for ((i = 0; i < ${#args[@]}; i++)); do
@@ -176,7 +209,7 @@ rg_scoped() {
 	done < <(rg --files --null --hidden --no-ignore "${globs[@]}" -- "$ROOT" || true)
 	((${#extra[@]} > 0)) || return 0
 
-	printf '%s\0' "${extra[@]}" | xargs -0 rg --with-filename "$@" -- || true
+	printf '%s\0' "${extra[@]}" | xargs -0 rg --with-filename --text "$@" -- || true
 }
 
 # --- color ---------------------------------------------------------------------
@@ -253,6 +286,10 @@ declare -a BUNDLE_FILES=()    # Build-output files in scan order
 declare -a BUNDLE_COUNT=()    # Match count per file
 declare -a BUNDLE_TAGS=()     # Tag list per file (comma-separated, unique)
 
+# Hex/Unicode escape hits inside installed dependency trees. Summarized as a
+# single count line instead of one finding per hit (see record_finding).
+DEP_HEX_COUNT=0
+
 # Low-signal tags: these are not recorded as findings in build-output files
 readonly -a LOW_SIGNAL_TAGS=(
 	"Dynamic code execution"
@@ -266,6 +303,52 @@ readonly -a LOW_SIGNAL_TAGS=(
 	"Runtime source construction"
 	"source line exceeds"
 )
+
+# Rule severity, used only to choose which findings survive the display cap:
+# decisive attack shapes (0) before obfuscation/encoding (1) before routine
+# source patterns (2). A finding's rank is the strongest tag it carries, so
+# eval(atob(...)) — both a routine exec and an encoded payload — ranks high.
+readonly -a SEVERITY_HIGH_TAGS=(
+	"$IOC_TELEGRAM_TOKEN_TITLE"
+	"$IOC_CAPTURE_TITLE"
+	"$IOC_WRAPPER_TITLE"
+	"$IOC_WRAPPER_PAYLOAD_TITLE"
+	"$IOC_PERSISTENCE_CAPTURE_TITLE"
+	"$IOC_CAPTURE_FILENAME_TITLE"
+	"Editor auto-run task"
+	"Payload hidden in an asset file"
+	"Download-and-run command in editor config"
+	"Tracked .env file"
+	"$YARN_RELEASE_UNVERIFIED_TITLE"
+	"Runtime source construction"
+)
+readonly -a SEVERITY_MEDIUM_TAGS=(
+	"Common string-table obfuscation"
+	"Encoded payload primitives"
+	"Hex or Unicode string escapes"
+	"Suspicious decoder/string-table helpers"
+)
+
+# The one rule summarized (never listed per hit) inside installed dependencies.
+readonly DEP_HEX_TAG="Hex or Unicode string escapes"
+
+# severity_rank <comma-joined tags> — 0 (highest), 1, or 2 on stdout.
+severity_rank() {
+	local tags="$1" tag
+	for tag in "${SEVERITY_HIGH_TAGS[@]}"; do
+		[[ "$tags" == *"$tag"* ]] && {
+			printf '0'
+			return 0
+		}
+	done
+	for tag in "${SEVERITY_MEDIUM_TAGS[@]}"; do
+		[[ "$tags" == *"$tag"* ]] && {
+			printf '1'
+			return 0
+		}
+	done
+	printf '2'
+}
 
 # Cap a snippet so one enormous minified line cannot flood the report.
 # Runs of whitespace are collapsed (preview only) so deeply indented or
@@ -315,8 +398,8 @@ suppression_reason() {
 	# always the absolute $ROOT-rooted path built earlier in this script,
 	# never a string that could be mistaken for an option.
 	for candidate in \
-		"$(sed -n "${line}p" "$path" 2>/dev/null)" \
-		"$( ((prev > 0)) && sed -n "${prev}p" "$path" 2>/dev/null)"; do
+		"$(sed -n "${line}p" "$path" 2>/dev/null | LC_ALL=C tr -d '\000')" \
+		"$( ((prev > 0)) && sed -n "${prev}p" "$path" 2>/dev/null | LC_ALL=C tr -d '\000')"; do
 		if [[ "$candidate" =~ $SUPPRESS_MARKER_RE ]]; then
 			reason="${BASH_REMATCH[2]}"
 			reason="${reason#"${reason%%[![:space:]]*}"}"
@@ -342,7 +425,7 @@ is_build_output() {
 		return "$((BUNDLE_PATH_SET["$path"] == 1 ? 0 : 1))"
 	fi
 
-	if head="$(head -c 4096 "$path" 2>/dev/null)"; then
+	if head="$(head -c 4096 "$path" 2>/dev/null | LC_ALL=C tr -d '\000')"; then
 		for marker in "__nccwpck_require__" "__webpack_require__" "webpackBootstrap" "__toESM(" "__commonJS("; do
 			if [[ "$head" == *"$marker"* ]]; then
 				BUNDLE_PATH_SET["$path"]=1
@@ -405,6 +488,23 @@ record_finding() {
 			SUP_REASON+=("$reason")
 		fi
 		return
+	fi
+
+	# Hex/Unicode escape runs inside installed dependencies (site-packages,
+	# dist-packages, node_modules) are third-party noise this scanner should not
+	# list line by line: on a large virtualenv they outnumber every real signal.
+	# Counted here and shown as one summary line. A payload edited into an
+	# installed file still fails its RECORD hash in the venv integrity check; a
+	# package published with the payload needs a dependency audit, which this
+	# line was never a substitute for. vendor/ is committed with the project and
+	# reviewed like it, so its hits stay findings. No flag turns this off.
+	if [[ "$tag" == "$DEP_HEX_TAG" ]]; then
+		case "/$pathrel/" in
+		*/site-packages/* | */dist-packages/* | */node_modules/*)
+			DEP_HEX_COUNT=$((DEP_HEX_COUNT + 1))
+			return
+			;;
+		esac
 	fi
 
 	# Build-output: low-signal tags are tracked but not recorded as findings
@@ -581,7 +681,7 @@ first_match_line() {
 
 # source_line <file> <line> — that line's text, for the finding snippet.
 source_line() {
-	sed -n "${2}p" "$1" 2>/dev/null || true
+	sed -n "${2}p" "$1" 2>/dev/null | LC_ALL=C tr -d '\000' || true
 }
 
 # is_shell_script <file> — a .sh/.bash/.zsh file, or a shebang script whose
@@ -593,7 +693,10 @@ is_shell_script() {
 	case "$file" in
 	*.sh | *.bash | *.zsh) return 0 ;;
 	esac
-	first="$(head -n 1 "$file" 2>/dev/null || true)"
+	# Only the first line matters, and it must not carry NUL bytes: a binary
+	# plist can, and bash warns "ignored null byte in input" when it does. The
+	# read is bounded so a no-newline binary cannot pull in the whole file.
+	first="$(head -c 4096 "$file" 2>/dev/null | head -n 1 | LC_ALL=C tr -d '\000' || true)"
 	[[ "$first" == '#!'* ]] || return 1
 	[[ "$first" =~ (sh|bash|zsh) ]]
 }
@@ -615,7 +718,11 @@ scan_capture_exfil() {
 	# prune every directory with a dot in its name, `.devcontainer` included.
 	while IFS= read -r -d '' file; do
 		[[ "${file##*/}" != *.* ]] || continue
-		first="$(head -n 1 "$file" 2>/dev/null || true)"
+		# Bound the read and drop NUL bytes before the substitution: a binary
+		# file would otherwise make bash warn "ignored null byte in input" on
+		# stderr, one warning per file, and a binary with no newline would make
+		# head read the whole file. Only the leading "#!" is tested below.
+		first="$(head -c 4096 "$file" 2>/dev/null | LC_ALL=C tr -d '\000' || true)"
 		if [[ "$first" == '#!'* ]]; then
 			files+=("$file")
 		fi
@@ -911,21 +1018,69 @@ render_build_output() {
 	done
 }
 
+# Hex/Unicode escape hits in dependency trees, summarized as one line. Shown
+# on every run that has any, including a clean one (mirrors render_build_output).
+render_dependency_hex() {
+	((DEP_HEX_COUNT > 0)) || return 0
+	printf '\n%sam-i-hacked: Hex or Unicode string escapes in dependency libraries: %d matches (summarized, not listed individually)%s\n' \
+		"$C_DIM" "$DEP_HEX_COUNT" "$C_RESET"
+}
+
+# Per-rule count table over every recorded finding, printed when the display
+# cap truncates the list. Counts each tag on each finding, so a finding that
+# carries several tags appears under each.
+render_rule_table() {
+	local i tag rest count
+	local -A RULE_COUNT=()
+
+	for ((i = 0; i < ${#F_PATH[@]}; i++)); do
+		rest="${F_TAGS[i]}"
+		while [[ -n "$rest" ]]; do
+			if [[ "$rest" == *", "* ]]; then
+				tag="${rest%%, *}"
+				rest="${rest#*, }"
+			else
+				tag="$rest"
+				rest=""
+			fi
+			RULE_COUNT["$tag"]=$((${RULE_COUNT["$tag"]:-0} + 1))
+		done
+	done
+	if ((${#S_PATH[@]} > 0)); then
+		RULE_COUNT["suspicious package script"]=$((${RULE_COUNT["suspicious package script"]:-0} + ${#S_PATH[@]}))
+	fi
+
+	printf '\n%sam-i-hacked: findings by rule (all %d findings, including those past the cap):%s\n' \
+		"$C_DIM" "$((${#F_PATH[@]} + ${#S_PATH[@]}))" "$C_RESET"
+	while IFS=$'\t' read -r count tag; do
+		[[ -n "$tag" ]] || continue
+		printf '%s  %6d  %s%s\n' "$C_DIM" "$count" "$tag" "$C_RESET"
+	done < <(
+		for tag in "${!RULE_COUNT[@]}"; do
+			printf '%d\t%s\n' "${RULE_COUNT[$tag]}" "$tag"
+		done | LC_ALL=C sort -t$'\t' -k1,1nr -k2,2
+	)
+}
+
 render_findings() {
 	local total_files="${#F_FILE_SEEN[@]}"
 	local total_findings=$((${#F_PATH[@]} + ${#S_PATH[@]}))
-	local sorted key path line snippet tags i count=0 num
+	local sorted key path line snippet tags i count=0 num truncated=0
 
 	if ((total_findings == 0)); then
 		return 0
 	fi
 
-	# Sort findings by (path, line). Lines are zero-padded in the key so a
-	# plain byte sort yields numeric line order.
+	# Sort findings by severity first (0 high, 1 medium, 2 routine), then by
+	# (path, line). Lines are zero-padded in the key so a plain byte sort yields
+	# numeric line order. Severity first means the display cap keeps the
+	# decisive signals and truncates the routine ones.
 	sorted=()
 	if ((${#F_IDX[@]} > 0)); then
 		mapfile -t sorted < <(
-			printf '%s\n' "${!F_IDX[@]}" | LC_ALL=C sort -t'|' -k1,1 -k2,2
+			for key in "${!F_IDX[@]}"; do
+				printf '%s|%s\n' "$(severity_rank "${F_TAGS[${F_IDX[$key]}]}")" "$key"
+			done | LC_ALL=C sort -t'|' -k1,1 -k2,2 -k3,3
 		)
 	fi
 
@@ -943,11 +1098,13 @@ render_findings() {
 
 	for key in "${sorted[@]}"; do
 		if ((count == MAX_FINDINGS)); then
+			truncated=1
 			printf '%s... (truncated: %s more findings not shown)%s\n' "$C_DIM" \
 				"$((total_findings - count))" "$C_RESET"
 			break
 		fi
 
+		key="${key#*|}"
 		i="${F_IDX[$key]}"
 		path="${F_PATH[$i]}"
 		num="${key##*|}"
@@ -970,6 +1127,10 @@ render_findings() {
 		printf '    %s\n' "${S_VAL[$i]}"
 		printf '    %s→ suspicious package script%s\n' "$C_DIM" "$C_RESET"
 	done
+
+	if ((truncated == 1)); then
+		render_rule_table
+	fi
 
 	return 1
 }
@@ -1030,7 +1191,7 @@ else
 	PROGRESS=0
 fi
 STEP=0
-STEP_TOTAL=$((${#IOC_CONTENT_PATTERNS[@]} + ${#IOC_EDITOR_PATTERNS[@]} + ${#IOC_ASSET_PATTERNS[@]} + 7))
+STEP_TOTAL=$((${#IOC_CONTENT_PATTERNS[@]} + ${#IOC_EDITOR_PATTERNS[@]} + ${#IOC_ASSET_PATTERNS[@]} + 8))
 SCAN_START=$SECONDS
 
 progress() {
@@ -1078,6 +1239,8 @@ progress "package.json scripts"
 scan_package_scripts
 progress "Yarn release checksums"
 scan_yarn_releases
+progress "Python venv integrity"
+scan_venv_integrity "$ROOT"
 
 ((PROGRESS == 1)) && printf 'am-i-hacked: checks done in %ds, %d found\n\n' "$((SECONDS - SCAN_START))" \
 	"$((${#F_PATH[@]} + ${#S_PATH[@]}))" >&2
@@ -1090,6 +1253,7 @@ if ((${#F_PATH[@]} > 0 || ${#S_PATH[@]} > 0)); then
 	# other than documentation.
 	render_yarn_verified || true
 	render_build_output || true
+	render_dependency_hex || true
 	render_findings || true
 	render_suppressed || true
 	render_yarn_unverified || true
@@ -1120,6 +1284,7 @@ fi
 
 render_suppressed || true
 render_build_output || true
+render_dependency_hex || true
 render_yarn_verified || true
 render_yarn_unverified || true
 
