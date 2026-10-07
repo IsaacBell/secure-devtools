@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to prevent SSRF when your server fetches a user-supplied URL</title>
+<meta name="description" content="A checklist for server-side request forgery (SSRF): allow only http and https on ports 80 and 443, resolve the host and reject every non-public address, follow redirects by hand, cap size and time, and connect to the address you checked. With hostile test inputs and Semgrep rules.">
+<meta name="author" content="Isaac Bell">
+<link rel="canonical" href="/secure-devtools/guides/prevent-ssrf/">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="alternate" type="text/plain" title="llms.txt" href="../../llms.txt">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#15181d">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="secure-devtools">
+<meta property="og:title" content="How to prevent SSRF when your server fetches a user-supplied URL">
+<meta property="og:description" content="A checklist for server-side request forgery (SSRF): allow only http and https on ports 80 and 443, resolve the host and reject every non-public address, follow redirects by hand, cap size and time, and connect to the address you checked. With hostile test inputs and Semgrep rules.">
+<meta property="og:url" content="https://isaacbell.github.io/secure-devtools/guides/prevent-ssrf/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="How to prevent SSRF when your server fetches a user-supplied URL">
+<meta name="twitter:description" content="A checklist for server-side request forgery (SSRF): allow only http and https on ports 80 and 443, resolve the host and reject every non-public address, follow redirects by hand, cap size and time, and connect to the address you checked. With hostile test inputs and Semgrep rules.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "@id": "https://isaacbell.github.io/secure-devtools/guides/prevent-ssrf/#article",
+  "headline": "How to prevent SSRF when your server fetches a user-supplied URL",
+  "description": "A checklist for server-side request forgery (SSRF): allow only http and https on ports 80 and 443, resolve the host and reject every non-public address, follow redirects by hand, cap size and time, and connect to the address you checked. With hostile test inputs and Semgrep rules.",
+  "url": "https://isaacbell.github.io/secure-devtools/guides/prevent-ssrf/",
+  "mainEntityOfPage": "https://isaacbell.github.io/secure-devtools/guides/prevent-ssrf/",
+  "inLanguage": "en",
+  "datePublished": "2026-10-07",
+  "dateModified": "2026-10-07",
+  "author": {
+    "@type": "Person",
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell",
+    "name": "Isaac Bell",
+    "url": "https://isaacbell.io",
+    "sameAs": [
+      "https://github.com/IsaacBell"
+    ]
+  },
+  "publisher": {
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+  },
+  "isPartOf": {
+    "@type": "WebSite",
+    "@id": "https://isaacbell.github.io/secure-devtools/#website",
+    "name": "secure-devtools",
+    "url": "https://isaacbell.github.io/secure-devtools/"
+  },
+  "about": [
+    {
+      "@id": "https://isaacbell.github.io/secure-devtools/tools/secure-semgrep/#software"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://isaacbell.github.io/secure-devtools/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Guides",
+      "item": "https://isaacbell.github.io/secure-devtools/guides/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "How to prevent SSRF when your server fetches a user-supplied URL",
+      "item": "https://isaacbell.github.io/secure-devtools/guides/prevent-ssrf/"
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="wordmark" href="../../">secure-devtools</a>
+    <nav class="site-nav" aria-label="Site">
+      <a href="../../tools/">Tools</a>
+      <a href="../../guides/">Guides</a>
+      <a href="../../skills/">Skills</a>
+      <a href="../../compare/">Compare</a>
+      <a href="../../security/">Trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<div class="wrap"><nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="../../">Home</a></li><li><a href="../../guides/">Guides</a></li><li><span aria-current="page">How to prevent SSRF when your server fetches a user-supplied URL</span></li></ol></nav></div>
+<article class="wrap article">
+  <header class="page-head">
+    <h1>How to prevent SSRF when your server fetches a user-supplied URL</h1>
+    <p class="byline muted">By <a href="https://isaacbell.io">Isaac Bell</a> · Updated <time datetime="2026-10-07">7 October 2026</time></p>
+  </header>
+  <div class="answer"><p>If your server fetches a URL that someone else supplied, check the resolved IP address, not just the hostname, before every request, including every redirect. Allow only <code>http</code> and <code>https</code> on ports 80 and 443, reject loopback, private, link-local (including the cloud metadata address <code>169.254.169.254</code>), carrier-grade NAT, multicast and reserved ranges, follow redirects by hand, and cap bytes and time. <code>npx secure-semgrep -L ssrf .</code> finds fetches that skip the check.</p></div>
+  <div class="prose">
+<h2 id="what">What SSRF is</h2>
+<p>Server-side request forgery happens when your server fetches an address that someone outside your organization controls. They point it at a place only your server can reach: <code>localhost</code>, your internal network, or the cloud metadata address that hands out credentials. Link previews, webhooks, "import from URL" boxes and tools that look up a domain a visitor typed are the usual places it hides.</p>
+
+<h2 id="checklist">Checklist</h2>
+<ol>
+  <li><strong>Scheme and port.</strong> Only <code>http</code> and <code>https</code>, only ports 80 and 443 unless you pin another. Reject <code>file://</code>, <code>gopher://</code> and every other scheme.</li>
+  <li><strong>Resolve the host yourself and check every address</strong> it resolves to. Reject loopback (<code>127.0.0.0/8</code>, <code>::1</code>), private (<code>10/8</code>, <code>172.16/12</code>, <code>192.168/16</code>, <code>fc00::/7</code>), link-local (<code>169.254/16</code>, <code>fe80::/10</code>), carrier-grade NAT (<code>100.64/10</code>), unspecified, broadcast, multicast and reserved ranges, and IPv4 addresses wrapped in IPv6 (mapped, NAT64, 6to4, Teredo). Never classify the raw host string: <code>0x7f000001</code>, <code>2130706433</code> and <code>127.1</code> all reach loopback.</li>
+  <li><strong>Follow redirects by hand.</strong> Turn off automatic redirects, re-run the full check on each <code>Location</code>, and cap hops at about 5.</li>
+  <li><strong>Cap bytes and time.</strong> Connect timeout, total timeout and a maximum response size.</li>
+  <li><strong>Do not forward credentials or cookies</strong> across a redirect to another host.</li>
+  <li><strong>Parse once.</strong> Use the same parsed host for the check and the connection, and reject URLs with credentials before the at sign.</li>
+  <li><strong>Guard against DNS rebinding</strong> in high-risk code: resolve once, check that address, and connect to it directly while sending the original host name for TLS and virtual hosting.</li>
+  <li><strong>Validate stored URLs twice</strong>, on save and again right before each send. Prefer an allowlist where the product allows it.</li>
+</ol>
+
+<h2 id="test">Inputs your guard must reject</h2>
+<pre class="block"><code>http://localhost/              http://127.0.0.1/          http://[::1]/
+http://169.254.169.254/        http://0x7f000001/         http://2130706433/
+http://0177.0.0.1/             http://127.1/              http://0.0.0.0/
+http://[64:ff9b::a9fe:a9fe]/   http://[2002:7f00:1::]/    http://[::ffff:127.0.0.1]/
+file:///etc/passwd             gopher://127.0.0.1:6379/   http://127.0.0.1:22/</code></pre>
+<p>Also test a public-looking hostname that resolves to a private address, and a public URL that redirects to <code>169.254.169.254</code>. Stub the resolver and the HTTP transport rather than relying on real DNS. It must still accept <code>https://example.com/</code>.</p>
+
+<h2 id="find">Find unchecked fetches</h2>
+<pre class="block"><code>npx secure-semgrep -L ssrf .</code></pre>
+<p>The bundled SSRF rules cover JavaScript and TypeScript, Python and Rust (<code>fetch</code>, <code>axios</code>, <code>got</code>, <code>requests</code>, <code>httpx</code>, <code>urllib</code>, <code>reqwest</code> and similar). They flag a request whose URL is not a fixed string and does not pass through a guard function, a client that follows redirects automatically for such a URL, and TLS verification turned off (<code>rejectUnauthorized: false</code>, <code>verify=False</code>, <code>danger_accept_invalid_certs(true)</code>). Every rule is a warning: a non-literal URL from your own fixed config is fine.</p>
+
+<h2 id="code">Reference code</h2>
+<p>The <a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/ssrf-safe-fetch/SKILL.md">ssrf-safe-fetch skill</a> has guard implementations in Python (<code>requests</code>), TypeScript (Node <code>fetch</code>) and a Rust (<code>reqwest</code>) sketch, with the rebinding caveats for each. Install it for your coding agent:</p>
+<pre class="block"><code>npx skills add IsaacBell/secure-devtools --skill ssrf-safe-fetch</code></pre>
+  </div>
+  <aside class="related" aria-labelledby="related"><h2 id="related">Related</h2><ul><li><a href="../../tools/secure-semgrep/">secure-semgrep reference</a></li><li><a href="../../skills/">The ssrf-safe-fetch skill</a></li><li><a href="../../guides/ai-generated-code-security/">Is AI-generated code safe to run?</a></li></ul></aside>
+</article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p class="muted">MIT licensed. Plain shell, zero npm runtime dependencies. Built and maintained by <a href="https://isaacbell.io">Isaac Bell</a>.</p>
+    <nav class="footer-nav" aria-label="Project links">
+      <a href="../../guides/">Guides</a>
+      <a href="../../compare/">Compare</a>
+      <a href="../../security/">Security &amp; trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+      <a href="https://www.npmjs.com/package/am-i-hacked">npm</a>
+      <a href="../../llms.txt">llms.txt</a>
+      <a href="https://github.com/IsaacBell/secure-devtools/security/advisories/new">Report a security issue</a>
+      <a href="https://ko-fi.com/ibell">Sponsor</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to check whether your developer machine is compromised (macOS and Linux)</title>
+<meta name="description" content="A read-only audit of a macOS or Linux developer machine with am-i-hacked --system: login persistence and code signatures, crontab, shell startup files, AI coding tool config, running processes and the folders tooling installs code into.">
+<meta name="author" content="Isaac Bell">
+<link rel="canonical" href="/secure-devtools/guides/audit-developer-machine/">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="alternate" type="text/plain" title="llms.txt" href="../../llms.txt">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#15181d">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="secure-devtools">
+<meta property="og:title" content="How to check whether your developer machine is compromised (macOS and Linux)">
+<meta property="og:description" content="A read-only audit of a macOS or Linux developer machine with am-i-hacked --system: login persistence and code signatures, crontab, shell startup files, AI coding tool config, running processes and the folders tooling installs code into.">
+<meta property="og:url" content="https://isaacbell.github.io/secure-devtools/guides/audit-developer-machine/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="How to check whether your developer machine is compromised (macOS and Linux)">
+<meta name="twitter:description" content="A read-only audit of a macOS or Linux developer machine with am-i-hacked --system: login persistence and code signatures, crontab, shell startup files, AI coding tool config, running processes and the folders tooling installs code into.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "@id": "https://isaacbell.github.io/secure-devtools/guides/audit-developer-machine/#article",
+  "headline": "How to check whether your developer machine is compromised",
+  "description": "A read-only audit of a macOS or Linux developer machine with am-i-hacked --system: login persistence and code signatures, crontab, shell startup files, AI coding tool config, running processes and the folders tooling installs code into.",
+  "url": "https://isaacbell.github.io/secure-devtools/guides/audit-developer-machine/",
+  "mainEntityOfPage": "https://isaacbell.github.io/secure-devtools/guides/audit-developer-machine/",
+  "inLanguage": "en",
+  "datePublished": "2026-10-07",
+  "dateModified": "2026-10-07",
+  "author": {
+    "@type": "Person",
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell",
+    "name": "Isaac Bell",
+    "url": "https://isaacbell.io",
+    "sameAs": [
+      "https://github.com/IsaacBell"
+    ]
+  },
+  "publisher": {
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+  },
+  "isPartOf": {
+    "@type": "WebSite",
+    "@id": "https://isaacbell.github.io/secure-devtools/#website",
+    "name": "secure-devtools",
+    "url": "https://isaacbell.github.io/secure-devtools/"
+  },
+  "about": [
+    {
+      "@id": "https://isaacbell.github.io/secure-devtools/tools/am-i-hacked/#software"
+    },
+    {
+      "@id": "https://isaacbell.github.io/secure-devtools/tools/am-i-being-recorded/#software"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://isaacbell.github.io/secure-devtools/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Guides",
+      "item": "https://isaacbell.github.io/secure-devtools/guides/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "How to check whether your developer machine is compromised",
+      "item": "https://isaacbell.github.io/secure-devtools/guides/audit-developer-machine/"
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="wordmark" href="../../">secure-devtools</a>
+    <nav class="site-nav" aria-label="Site">
+      <a href="../../tools/">Tools</a>
+      <a href="../../guides/">Guides</a>
+      <a href="../../skills/">Skills</a>
+      <a href="../../compare/">Compare</a>
+      <a href="../../security/">Trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<div class="wrap"><nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="../../">Home</a></li><li><a href="../../guides/">Guides</a></li><li><span aria-current="page">How to check whether your developer machine is compromised</span></li></ol></nav></div>
+<article class="wrap article">
+  <header class="page-head">
+    <h1>How to check whether your developer machine is compromised</h1>
+    <p class="byline muted">By <a href="https://isaacbell.io">Isaac Bell</a> · Updated <time datetime="2026-10-07">7 October 2026</time> · Applies to am-i-hacked 2.0.1</p>
+  </header>
+  <div class="answer"><p>Run <code>npx am-i-hacked --system</code>. It is a read-only audit that needs no root or sudo and makes no network calls. It checks login persistence (launchd on macOS, systemd user units and autostart on Linux) and the code signatures of what they launch, the crontab, shell startup files, AI coding tool config, and running processes. Pair it with <code>npx am-i-being-recorded</code> for screen-capture capability. Neither is antivirus: a clean result means no warning signs were found.</p></div>
+  <div class="prose">
+<h2 id="what">What the system scan checks</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Area</th><th>What it looks for</th></tr></thead>
+  <tbody>
+    <tr><td>Login persistence</td><td>launchd agents and daemons on macOS; systemd user units and XDG autostart on Linux; the user crontab. The scripts those entries launch are read for clipboard, keystroke or screen capture and exfiltration endpoints.</td></tr>
+    <tr><td>Code signatures (macOS)</td><td>A vendor-labelled login item signed by a Team ID the vendor does not use, or unsigned (HIGH); a signature that fails verification; unsigned programs in user-writable places</td></tr>
+    <tr><td>Shell startup files</td><td>Remote scripts piped to a shell, decoded payloads, <code>DYLD_INSERT_LIBRARIES</code> or <code>LD_PRELOAD</code>, TLS checks disabled, a forced <code>NODE_OPTIONS --require</code>, <code>sudo</code> or <code>ssh</code> replaced by an alias, a redirected AI API base URL, a proxy or extra certificate authority</td></tr>
+    <tr><td>AI coding tool config</td><td>User-level and managed settings for Claude Code, Codex, Cursor, Gemini CLI, OpenCode and Kilo Code: permission bypass, redirected API URLs, plain-text keys, MCP servers that run unpinned code, and hooks that run from writable places or observe your prompts</td></tr>
+    <tr><td>Running processes</td><td>Interpreters running capture scripts or scripts from staging areas such as Downloads, caches and <code>/tmp</code></td></tr>
+    <tr><td>Dark corners (next release)</td><td>Folders where tooling installs code outside any project: virtualenvs, pip and uv caches, pyenv, pipx, the npx cache, the pnpm store, cargo, bun, deno, go and gem bin folders</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="run">Run it</h2>
+<pre class="block"><code>npx am-i-hacked --system             # the folder you are in, plus this machine
+npx am-i-hacked --system --verbose   # also list every login item with its signer
+npx am-i-being-recorded              # browser extensions that can capture the screen</code></pre>
+<p>The system scan needs bash 3.2+ and jq; it does not need ripgrep. It reads shell startup files and AI-tool config, which can hold secrets; it never prints secret values.</p>
+
+<h2 id="read">Reading the results</h2>
+<ul>
+  <li><code>HIGH</code> and <code>MEDIUM</code> findings exit <code>1</code>. <code>INFO</code> lines are context.</li>
+  <li>A finding you have reviewed and accept goes in <code>~/.config/am-i-hacked/host-allow.txt</code> as <code>&lt;finding id&gt; | &lt;reason&gt;</code>. Allowed findings are listed on every run, never hidden.</li>
+  <li>For a single macOS login item you are unsure about, follow <a href="../macos-login-items/">how to tell whether a login item is malware</a>.</li>
+</ul>
+
+<h2 id="found">If something real turns up</h2>
+<ol>
+  <li>Do not run the suspect script to see what it does.</li>
+  <li>Preserve evidence first: copy the plist or unit file and the program it runs, and record SHA-256 hashes and modification times.</li>
+  <li>Only then stop and remove the item.</li>
+  <li>If capture was involved, treat everything copied or typed since the item appeared as exposed. Rotate secrets from a different, clean device.</li>
+</ol>
+
+<h2 id="limits">Limits</h2>
+<p>It looks for warning signs; it is not antivirus and does not look up known malware. System-wide Linux units and <code>/etc/cron.*</code> are not covered yet. A clean result does not prove the machine is safe.</p>
+  </div>
+  <aside class="related" aria-labelledby="related"><h2 id="related">Related</h2><ul><li><a href="../../guides/macos-login-items/">Is this macOS login item malware?</a></li><li><a href="../../guides/which-extension-is-recording-my-screen/">Which browser extension is recording my screen?</a></li><li><a href="../../tools/am-i-hacked/">am-i-hacked reference</a></li></ul></aside>
+</article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p class="muted">MIT licensed. Plain shell, zero npm runtime dependencies. Built and maintained by <a href="https://isaacbell.io">Isaac Bell</a>.</p>
+    <nav class="footer-nav" aria-label="Project links">
+      <a href="../../guides/">Guides</a>
+      <a href="../../compare/">Compare</a>
+      <a href="../../security/">Security &amp; trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+      <a href="https://www.npmjs.com/package/am-i-hacked">npm</a>
+      <a href="../../llms.txt">llms.txt</a>
+      <a href="https://github.com/IsaacBell/secure-devtools/security/advisories/new">Report a security issue</a>
+      <a href="https://ko-fi.com/ibell">Sponsor</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

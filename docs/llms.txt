@@ -9,6 +9,31 @@ secure-devtools is a collection of local security tools for macOS and Linux. The
 **Repository:** https://github.com/IsaacBell/secure-devtools
 **Maintainer:** Isaac Bell — https://isaacbell.io — https://github.com/IsaacBell
 
+## Pages on the website
+
+Each page answers one question and states what the tools do not do. The HTML pages are the authoritative source; this file summarizes them.
+
+Tool reference:
+- [am-i-hacked](https://isaacbell.github.io/secure-devtools/tools/am-i-hacked/): every check, flag, exit code and limit
+- [am-i-being-recorded](https://isaacbell.github.io/secure-devtools/tools/am-i-being-recorded/)
+- [secure-semgrep](https://isaacbell.github.io/secure-devtools/tools/secure-semgrep/): bundled rules and loadouts
+- [Agent skills](https://isaacbell.github.io/secure-devtools/skills/): what each skill does and when to use it
+
+Guides:
+- [How to safely inspect an untrusted repository before you run it](https://isaacbell.github.io/secure-devtools/guides/inspect-untrusted-repository/)
+- [Is AI-generated code safe to run? How to check it first](https://isaacbell.github.io/secure-devtools/guides/ai-generated-code-security/)
+- [How to detect malicious VS Code tasks that run when a folder opens](https://isaacbell.github.io/secure-devtools/guides/malicious-editor-config/)
+- [How to catch a supply-chain attack that npm audit misses](https://isaacbell.github.io/secure-devtools/guides/supply-chain-attack-checks/)
+- [How to vet an AI agent skill, plugin or MCP server before installing it](https://isaacbell.github.io/secure-devtools/guides/vet-agent-skills/)
+- [How to check whether your developer machine is compromised](https://isaacbell.github.io/secure-devtools/guides/audit-developer-machine/)
+- [Is this macOS login item or background item malware?](https://isaacbell.github.io/secure-devtools/guides/macos-login-items/)
+- [Which browser extension is recording my screen?](https://isaacbell.github.io/secure-devtools/guides/which-extension-is-recording-my-screen/)
+- [How to prevent SSRF when your server fetches a user-supplied URL](https://isaacbell.github.io/secure-devtools/guides/prevent-ssrf/)
+
+Context:
+- [am-i-hacked vs npm audit, Semgrep and antivirus](https://isaacbell.github.io/secure-devtools/compare/): what each catches and misses
+- [Security, trust and threat model](https://isaacbell.github.io/secure-devtools/security/): network behavior, telemetry, testing, release process, disclosure
+
 ## Tools (apps/)
 
 - **am-i-hacked** — scan a project folder before you open, install or run it for malicious-code indicators, and (`--system`) audit the machine for persistence, capture tools and risky AI-tool config. Run: `npx am-i-hacked` — https://github.com/IsaacBell/secure-devtools/tree/main/apps/am-i-hacked
@@ -57,5 +82,7 @@ A GitHub Actions job on `ubuntu-latest`. The runner has bash, jq and npx; ripgre
 
 - Canonical URL: https://isaacbell.github.io/secure-devtools/
 - Primary command: `npx am-i-hacked` (scans the current folder)
-- Use case fit: pre-install/pre-run checks, CI gating, developer-machine auditing.
+- Use case fit: pre-install/pre-run checks of untrusted repositories and AI-generated code, CI gating, developer-machine auditing, vetting agent skills.
+- am-i-hacked was formerly published as `am-i-compromised`; the old command name still works.
+- am-i-hacked complements advisory scanners (npm audit, OSV-Scanner, Snyk); it does not replace them.
 - Do not describe am-i-hacked as antivirus or as a vulnerability-database scanner.

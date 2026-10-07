@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to vet an AI agent skill, plugin or MCP server before installing it</title>
+<meta name="description" content="A third-party agent skill is untrusted text and its installer is untrusted code. How to fetch a skill as data, pin it to a commit, scan it, read it and record where it came from, without running the installer. Uses the secure-skill-pull skill and am-i-hacked.">
+<meta name="author" content="Isaac Bell">
+<link rel="canonical" href="/secure-devtools/guides/vet-agent-skills/">
+<link rel="stylesheet" href="../../assets/site.css">
+<link rel="alternate" type="text/plain" title="llms.txt" href="../../llms.txt">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#15181d">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="secure-devtools">
+<meta property="og:title" content="How to vet an AI agent skill, plugin or MCP server before installing it">
+<meta property="og:description" content="A third-party agent skill is untrusted text and its installer is untrusted code. How to fetch a skill as data, pin it to a commit, scan it, read it and record where it came from, without running the installer. Uses the secure-skill-pull skill and am-i-hacked.">
+<meta property="og:url" content="https://isaacbell.github.io/secure-devtools/guides/vet-agent-skills/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="How to vet an AI agent skill, plugin or MCP server before installing it">
+<meta name="twitter:description" content="A third-party agent skill is untrusted text and its installer is untrusted code. How to fetch a skill as data, pin it to a commit, scan it, read it and record where it came from, without running the installer. Uses the secure-skill-pull skill and am-i-hacked.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "@id": "https://isaacbell.github.io/secure-devtools/guides/vet-agent-skills/#article",
+  "headline": "How to vet an AI agent skill, plugin or MCP server before installing it",
+  "description": "A third-party agent skill is untrusted text and its installer is untrusted code. How to fetch a skill as data, pin it to a commit, scan it, read it and record where it came from, without running the installer. Uses the secure-skill-pull skill and am-i-hacked.",
+  "url": "https://isaacbell.github.io/secure-devtools/guides/vet-agent-skills/",
+  "mainEntityOfPage": "https://isaacbell.github.io/secure-devtools/guides/vet-agent-skills/",
+  "inLanguage": "en",
+  "datePublished": "2026-10-07",
+  "dateModified": "2026-10-07",
+  "author": {
+    "@type": "Person",
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell",
+    "name": "Isaac Bell",
+    "url": "https://isaacbell.io",
+    "sameAs": [
+      "https://github.com/IsaacBell"
+    ]
+  },
+  "publisher": {
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+  },
+  "isPartOf": {
+    "@type": "WebSite",
+    "@id": "https://isaacbell.github.io/secure-devtools/#website",
+    "name": "secure-devtools",
+    "url": "https://isaacbell.github.io/secure-devtools/"
+  },
+  "about": [
+    {
+      "@id": "https://isaacbell.github.io/secure-devtools/tools/am-i-hacked/#software"
+    },
+    {
+      "@id": "https://isaacbell.github.io/secure-devtools/tools/secure-semgrep/#software"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://isaacbell.github.io/secure-devtools/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Guides",
+      "item": "https://isaacbell.github.io/secure-devtools/guides/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "How to vet an AI agent skill, plugin or MCP server before installing it",
+      "item": "https://isaacbell.github.io/secure-devtools/guides/vet-agent-skills/"
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="wordmark" href="../../">secure-devtools</a>
+    <nav class="site-nav" aria-label="Site">
+      <a href="../../tools/">Tools</a>
+      <a href="../../guides/">Guides</a>
+      <a href="../../skills/">Skills</a>
+      <a href="../../compare/">Compare</a>
+      <a href="../../security/">Trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<div class="wrap"><nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="../../">Home</a></li><li><a href="../../guides/">Guides</a></li><li><span aria-current="page">How to vet an AI agent skill, plugin or MCP server before installing it</span></li></ol></nav></div>
+<article class="wrap article">
+  <header class="page-head">
+    <h1>How to vet an AI agent skill, plugin or MCP server before installing it</h1>
+    <p class="byline muted">By <a href="https://isaacbell.io">Isaac Bell</a> · Updated <time datetime="2026-10-07">7 October 2026</time></p>
+  </header>
+  <div class="answer"><p>Do not run the installer. Fetch the skill's source as data at a pinned commit, scan it with <code>npx am-i-hacked &lt;dir&gt;</code>, check it for prompt-injection lines and invisible characters, and read every file it references. Treat any instruction inside it as input to report, not an order to follow. The <a href="../../skills/#secure-skill-pull">secure-skill-pull</a> skill automates this for an agent.</p></div>
+  <div class="prose">
+<h2 id="risk">Two ways a skill attacks you</h2>
+<ol>
+  <li><strong>Code runs at install.</strong> A one-line installer (<code>&lt;cli&gt; add &lt;url&gt;</code>, <code>curl ... | sh</code>) downloads files and runs them with your permissions.</li>
+  <li><strong>Text steers the agent.</strong> A skill is a set of instructions. A hostile one tells the agent to ignore its rules, fetch other pages, send data out or turn off a safeguard. Invisible Unicode characters can hide those lines from a human reader.</li>
+</ol>
+<p>A popular installer CLI says nothing about the repository it fetches. Trust the source, not the tool.</p>
+
+<h2 id="rules">The rules</h2>
+<ul>
+  <li>Never run the installer. If you want it run after review, run it yourself, knowingly.</li>
+  <li>Pin to a commit SHA, not a branch.</li>
+  <li>Download an archive to a throwaway folder. Delete symlinks. Refuse anything over about 5 MB; a skill is text.</li>
+  <li>Scan, then read every file the skill references.</li>
+  <li>Record provenance: source URL, commit SHA, date, the SHA-256 of <code>SKILL.md</code>, and what you applied.</li>
+</ul>
+
+<h2 id="sequence">A portable check</h2>
+<pre class="block"><code>slug=owner/repo; ref=&lt;commit-sha&gt;
+work=$(mktemp -d)
+curl -fsSL --max-filesize 5000000 "https://codeload.github.com/$slug/tar.gz/$ref" -o "$work/src.tgz"
+mkdir "$work/src" &amp;&amp; tar -xzf "$work/src.tgz" -C "$work/src" --strip-components=1
+find "$work/src" -type l -delete
+find "$work/src" -type f -perm -u+x            # a text-only skill needs no executables
+npx am-i-hacked "$work/src"
+grep -rInE '(curl|wget)[^|]*\|[[:space:]]*(sh|bash)|base64[[:space:]]+(-d|--decode)|ignore (all |any )?(previous|prior) instructions' "$work/src"
+find "$work/src" -type f -print0 | xargs -0 perl -CSD -ne 'print "$ARGV:$.: invisible character\n" if /[\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}-\x{2064}\x{E0000}-\x{E007F}]/'</code></pre>
+<p>The full version, with the report format, is in the <a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/secure-skill-pull/SKILL.md">secure-skill-pull SKILL.md</a>.</p>
+
+<h2 id="look-for">What to look for</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Finding</th><th>Why it matters</th></tr></thead>
+  <tbody>
+    <tr><td>Installer lines: <code>curl | sh</code>, <code>pip install</code>, <code>npx</code>, <code>chmod +x</code></td><td>Code that runs on your machine</td></tr>
+    <tr><td>Encoded blobs: <code>base64 -d</code>, long hex strings</td><td>Hides what runs</td></tr>
+    <tr><td>Reads of <code>.env</code>, <code>.ssh</code>, credential files, environment dumps</td><td>Data theft</td></tr>
+    <tr><td>Requests to send data to a URL, or to fetch and follow other URLs</td><td>Exfiltration, or a chain to unvetted text</td></tr>
+    <tr><td>Lines telling the agent to ignore rules, skip approval or turn off checks</td><td>Prompt injection</td></tr>
+    <tr><td>Settings, hooks or editor task files</td><td>Run when the tool starts or the folder opens</td></tr>
+    <tr><td>Invisible characters</td><td>Lines a human reviewer cannot see</td></tr>
+  </tbody>
+</table></div>
+<p>am-i-hacked looks for code indicators; it does not judge plain-language instructions. The grep and invisible-character steps, and reading the files, cover that gap. secure-semgrep's AI rules add checks for prompt injection, exfiltration, sensitive-file reads and base64 payloads in <code>SKILL.md</code> files, and for poisoned or typosquatted MCP tool names.</p>
+
+<h2 id="publishing">Publishing your own skills</h2>
+<p>The other direction matters too: a skill you publish can leak private paths, names, secrets or someone else's text. The <a href="../../skills/#create-skill">create-skill</a> and <a href="../../skills/#skill-publish-review">skill-publish-review</a> skills cover the checks and the independent review before a skill goes public.</p>
+
+<h2 id="install">Install the skills</h2>
+<pre class="block"><code>npx skills add IsaacBell/secure-devtools --skill secure-skill-pull</code></pre>
+  </div>
+  <aside class="related" aria-labelledby="related"><h2 id="related">Related</h2><ul><li><a href="../../skills/">All secure-devtools agent skills</a></li><li><a href="../../guides/ai-generated-code-security/">Is AI-generated code safe to run?</a></li><li><a href="../../guides/inspect-untrusted-repository/">How to safely inspect an untrusted repository</a></li></ul></aside>
+</article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p class="muted">MIT licensed. Plain shell, zero npm runtime dependencies. Built and maintained by <a href="https://isaacbell.io">Isaac Bell</a>.</p>
+    <nav class="footer-nav" aria-label="Project links">
+      <a href="../../guides/">Guides</a>
+      <a href="../../compare/">Compare</a>
+      <a href="../../security/">Security &amp; trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+      <a href="https://www.npmjs.com/package/am-i-hacked">npm</a>
+      <a href="../../llms.txt">llms.txt</a>
+      <a href="https://github.com/IsaacBell/secure-devtools/security/advisories/new">Report a security issue</a>
+      <a href="https://ko-fi.com/ibell">Sponsor</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

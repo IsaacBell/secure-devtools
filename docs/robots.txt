@@ -1,3 +1,4 @@
 User-agent: *
 Disallow:
 
+Sitemap: https://isaacbell.github.io/secure-devtools/sitemap.xml

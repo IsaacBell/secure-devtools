@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>am-i-hacked vs npm audit, Snyk, Semgrep and antivirus: what each catches</title>
+<meta name="description" content="How am-i-hacked, secure-semgrep and the quarantine-review skill compare with npm audit, OSV-Scanner, Snyk, Semgrep and antivirus: what each one catches, what each misses, and which to run when.">
+<meta name="author" content="Isaac Bell">
+<link rel="canonical" href="/secure-devtools/compare/">
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="alternate" type="text/plain" title="llms.txt" href="../llms.txt">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#15181d">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="secure-devtools">
+<meta property="og:title" content="am-i-hacked vs npm audit, Snyk, Semgrep and antivirus: what each catches">
+<meta property="og:description" content="How am-i-hacked, secure-semgrep and the quarantine-review skill compare with npm audit, OSV-Scanner, Snyk, Semgrep and antivirus: what each one catches, what each misses, and which to run when.">
+<meta property="og:url" content="https://isaacbell.github.io/secure-devtools/compare/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="am-i-hacked vs npm audit, Snyk, Semgrep and antivirus: what each catches">
+<meta name="twitter:description" content="How am-i-hacked, secure-semgrep and the quarantine-review skill compare with npm audit, OSV-Scanner, Snyk, Semgrep and antivirus: what each one catches, what each misses, and which to run when.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "@id": "https://isaacbell.github.io/secure-devtools/compare/#article",
+  "headline": "am-i-hacked vs npm audit, Semgrep and antivirus",
+  "description": "How am-i-hacked, secure-semgrep and the quarantine-review skill compare with npm audit, OSV-Scanner, Snyk, Semgrep and antivirus: what each one catches, what each misses, and which to run when.",
+  "url": "https://isaacbell.github.io/secure-devtools/compare/",
+  "mainEntityOfPage": "https://isaacbell.github.io/secure-devtools/compare/",
+  "inLanguage": "en",
+  "datePublished": "2026-10-07",
+  "dateModified": "2026-10-07",
+  "author": {
+    "@type": "Person",
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell",
+    "name": "Isaac Bell",
+    "url": "https://isaacbell.io",
+    "sameAs": [
+      "https://github.com/IsaacBell"
+    ]
+  },
+  "publisher": {
+    "@id": "https://isaacbell.github.io/secure-devtools/#isaac-bell"
+  },
+  "isPartOf": {
+    "@type": "WebSite",
+    "@id": "https://isaacbell.github.io/secure-devtools/#website",
+    "name": "secure-devtools",
+    "url": "https://isaacbell.github.io/secure-devtools/"
+  },
+  "about": [
+    {
+      "@id": "https://isaacbell.github.io/secure-devtools/tools/am-i-hacked/#software"
+    },
+    {
+      "@id": "https://isaacbell.github.io/secure-devtools/tools/secure-semgrep/#software"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Is am-i-hacked antivirus?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Antivirus matches files and behavior against known malware. am-i-hacked reads source code and configuration for warning signs of an attack, such as an editor task that runs on folder open or capture code paired with an exfiltration endpoint. It does not look up known malware, and a clean result does not prove safety."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does am-i-hacked replace npm audit, OSV-Scanner or Snyk?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Those tools match dependency versions against published advisories. am-i-hacked looks for indicators in the code itself, including attacks committed into the repository or not yet reported. Run both."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is the difference between am-i-hacked and secure-semgrep?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "am-i-hacked looks for signs that code is malicious before you run it. secure-semgrep runs Semgrep static analysis to find insecure code you or an AI agent wrote, with bundled rules for AI-agent code, shell scripts and SSRF. They are complementary."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is secure-semgrep a replacement for Semgrep?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. It is a thin wrapper that needs semgrep installed. It adds bundled rules and picks Semgrep registry packs for your stack in one command."
+      }
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://isaacbell.github.io/secure-devtools/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "am-i-hacked vs npm audit, Semgrep and antivirus",
+      "item": "https://isaacbell.github.io/secure-devtools/compare/"
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="wordmark" href="../">secure-devtools</a>
+    <nav class="site-nav" aria-label="Site">
+      <a href="../tools/">Tools</a>
+      <a href="../guides/">Guides</a>
+      <a href="../skills/">Skills</a>
+      <a href="../compare/" aria-current="page">Compare</a>
+      <a href="../security/">Trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<div class="wrap"><nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="../">Home</a></li><li><span aria-current="page">am-i-hacked vs npm audit, Semgrep and antivirus</span></li></ol></nav></div>
+<article class="wrap article">
+  <header class="page-head">
+    <h1>am-i-hacked vs npm audit, Semgrep and antivirus</h1>
+    <p class="byline muted">By <a href="https://isaacbell.io">Isaac Bell</a> · Updated <time datetime="2026-10-07">7 October 2026</time></p>
+  </header>
+  <div class="answer"><p>They answer different questions, so use more than one. am-i-hacked looks for signs that a project or machine is under attack. secure-semgrep finds insecure code with static analysis. npm audit, OSV-Scanner and Snyk match dependency versions against published advisories. Antivirus matches known malware. None of them proves code is safe.</p></div>
+  <div class="prose">
+<h2 id="table">Side by side</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>Tool</th><th>Question it answers</th><th>Method</th><th>Blind spot</th></tr></thead>
+  <tbody>
+    <tr><td><a href="../tools/am-i-hacked/">am-i-hacked</a></td><td>Does this project, or this machine, show signs of an attack?</td><td>Reads source, config and persistence entries for attack indicators</td><td>Known-vulnerable dependency versions; installed <code>node_modules</code>; known malware signatures</td></tr>
+    <tr><td><a href="../tools/secure-semgrep/">secure-semgrep</a></td><td>Is this code insecure?</td><td>Semgrep static analysis with bundled AI-agent, bash and SSRF rules plus registry packs</td><td>Malware indicators such as auto-run tasks and disguised payloads</td></tr>
+    <tr><td><a href="../skills/#quarantine-review">quarantine-review</a> skill</td><td>How do I inspect an untrusted repository without running it?</td><td>A procedure for an AI agent: contain, scan, read as data, extract with provenance</td><td>Only as good as the reading; it is a method, not a scanner</td></tr>
+    <tr><td>npm audit, OSV-Scanner, Snyk Open Source</td><td>Does any dependency version have a published advisory?</td><td>Match the lockfile against vulnerability databases</td><td>Unreported attacks; anything committed into your repository</td></tr>
+    <tr><td>Semgrep (alone)</td><td>Does code match these rules?</td><td>Pattern-based static analysis</td><td>Whatever the chosen rules do not cover</td></tr>
+    <tr><td>Antivirus and EDR</td><td>Is a known-malicious file or behavior present on this machine?</td><td>Signatures, reputation and behavior monitoring</td><td>Source-level tricks in a repository you have not run yet</td></tr>
+  </tbody>
+</table></div>
+
+<h2 id="when">Which to use when</h2>
+<ul>
+  <li><strong>Before opening or running a repository you did not write:</strong> am-i-hacked, then read what it flags. See <a href="../guides/inspect-untrusted-repository/">how to inspect an untrusted repository</a>.</li>
+  <li><strong>Before merging code you or an AI agent wrote:</strong> secure-semgrep, and your advisory scanner over the lockfile.</li>
+  <li><strong>On every dev-server start and in CI:</strong> am-i-hacked and your advisory scanner. Both exit non-zero on findings.</li>
+  <li><strong>When a machine might be compromised:</strong> <code>am-i-hacked --system</code> and <code>am-i-being-recorded</code>, alongside your antivirus or EDR, not instead of it.</li>
+</ul>
+
+<h2 id="faq">Questions</h2>
+<h3>Is am-i-hacked antivirus?</h3>
+<p>No. Antivirus matches files and behavior against known malware. am-i-hacked reads source code and configuration for warning signs of an attack, such as an editor task that runs on folder open or capture code paired with an exfiltration endpoint. It does not look up known malware, and a clean result does not prove safety.</p>
+<h3>Does am-i-hacked replace npm audit, OSV-Scanner or Snyk?</h3>
+<p>No. Those tools match dependency versions against published advisories. am-i-hacked looks for indicators in the code itself, including attacks committed into the repository or not yet reported. Run both.</p>
+<h3>What is the difference between am-i-hacked and secure-semgrep?</h3>
+<p>am-i-hacked looks for signs that code is malicious before you run it. secure-semgrep runs Semgrep static analysis to find insecure code you or an AI agent wrote, with bundled rules for AI-agent code, shell scripts and SSRF. They are complementary.</p>
+<h3>Is secure-semgrep a replacement for Semgrep?</h3>
+<p>No. It is a thin wrapper that needs semgrep installed. It adds bundled rules and picks Semgrep registry packs for your stack in one command.</p>
+  </div>
+  <aside class="related" aria-labelledby="related"><h2 id="related">Related</h2><ul><li><a href="../guides/supply-chain-attack-checks/">How to catch a supply-chain attack that npm audit misses</a></li><li><a href="../security/">Security, trust and threat model</a></li></ul></aside>
+</article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p class="muted">MIT licensed. Plain shell, zero npm runtime dependencies. Built and maintained by <a href="https://isaacbell.io">Isaac Bell</a>.</p>
+    <nav class="footer-nav" aria-label="Project links">
+      <a href="../guides/">Guides</a>
+      <a href="../compare/">Compare</a>
+      <a href="../security/">Security &amp; trust</a>
+      <a href="https://github.com/IsaacBell/secure-devtools">GitHub</a>
+      <a href="https://www.npmjs.com/package/am-i-hacked">npm</a>
+      <a href="../llms.txt">llms.txt</a>
+      <a href="https://github.com/IsaacBell/secure-devtools/security/advisories/new">Report a security issue</a>
+      <a href="https://ko-fi.com/ibell">Sponsor</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>
