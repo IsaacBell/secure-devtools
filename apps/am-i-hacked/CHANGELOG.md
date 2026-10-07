@@ -8,15 +8,22 @@ Newest first. Default-behavior changes are marked **CHANGED**.
 
 ### Added
 - The system scan (`--system`) now also scans a fixed list of "dark corners" where tooling installs code outside any project: Python virtualenvs, the uv and pip caches, pyenv, pipx, the npx cache, the pnpm global store, cargo, bun, deno, and the go and gem bin folders. Each is scanned with the folder scan when present and skipped silently when it does not exist.
-- Python virtualenv integrity check in the folder scan: files that no longer match their package `RECORD` hashes are a `HIGH` finding; `RECORD` paths that leave the venv, files no package owns, `.pth` and `sitecustomize` hooks that run code, unreadable files and folders (reported rather than skipped), and symlinks and file names containing newlines are all reported.
-- `--max-findings N` sets the maximum findings printed, default raised from 100 to 1000. **CHANGED:** when findings exceed the cap, the true total and a per-rule count are printed, and higher-severity findings are kept first.
+- Python virtualenv integrity check in the folder scan, for every venv under the scanned folder: files that no longer match their package `RECORD` hashes are a `HIGH` finding; `RECORD` paths that leave the venv or pass through a symlinked folder (never opened), files and symlinks no package owns, console scripts and symlinks in `bin/` no package claims (each venv checked on its own claims), a console script name containing `|`, `RECORD` entries with no hash, a venv whose `RECORD` files or whole `dist-info` folders were deleted, a `_virtualenv.pth` that is not the stock one-line file, `.pth` and `sitecustomize` hooks that run code, unreadable files and folders (reported rather than skipped), and file names containing newlines are all reported.
+- `--max-findings N` sets the maximum findings printed, from 1 to 999999999, default raised from 100 to 1000. **CHANGED:** when findings exceed the cap, the true total and a per-rule count are printed, and higher-severity findings are kept first.
+- The system scan reports a check it could not run instead of passing it: `ps` missing or failing, a `crontab -l` error other than "no crontab", `codesign` missing, an AI-tool config `jq` cannot parse (JSONC), an unreadable dark corner, your own relative-path process whose working directory `lsof` could not resolve, and a login item's file that you own but cannot read (a root-owned one stays informational).
 
 ### Changed
-- **CHANGED:** hex and unicode escape findings inside dependency folders (`site-packages`, `node_modules`, `vendor`) are reported as one summary count instead of one finding per match.
+- **CHANGED:** hex and unicode escape findings inside installed dependency folders (`site-packages`, `dist-packages`, `node_modules`) are reported as one summary count instead of one finding per match. `vendor/` is committed with the project, so its findings are still listed.
 - **CHANGED:** `bin/host-audit.sh` is now `bin/system-scan.sh`. `bin/host-audit.sh` remains as a shim, and the `host` command still works.
 
+### Security
+- A source file containing a NUL byte was skipped as binary, so one NUL in a comment hid the whole file from the folder scan. Source files are now always read as text.
+- A systemd or autostart `Exec` line containing `*` was glob-expanded against the scanner's working directory. It is now split without globbing.
+- A hook command containing a tab was cut at the tab, so a dangerous path after it was not checked.
+- A persistence script whose file name contains a newline was not read.
+
 ### Fixed
-- The `ignored null byte in input` warnings printed on binary files are no longer emitted.
+- The `ignored null byte in input` warnings are no longer emitted, including for matched lines and build-output detection.
 
 ## 2.0.1 - 2026-10-01
 

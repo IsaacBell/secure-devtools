@@ -365,7 +365,7 @@ collect_payload() {
 			# turn the "!" marker into an INFO finding outside this subshell.
 			if [[ ! -r "$f" ]]; then
 				seen="${seen}${f}|"
-				printf '!%s\n' "$f"
+				printf '!%s\0' "$f"
 				continue
 			fi
 			size="$(wc -c <"$f" | tr -d ' ')"
@@ -373,7 +373,7 @@ collect_payload() {
 			((n < 30)) || return 0
 			seen="${seen}${f}|"
 			n=$((n + 1))
-			printf '%s\n' "$f"
+			printf '%s\0' "$f"
 			# A script the entry names directly is not enough: only pull siblings for scripts.
 			is_script "$p" || break
 		done
@@ -398,7 +398,7 @@ collect_hop() {
 		*) tgt="$dir/$tgt" ;;
 		esac
 		[[ -f "$tgt" ]] || continue
-		case "$tgt" in *.js | *.mjs | *.cjs | *.py | *.rb | *.pl | *.sh | *.bash | *.zsh) printf '%s\n' "$tgt" ;; esac
+		case "$tgt" in *.js | *.mjs | *.cjs | *.py | *.rb | *.pl | *.sh | *.bash | *.zsh) printf '%s\0' "$tgt" ;; esac
 	done < <(sed -nE 's#.*(^|[^[:alnum:]_])(node|python3?|ruby|perl|bash|sh|zsh|osascript)[[:space:]]+([^[:space:];&|<>"'"'"']+[.](js|mjs|cjs|py|rb|pl|sh|bash|zsh)).*#\3#p' "$file" 2>/dev/null)
 }
 
@@ -410,25 +410,33 @@ assess_entry() {
 	local files=() capture=0 exfil=0 exfil_url=0 zone=0 launcher=0 dangling=0 ioc=0
 	local sigs="" sev="" title="" next="" date evidence
 
-	while IFS= read -r f; do
+	# NUL-delimited: a newline in a file name would split it into two paths
+	# that do not exist, and the real file would never be read.
+	while IFS= read -r -d '' f; do
 		[[ -n "$f" ]] || continue
 		case "$f" in
 		'!'*)
-			finding INFO "unreadable:$(cksum_id "${f#!}")" "A persistence file could not be read" "$(tilde "${f#!}")" "unreadable (permission denied)" "Only a root-owned file should be unreadable to you. Check who owns it: ls -l."
+			# A root-owned file you cannot read is normal. One you own was made
+			# unreadable on purpose, and hiding a payload is a reason to do that.
+			if [[ -O "${f#!}" ]]; then
+				finding MEDIUM "unreadable:$(cksum_id "${f#!}")" "A persistence file you own could not be read" "$(tilde "${f#!}")" "unreadable (permission denied)" "Check why you cannot read your own file (ls -l), then read it before you trust the login item. The audit stays open rather than reporting a check it could not perform."
+			else
+				finding INFO "unreadable:$(cksum_id "${f#!}")" "A persistence file could not be read" "$(tilde "${f#!}")" "unreadable (permission denied)" "Only a root-owned file should be unreadable to you. Check who owns it: ls -l."
+			fi
 			;;
 		*) files+=("$f") ;;
 		esac
-	done <<<"$(collect_payload "$program" "$@")"
+	done < <(collect_payload "$program" "$@")
 
 	if [[ ${#files[@]} -gt 0 ]]; then
 		local hop_seen="|" hf
 		for f in "${files[@]}"; do hop_seen="${hop_seen}${f}|"; done
-		while IFS= read -r hf; do
+		while IFS= read -r -d '' hf; do
 			[[ -n "$hf" ]] || continue
 			case "$hop_seen" in *"|$hf|"*) continue ;; esac
 			hop_seen="${hop_seen}${hf}|"
 			files+=("$hf")
-		done <<<"$(for f in "${files[@]}"; do collect_hop "$f"; done)"
+		done < <(for f in "${files[@]}"; do collect_hop "$f"; done)
 	fi
 
 	if has "$chain" "$RE_CAPTURE_WORD"; then
@@ -660,8 +668,11 @@ audit_signature() {
 	[[ "$OS" == Darwin && "$program" == /* ]] || return 0
 	# With /usr/bin/env or /bin/sh the payload is the script.
 	sip_path "$program" && return 0
-	command -v "$CODESIGN" >/dev/null 2>&1 || return 0
 	is_macho "$program" || return 0
+	if ! command -v "$CODESIGN" >/dev/null 2>&1; then
+		finding MEDIUM "signature:codesign-missing" "Login item code signatures were not checked" "$CODESIGN" "codesign was not found" "Install the Xcode command line tools (xcode-select --install) and run again. The audit stays open rather than reporting a check it could not perform."
+		return 0
+	fi
 
 	info="$("$CODESIGN" -dv --verbose=2 "$program" 2>&1)"
 	verify="$("$CODESIGN" --verify --deep --strict "$program" 2>&1)"
@@ -772,8 +783,13 @@ audit_linux_units() {
 		[[ -f "$f" ]] || continue
 		line="$(unit_command "$f" '^ExecStart=')"
 		[[ -n "$line" ]] || continue
-		# shellcheck disable=SC2086 # word splitting is the point: the unit line is a command line.
+		# Word splitting is the point: the unit line is a command line. Globbing is
+		# not: a `*` in an attacker's unit must not expand against this shell's cwd.
+		set -f
+		# shellcheck disable=SC2086
 		set -- $line
+		set +f
+		(($# > 0)) || continue
 		prog="$1"
 		shift
 		assess_entry "systemd:$(basename "$f")" "$f" "$(basename "$f" .service)" "$prog" "$@"
@@ -782,8 +798,11 @@ audit_linux_units() {
 		[[ -f "$f" ]] || continue
 		line="$(unit_command "$f" '^Exec=')"
 		[[ -n "$line" ]] || continue
+		set -f
 		# shellcheck disable=SC2086
 		set -- $line
+		set +f
+		(($# > 0)) || continue
 		prog="$1"
 		shift
 		assess_entry "autostart:$(basename "$f")" "$f" "$(basename "$f" .desktop)" "$prog" "$@"
@@ -794,8 +813,14 @@ audit_cron() {
 	local tab line
 	if [[ -n "${AIC_HOST_CRONTAB_FILE:-}" ]]; then
 		tab="$(cat "${AIC_HOST_CRONTAB_FILE}" 2>/dev/null)"
-	else
-		tab="$(crontab -l 2>/dev/null)"
+	elif ! tab="$(crontab -l 2>&1)"; then
+		# "no crontab for <user>" is the normal empty case; anything else means the
+		# crontab was never read and must not pass as clean.
+		case "$tab" in
+		*"no crontab for"*) ;;
+		*) finding MEDIUM "cron:unreadable" "The user crontab was not inspected" "crontab -l" "$(printf '%s' "$tab" | head -n 1)" "Run crontab -l by hand and read every line. The audit stays open rather than reporting a check it could not perform." ;;
+		esac
+		tab=""
 	fi
 	while IFS= read -r line; do
 		case "$line" in '' | '#'*) continue ;; esac
@@ -1104,7 +1129,7 @@ hook_dangerous_path() {
 }
 
 audit_agent_json() {
-	local f="$1" disp="$2" scope="$3" rows cmd events sev title next cmdline name mtype murl
+	local f="$1" disp="$2" scope="$3" rows hook_lines cmd events sev title next cmdline name mtype murl
 	if ! command -v jq >/dev/null 2>&1; then
 		if [[ "$JQ_NOTED" == 0 ]]; then
 			JQ_NOTED=1
@@ -1113,9 +1138,17 @@ audit_agent_json() {
 		return 0
 	fi
 
-	rows="$(jq -r '(.hooks // {}) | to_entries[] | .key as $e | (.value // [])[] | (.hooks // [])[] | select(.type == "command") | "\($e)\t\(.command)"' "$f" 2>/dev/null |
-		awk -F'\t' '{ c = $2; for (i = 3; i <= NF; i++) c = c "\t" $i; if (!(c in ev)) order[++n] = c; ev[c] = ev[c] (ev[c] == "" ? "" : ",") $1 } END { for (i = 1; i <= n; i++) print order[i] "\t" ev[order[i]] }')"
-	while IFS=$'\t' read -r cmd events; do
+	# Fields are split on the unit separator, as the MCP rows below are: a tab is
+	# legal inside a hook command and must stay part of it.
+	if ! hook_lines="$(jq -r '(.hooks // {}) | to_entries[] | .key as $e | (.value // [])[] | (.hooks // [])[] | select(.type == "command") | "\($e)\u001f\(.command)"' "$f" 2>/dev/null)"; then
+		if [[ "$f" == *.json ]]; then
+			finding MEDIUM "agent:jq-unparsable:$(cksum_id "$f")" "Agent hooks and MCP servers were not inspected" "$disp" "jq could not parse this file" "The file may be JSONC or malformed. Fix it or check it with jq by hand. The audit stays open rather than reporting a check it could not perform."
+		fi
+		hook_lines=""
+	fi
+	rows="$(printf '%s\n' "$hook_lines" |
+		awk -F"$US" '{ c = $2; for (i = 3; i <= NF; i++) c = c FS $i; if (!(c in ev)) order[++n] = c; ev[c] = ev[c] (ev[c] == "" ? "" : ",") $1 } END { for (i = 1; i <= n; i++) print order[i] FS ev[order[i]] }')"
+	while IFS="$US" read -r cmd events; do
 		[[ -n "$cmd" ]] || continue
 		sev="" title="" next="Read the command and confirm you installed it."
 		# (b) A hook that runs code from a user-writable place is high: it is
@@ -1222,12 +1255,15 @@ proc_cwd() {
 }
 
 audit_processes() {
-	local rows pid user cmd script path
+	local rows pid user cmd script path me unresolved=""
+	me="$(id -un 2>/dev/null)"
 	if [[ -n "${AIC_HOST_PS_FILE:-}" ]]; then
 		rows="$(cat "${AIC_HOST_PS_FILE}" 2>/dev/null)"
-	else
-		rows="$(ps -axo pid=,user=,command= 2>/dev/null)"
+	elif ! rows="$(ps -axo pid=,user=,command= 2>/dev/null)" || [[ -z "$rows" ]]; then
+		finding MEDIUM "proc:ps-unavailable" "Running processes were not inspected" "ps -axo pid=,user=,command=" "ps is missing or failed" "Run ps -ax by hand and look for interpreters running scripts from Downloads or other user-writable folders. The audit stays open rather than reporting a check it could not perform."
+		return 0
 	fi
+	# IFS left at its default on purpose: it trims the column padding ps adds.
 	while read -r pid user cmd; do
 		[[ -n "$cmd" ]] || continue
 		case "$cmd" in *host-audit.sh* | *system-scan.sh* | *"am-i-hacked host"* | *"am-i-compromised host"*) continue ;; esac
@@ -1237,7 +1273,12 @@ audit_processes() {
 		path="$script"
 		if [[ "$script" != /* ]]; then
 			path="$(proc_cwd "$pid")"
-			[[ -n "$path" ]] && path="$path/$script"
+			if [[ -n "$path" ]]; then
+				path="$path/$script"
+			elif [[ "$user" == "$me" ]]; then
+				# Another user's cwd is unreadable without root; one's own is not.
+				unresolved="$unresolved $pid"
+			fi
 		fi
 		if has "$script" "$RE_CAPTURE_WORD" && has "$script" 'tg|telegram|discord|webhook|exfil|upload|send'; then
 			finding HIGH "proc:$(cksum_id "$cmd")" "Running process looks like a capture tool that reports out" "pid $pid ($user)" "$(printf '%s' "$cmd" | redact)" "Do not kill it yet if you need evidence: note its pid, working directory (lsof -p $pid) and open connections, then stop it."
@@ -1245,6 +1286,9 @@ audit_processes() {
 			finding MEDIUM "proc:$(cksum_id "$cmd")" "Interpreter running a script from a user-writable location" "pid $pid ($user)" "$(printf '%s' "$cmd" | redact)" "Confirm you started it."
 		fi
 	done <<<"$rows"
+	if [[ -n "$unresolved" ]]; then
+		finding MEDIUM "proc:unresolved" "A process with a relative path was not resolved" "pid$unresolved" "lsof is missing or could not read its working directory" "Run lsof -a -p <pid> -d cwd for each pid and check where its script lives. The audit stays open rather than reporting a check it could not perform."
+	fi
 }
 
 # --- dark corners -----------------------------------------------------------------
@@ -1326,6 +1370,10 @@ audit_dark_corners() {
 	for corner in ${CORNERS[@]+"${CORNERS[@]}"}; do
 		if [[ ! -d "$corner" ]]; then
 			[[ "$VERBOSE" == 1 ]] && CORNER_NOTES+="  $(tilde "$corner") — skipped, not present"$'\n'
+			continue
+		fi
+		if [[ ! -r "$corner" || ! -x "$corner" ]]; then
+			finding MEDIUM "corner-unreadable:$(cksum_id "$corner")" "A dark corner could not be read, so it was not checked" "$(tilde "$corner")" "permission denied" "Check the folder's permissions by hand (ls -ld). The audit stays open rather than reporting a check it could not perform."
 			continue
 		fi
 		scan_corner "$corner"

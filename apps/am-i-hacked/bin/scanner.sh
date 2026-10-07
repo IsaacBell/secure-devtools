@@ -79,8 +79,10 @@ ARG_ROOT=""
 while (($# > 0)); do
 	case "$1" in
 	--max-findings)
-		if [[ -z "${2:-}" || ! "${2:-}" =~ ^[0-9]+$ ]]; then
-			echo "am-i-hacked: --max-findings requires a whole number of findings" >&2
+		# 1 to 9 digits, no leading zero: bash reads 08 as bad octal, and 0 would
+		# list nothing.
+		if [[ -z "${2:-}" || ! "${2:-}" =~ ^[1-9][0-9]{0,8}$ ]]; then
+			echo "am-i-hacked: --max-findings requires a whole number from 1 to 999999999" >&2
 			echo "usage: am-i-hacked [<directory>] [--max-findings N]  (defaults to the current directory)" >&2
 			exit 2
 		fi
@@ -187,10 +189,12 @@ readonly TRACKED_IGNORED
 # every argument except the search path. A second pass covers the tracked
 # ignored files the same --glob set selects; ripgrep applies globs only to what
 # it finds by walking, so that pass lists them by walking with no ignore rules.
+# --text always: ripgrep skips a file with a NUL byte as binary, so one NUL in a
+# comment would hide a whole source file that node or python still runs.
 rg_scoped() {
 	local args=("$@") globs=() extra=() file i
 
-	rg --hidden --no-ignore-dot "$@" -- "$ROOT" || true
+	rg --hidden --no-ignore-dot --text "$@" -- "$ROOT" || true
 	((${#TRACKED_IGNORED[@]} > 0)) || return 0
 
 	for ((i = 0; i < ${#args[@]}; i++)); do
@@ -205,7 +209,7 @@ rg_scoped() {
 	done < <(rg --files --null --hidden --no-ignore "${globs[@]}" -- "$ROOT" || true)
 	((${#extra[@]} > 0)) || return 0
 
-	printf '%s\0' "${extra[@]}" | xargs -0 rg --with-filename "$@" -- || true
+	printf '%s\0' "${extra[@]}" | xargs -0 rg --with-filename --text "$@" -- || true
 }
 
 # --- color ---------------------------------------------------------------------
@@ -394,8 +398,8 @@ suppression_reason() {
 	# always the absolute $ROOT-rooted path built earlier in this script,
 	# never a string that could be mistaken for an option.
 	for candidate in \
-		"$(sed -n "${line}p" "$path" 2>/dev/null)" \
-		"$( ((prev > 0)) && sed -n "${prev}p" "$path" 2>/dev/null)"; do
+		"$(sed -n "${line}p" "$path" 2>/dev/null | LC_ALL=C tr -d '\000')" \
+		"$( ((prev > 0)) && sed -n "${prev}p" "$path" 2>/dev/null | LC_ALL=C tr -d '\000')"; do
 		if [[ "$candidate" =~ $SUPPRESS_MARKER_RE ]]; then
 			reason="${BASH_REMATCH[2]}"
 			reason="${reason#"${reason%%[![:space:]]*}"}"
@@ -421,7 +425,7 @@ is_build_output() {
 		return "$((BUNDLE_PATH_SET["$path"] == 1 ? 0 : 1))"
 	fi
 
-	if head="$(head -c 4096 "$path" 2>/dev/null)"; then
+	if head="$(head -c 4096 "$path" 2>/dev/null | LC_ALL=C tr -d '\000')"; then
 		for marker in "__nccwpck_require__" "__webpack_require__" "webpackBootstrap" "__toESM(" "__commonJS("; do
 			if [[ "$head" == *"$marker"* ]]; then
 				BUNDLE_PATH_SET["$path"]=1
@@ -487,13 +491,16 @@ record_finding() {
 	fi
 
 	# Hex/Unicode escape runs inside installed dependencies (site-packages,
-	# dist-packages, node_modules, vendor) are third-party noise this scanner
-	# should not list line by line: on a large virtualenv they outnumber every
-	# real signal. Counted here and shown as one summary line. No flag turns
-	# this off.
+	# dist-packages, node_modules) are third-party noise this scanner should not
+	# list line by line: on a large virtualenv they outnumber every real signal.
+	# Counted here and shown as one summary line. A payload edited into an
+	# installed file still fails its RECORD hash in the venv integrity check; a
+	# package published with the payload needs a dependency audit, which this
+	# line was never a substitute for. vendor/ is committed with the project and
+	# reviewed like it, so its hits stay findings. No flag turns this off.
 	if [[ "$tag" == "$DEP_HEX_TAG" ]]; then
 		case "/$pathrel/" in
-		*/site-packages/* | */dist-packages/* | */node_modules/* | */vendor/*)
+		*/site-packages/* | */dist-packages/* | */node_modules/*)
 			DEP_HEX_COUNT=$((DEP_HEX_COUNT + 1))
 			return
 			;;
@@ -674,7 +681,7 @@ first_match_line() {
 
 # source_line <file> <line> — that line's text, for the finding snippet.
 source_line() {
-	sed -n "${2}p" "$1" 2>/dev/null || true
+	sed -n "${2}p" "$1" 2>/dev/null | LC_ALL=C tr -d '\000' || true
 }
 
 # is_shell_script <file> — a .sh/.bash/.zsh file, or a shebang script whose

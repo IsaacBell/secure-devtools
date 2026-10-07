@@ -7,8 +7,9 @@ set -euo pipefail
 # Verifies that the files in a virtualenv's site-packages match what each
 # `*.dist-info/RECORD` claims, and flags the quiet ways a venv can be tampered
 # with: a changed file, a file no RECORD claims, a `.pth` or startup module that
-# executes code, and an unusual installer. It never reads outside site-packages
-# (a RECORD path with `..` or a leading `/` is a finding, not a file to open).
+# executes code, and an unusual installer. It never reads outside the venv (a
+# RECORD path with `..`, a leading `/` or a symlinked folder on the way is a
+# finding, not a file to open).
 #
 # Run standalone:  bash venv-integrity.sh <venv-dir>
 # Used by scanner.sh: it sources this file and calls scan_venv_integrity "$ROOT",
@@ -38,7 +39,12 @@ VI_HASH_QUEUE=()
 VI_REC_F=()
 VI_REC_EXP=()
 VI_CLAIMED_REL=()
+# Absolute paths of console scripts claimed by a RECORD, "|"-joined. Keyed by
+# path, not name, so a claim in one venv never covers a file in another.
 VI_BIN_CLAIMED="|"
+# Venv root of the site-packages being scanned; empty when it is not at
+# <venv>/lib/<python>/site-packages.
+VI_SP_ROOT=""
 
 # vi_trim <text> — leading/trailing whitespace removed.
 vi_trim() {
@@ -129,10 +135,36 @@ vi_inside_venv() {
 	return 0
 }
 
+# vi_venv_root <site-packages> — print the venv root when the folder is exactly
+# <venv>/lib/<one folder>/site-packages; fail otherwise.
+vi_venv_root() {
+	local sp="$1" lib
+	[[ "${sp##*/}" == site-packages ]] || return 1
+	lib="${sp%/site-packages}"
+	[[ -n "${lib##*/}" ]] || return 1
+	lib="${lib%/*}"
+	[[ "${lib##*/}" == lib ]] || return 1
+	printf '%s' "${lib%/lib}"
+}
+
+# vi_symlinked_dir <base> <relative-path> — succeeds when a folder on the way
+# from <base> to the file is a symlink. find never descends one, but opening
+# "$base/$rel" would follow it out of the venv.
+vi_symlinked_dir() {
+	local base="$1" dir="$2"
+	[[ "$dir" == */* ]] || return 1
+	dir="${dir%/*}"
+	while :; do
+		[[ -L "$base/$dir" ]] && return 0
+		[[ "$dir" == */* ]] || return 1
+		dir="${dir%/*}"
+	done
+}
+
 # vi_process_record <record> <site-packages>
 vi_process_record() {
 	local record="$1" sp="$2"
-	local line_no=0 line path hash_field target idx
+	local line_no=0 line path hash_field target idx base rel
 
 	while IFS= read -r line; do
 		line_no=$((line_no + 1))
@@ -152,8 +184,17 @@ vi_process_record() {
 		# The ../../../ climb only means "venv root" when site-packages really sits at
 		# <venv>/lib/pythonX.Y/site-packages.
 		if [[ "$path" == /* ]] || ! vi_inside_venv "$path" ||
-			{ [[ "$path" == ../* ]] && [[ "$sp" != "$VROOT"/lib/*/site-packages ]]; }; then
+			{ [[ "$path" == ../* ]] && [[ -z "$VI_SP_ROOT" ]]; }; then
 			vi_record "$record" "$line_no" "$line" "HIGH: RECORD path points outside the package"
+			continue
+		fi
+
+		case "$path" in
+		../../../*) base="$VI_SP_ROOT" rel="${path#../../../}" ;;
+		*) base="$sp" rel="$path" ;;
+		esac
+		if vi_symlinked_dir "$base" "$rel"; then
+			vi_record "$record" "$line_no" "$line" "HIGH: RECORD path goes through a symlinked folder; not followed"
 			continue
 		fi
 
@@ -168,7 +209,12 @@ vi_process_record() {
 		target="$sp/$path"
 		VI_CLAIMED_REL+=("$path")
 		case "$path" in
-		../../../bin/*) VI_BIN_CLAIMED="${VI_BIN_CLAIMED}${path#../../../bin/}|" ;;
+		../../../bin/*'|'*)
+			# "|" separates claims; a name holding one would claim other names too.
+			vi_record "$record" "$line_no" "$line" "HIGH: RECORD console script name contains |"
+			continue
+			;;
+		../../../bin/*) VI_BIN_CLAIMED="${VI_BIN_CLAIMED}${VI_SP_ROOT}/${rel}|" ;;
 		esac
 
 		if [[ -L "$target" ]]; then
@@ -179,7 +225,15 @@ vi_process_record() {
 			vi_record "$target" 1 "$path" "LOW: RECORD lists a file that is missing"
 			continue
 		fi
-		[[ -n "$hash_field" ]] || continue
+		if [[ -z "$hash_field" ]]; then
+			# Installers leave the hash empty only for RECORD itself, its signatures and
+			# bytecode compiled after install. Anywhere else the file goes unverified.
+			case "$path" in
+			*.dist-info/RECORD | *.dist-info/RECORD.jws | *.dist-info/RECORD.p7s | *.pyc) ;;
+			*) vi_record "$record" "$line_no" "$line" "LOW: RECORD entry has no sha256 hash; file not verified" ;;
+			esac
+			continue
+		fi
 
 		idx=${#VI_REC_F[@]}
 		VI_REC_F+=("$target")
@@ -220,18 +274,36 @@ vi_hash_all() {
 
 # --- site-packages checks -------------------------------------------------------
 
-# vi_check_unclaimed <site-packages> — files no RECORD claims.
+# vi_check_unclaimed <site-packages> — files and symlinks no RECORD claims.
 vi_check_unclaimed() {
 	local sp="$1" f rel base
-	local -a on_disk
+	local -a on_disk links
 	on_disk=()
+	links=()
 
 	while IFS= read -r -d '' f; do
-		base="${f##*/}"
-		case "$base" in
-		_virtualenv.py | _virtualenv.pth | distutils-precedence.pth | __editable__*) continue ;;
-		esac
 		rel="${f#"$sp"/}"
+		links+=("${rel//$'\n'/\\n}")
+	done < <(
+		find "$sp" -type d \( -name '__pycache__' -o -name '*.dist-info' -o -name '*.egg-info' \) -prune -o -type l -print0 2>/dev/null
+	)
+	while IFS= read -r rel; do
+		[[ -n "$rel" ]] || continue
+		vi_record "$sp/$rel" 1 "$rel" "MEDIUM: symlink in site-packages not claimed by any RECORD"
+	done < <(
+		LC_ALL=C comm -23 \
+			<(vi_emit_lines ${links[@]+"${links[@]}"} | LC_ALL=C sort -u) \
+			<(vi_emit_lines ${VI_CLAIMED_REL[@]+"${VI_CLAIMED_REL[@]}"} | LC_ALL=C sort -u)
+	)
+
+	while IFS= read -r -d '' f; do
+		rel="${f#"$sp"/}"
+		# virtualenv and uv write these two at the top of site-packages with no RECORD;
+		# vi_check_pth checks the .pth content instead. setuptools' RECORD claims
+		# distutils-precedence.pth, so that one is no exception.
+		case "$rel" in
+		_virtualenv.py | _virtualenv.pth | __editable__*) continue ;;
+		esac
 		# A newline in a name would split into two lines in the comparison below and
 		# could hide the file; report it directly instead.
 		if [[ "$rel" == *$'\n'* ]]; then
@@ -261,7 +333,14 @@ vi_check_pth() {
 		rel="${f#"$sp"/}"
 		base="${f##*/}"
 		case "$base" in
-		_virtualenv.pth | distutils-precedence.pth | __editable__*) continue ;;
+		_virtualenv.pth)
+			# The stock file is one line; it has no RECORD to hash against.
+			if [[ "$rel" != _virtualenv.pth || "$(vi_trim "$(LC_ALL=C tr -d '\000' <"$f" 2>/dev/null)")" != "import _virtualenv" ]]; then
+				vi_record "$f" 1 "$rel" "MEDIUM: _virtualenv.pth is not the stock one-line file"
+			fi
+			continue
+			;;
+		distutils-precedence.pth | __editable__*) continue ;;
 		esac
 		case "$rel" in */*.egg-info/*) continue ;; esac
 
@@ -291,7 +370,12 @@ vi_check_distinfos() {
 
 	while IFS= read -r -d '' dist; do
 		if [[ ! -f "$dist/RECORD" ]]; then
-			vi_record "$dist" 1 "${dist#"$sp"/}" "LOW: dist-info directory has no RECORD"
+			# pip and uv always write RECORD in a venv; a missing one hides edits.
+			if [[ -n "$VI_SP_ROOT" && -f "$VI_SP_ROOT/pyvenv.cfg" ]]; then
+				vi_record "$dist" 1 "${dist#"$sp"/}" "MEDIUM: venv dist-info directory has no RECORD"
+			else
+				vi_record "$dist" 1 "${dist#"$sp"/}" "LOW: dist-info directory has no RECORD"
+			fi
 		fi
 		if [[ -f "$dist/INSTALLER" ]]; then
 			installer="$(vi_trim "$(sed -n '1p' "$dist/INSTALLER" 2>/dev/null)")"
@@ -304,6 +388,9 @@ vi_check_distinfos() {
 
 # vi_check_bin <venv-root> — scripts in bin/ no RECORD claims.
 # Console scripts are claimed by RECORD lines of the form ../../../bin/<name>.
+# Only the exact names venv and virtualenv write are skipped, so a planted
+# python3-helper is still reported. pip's scripts are claimed by pip's own
+# RECORD, so an unclaimed pip is reported too.
 vi_check_bin() {
 	local root="$1" f base
 
@@ -311,11 +398,15 @@ vi_check_bin() {
 	while IFS= read -r -d '' f; do
 		base="${f##*/}"
 		case "$base" in
-		activate* | python* | pip* | *.bat) continue ;;
+		activate | activate.bash | activate.csh | activate.fish | activate.nu | activate.ps1 | Activate.ps1 | \
+			activate.xsh | activate_this.py | activate.bat | deactivate.bat | pydoc.bat | \
+			python | python3 | python3.[0-9] | python3.[0-9][0-9] | pythonw | pypy | pypy3 | pypy3.[0-9] | pypy3.[0-9][0-9])
+			continue
+			;;
 		esac
-		case "$VI_BIN_CLAIMED" in *"|$base|"*) continue ;; esac
+		case "$VI_BIN_CLAIMED" in *"|$f|"*) continue ;; esac
 		vi_record "$f" 1 "${f#"$root"/}" "LOW: venv bin file not claimed by any RECORD"
-	done < <(find "$root/bin" -type f -print0 2>/dev/null)
+	done < <(find "$root/bin" \( -type f -o -type l \) -print0 2>/dev/null)
 }
 
 # --- entry point -----------------------------------------------------------------
@@ -323,8 +414,8 @@ vi_check_bin() {
 # scan_venv_integrity <dir> — scan a virtualenv. Returns immediately when the
 # folder has no `*.dist-info/RECORD`.
 scan_venv_integrity() {
-	local root="${1:-.}" record sp walk_err venv_root
-	local -a sp_dirs
+	local root="${1:-.}" found sp walk_err venv_root records
+	local -a sp_dirs venv_roots cands
 	local seen_sp="|" seen_vroot="|"
 
 	VROOT="$(cd -- "$root" 2>/dev/null && pwd)" || {
@@ -332,17 +423,40 @@ scan_venv_integrity() {
 		return 1
 	}
 
+	# A folder with a RECORD is scanned, and so is a venv's site-packages whose
+	# RECORD files are all gone: deleting them must not make a venv look clean.
 	sp_dirs=()
-	while IFS= read -r -d '' record; do
-		sp="$(dirname "$(dirname "$record")")"
-		case "$seen_sp" in *"|$sp|"*) continue ;; esac
-		seen_sp="${seen_sp}${sp}|"
-		sp_dirs+=("$sp")
-	done < <(find "$VROOT" -type f -name RECORD -path '*/*.dist-info/RECORD' -print0 2>/dev/null)
+	while IFS= read -r -d '' found; do
+		cands=()
+		case "${found##*/}" in
+		RECORD) cands=("$(dirname "$(dirname "$found")")") ;;
+		pyvenv.cfg)
+			# The venv's own config survives when every dist-info folder is deleted.
+			for sp in "$(dirname "$found")"/lib/*/site-packages; do
+				[[ -d "$sp" ]] && cands+=("$sp")
+			done
+			;;
+		*)
+			sp="$(dirname "$found")"
+			venv_root="$(vi_venv_root "$sp")" || continue
+			[[ -f "$venv_root/pyvenv.cfg" ]] || continue
+			cands=("$sp")
+			;;
+		esac
+		for sp in ${cands[@]+"${cands[@]}"}; do
+			case "$seen_sp" in *"|$sp|"*) continue ;; esac
+			seen_sp="${seen_sp}${sp}|"
+			sp_dirs+=("$sp")
+		done
+	done < <(find "$VROOT" \( \( -type f -name RECORD -path '*/*.dist-info/RECORD' \) -o \
+		\( -type d -name '*.dist-info' -path '*/site-packages/*.dist-info' \) -o \
+		\( -type f -name pyvenv.cfg \) \) -print0 2>/dev/null)
 
 	((${#sp_dirs[@]} > 0)) || return 0
 
+	venv_roots=()
 	for sp in "${sp_dirs[@]}"; do
+		VI_SP_ROOT="$(vi_venv_root "$sp")" || VI_SP_ROOT=""
 		# The checks below hide find errors so output stays clean; an unreadable folder
 		# must still show up, never read as a clean result.
 		walk_err="$(find "$sp" 2>&1 >/dev/null)" || true
@@ -350,25 +464,36 @@ scan_venv_integrity() {
 			vi_record "$sp" 1 "${walk_err%%$'\n'*}" "MEDIUM: part of site-packages could not be read"
 		fi
 		VI_CLAIMED_REL=()
-		while IFS= read -r -d '' record; do
-			vi_process_record "$record" "$sp"
+		records=0
+		while IFS= read -r -d '' found; do
+			records=$((records + 1))
+			vi_process_record "$found" "$sp"
 		done < <(find "$sp" -type f -name RECORD -path '*/*.dist-info/RECORD' -print0 2>/dev/null)
 
-		vi_check_unclaimed "$sp"
+		# With no RECORD at all every file would read as unclaimed; the missing
+		# RECORD findings from vi_check_distinfos say it once per package instead.
+		((records == 0)) || vi_check_unclaimed "$sp"
+		if ((records == 0)) && [[ -n "$VI_SP_ROOT" && -f "$VI_SP_ROOT/pyvenv.cfg" ]] &&
+			[[ -z "$(find "$sp" -maxdepth 1 -name '*.dist-info' -print -quit 2>/dev/null)" ]] &&
+			[[ -n "$(find "$sp" -type f ! -name '_virtualenv.py' ! -name '_virtualenv.pth' ! -path '*/__pycache__/*' -print -quit 2>/dev/null)" ]]; then
+			vi_record "$sp" 1 "${sp#"$VROOT"/}" "MEDIUM: venv site-packages holds files but no package records"
+		fi
 		vi_check_pth "$sp"
 		vi_check_startup "$sp"
 		vi_check_distinfos "$sp"
 
-		case "$sp" in
-		*/lib/*/site-packages)
-			venv_root="${sp%/lib/*/site-packages}"
-			case "$seen_vroot" in *"|$venv_root|"*) ;; *)
-				seen_vroot="${seen_vroot}${venv_root}|"
-				vi_check_bin "$venv_root"
+		if [[ -n "$VI_SP_ROOT" ]]; then
+			case "$seen_vroot" in *"|$VI_SP_ROOT|"*) ;; *)
+				seen_vroot="${seen_vroot}${VI_SP_ROOT}|"
+				venv_roots+=("$VI_SP_ROOT")
 				;;
 			esac
-			;;
-		esac
+		fi
+	done
+
+	# After every site-packages, so a venv with two of them has all its claims.
+	for venv_root in ${venv_roots[@]+"${venv_roots[@]}"}; do
+		vi_check_bin "$venv_root"
 	done
 
 	vi_hash_all

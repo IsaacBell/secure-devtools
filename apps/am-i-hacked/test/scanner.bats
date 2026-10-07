@@ -1378,6 +1378,15 @@ sha256_of() {
   assert_equal "$status" 2
 }
 
+@test "--max-findings rejects 0, a leading zero and more than 9 digits" {
+  local bad
+  for bad in 0 08 012 1234567890; do
+    run bash "$SCRIPT" --max-findings "$bad" "$BATS_TEST_TMPDIR"
+    assert_equal "$status" 2
+    assert_output --partial "--max-findings requires"
+  done
+}
+
 @test "truncation keeps higher-severity findings ahead of routine ones" {
   write_file "a-low.js" 'eval("1")'
   write_file "z-high.js" "TELEGRAM_BOT_TOKEN=\"${FAKE_TELEGRAM_TOKEN}\""
@@ -1393,6 +1402,25 @@ sha256_of() {
   run --separate-stderr bash "$SCRIPT" "$TMP"
   assert_success
   [[ "$stderr" != *"null byte"* ]]
+}
+
+@test "a finding on a line with NUL bytes, and NUL in a bundle, give no stderr warning" {
+  local dir="$BATS_TEST_TMPDIR/nul"
+  mkdir -p "$dir"
+  printf 'eval(atob("bad"))\000tail\n' >"$dir/evil.js"
+  printf '__webpack_require__\000\000\neval("x")\n' >"$dir/bundle.js"
+  run --separate-stderr bash "$SCRIPT" "$dir"
+  assert_failure
+  assert_output --partial "evil.js:1"
+  [[ "$stderr" != *"null byte"* ]]
+}
+
+@test "hex escapes under vendor/ stay findings" {
+  write_file "vendor/lib/a.js" 'var s = "\x68\x65\x6c\x6c\x6f\x77\x6f\x72\x6c\x64\x21"'
+  scan
+  assert_failure
+  assert_output --partial "vendor/lib/a.js:1"
+  refute_output --partial "in dependency libraries"
 }
 
 @test "hex escapes in a dependency dir are summarized, not listed per hit" {
