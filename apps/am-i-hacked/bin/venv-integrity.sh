@@ -360,13 +360,14 @@ scan_venv_integrity() {
 		vi_check_distinfos "$sp"
 
 		case "$sp" in
-			*/lib/*/site-packages)
-				venv_root="${sp%/lib/*/site-packages}"
-				case "$seen_vroot" in *"|$venv_root|"*) ;; *)
-					seen_vroot="${seen_vroot}${venv_root}|"
-					vi_check_bin "$venv_root"
-				esac
+		*/lib/*/site-packages)
+			venv_root="${sp%/lib/*/site-packages}"
+			case "$seen_vroot" in *"|$venv_root|"*) ;; *)
+				seen_vroot="${seen_vroot}${venv_root}|"
+				vi_check_bin "$venv_root"
 				;;
+			esac
+			;;
 		esac
 	done
 
