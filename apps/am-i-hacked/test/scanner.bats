@@ -601,7 +601,7 @@ write_file() {
 	for i in {1..150}; do
 		printf 'var x%d = "%s";\n' "$i" "$big" >>"$TMP/many.js"
 	done
-	scan
+	run bash "$SCRIPT" --max-findings 100 "$TMP"
 	assert_failure
 	assert_output --partial "150 findings"
 	assert_output --partial "truncated"
@@ -847,7 +847,7 @@ write_file() {
   run --separate-stderr env AIH_PROGRESS=1 bash "$SCRIPT" "$TMP"
   assert_failure 1
   [[ "$stderr" == *"am-i-hacked: scanning"* ]]
-  [[ "$stderr" == *"[20/20]"* ]]
+  [[ "$stderr" == *"[21/21]"* ]]
   [[ "$stderr" == *"1 found"* ]]
   [[ "$output" != *"found so far"* ]]
 }
@@ -1337,4 +1337,81 @@ sha256_of() {
 
 @test "pending: the suite runs on a plain checkout without pnpm" {
   skip "pending: setup shells out to pnpm root to find the bats libraries"
+}
+
+# -------------------------------------------------------------------------------
+# Finding cap, null bytes, dependency noise
+# -------------------------------------------------------------------------------
+
+@test "default display cap is 1000 findings" {
+  big="$(printf 'A%.0s' {1..4000})"
+  : >"$TMP/many.js"
+  for i in {1..1001}; do
+    printf 'var x%d = "%s";\n' "$i" "$big" >>"$TMP/many.js"
+  done
+  scan
+  assert_failure
+  assert_output --partial "1001 findings"
+  assert_output --partial "truncated: 1 more findings not shown"
+}
+
+@test "--max-findings 5 truncates and prints the true total and a per-rule table" {
+  for i in {1..6}; do
+    write_file "f${i}.js" 'eval("1")'
+  done
+  run bash "$SCRIPT" --max-findings 5 "$TMP"
+  assert_failure
+  assert_output --partial "6 findings across 6 files"
+  assert_output --partial "truncated: 1 more findings not shown"
+  assert_output --partial "findings by rule"
+  assert_output --partial "Dynamic code execution"
+}
+
+@test "--max-findings rejects a missing or non-numeric value" {
+  write_file "ok.js" 'console.log("hello")'
+  run bash "$SCRIPT" --max-findings "$TMP"
+  assert_failure
+  assert_equal "$status" 2
+  assert_output --partial "--max-findings requires"
+  run bash "$SCRIPT" --max-findings abc "$TMP"
+  assert_failure
+  assert_equal "$status" 2
+}
+
+@test "truncation keeps higher-severity findings ahead of routine ones" {
+  write_file "a-low.js" 'eval("1")'
+  write_file "z-high.js" "TELEGRAM_BOT_TOKEN=\"${FAKE_TELEGRAM_TOKEN}\""
+  run bash "$SCRIPT" --max-findings 1 "$TMP"
+  assert_failure
+  assert_output --partial "z-high.js:1"
+  assert_output --partial "Telegram bot token literal"
+  refute_output --partial "a-low.js:1"
+}
+
+@test "a file containing NUL bytes produces no stderr warning" {
+  printf 'a\000b\000c' >"$TMP/blob"
+  run --separate-stderr bash "$SCRIPT" "$TMP"
+  assert_success
+  [[ "$stderr" != *"null byte"* ]]
+}
+
+@test "hex escapes in a dependency dir are summarized, not listed per hit" {
+  write_file "app/.venv/lib/python3.11/site-packages/pkg/mod.js" \
+    'var s = "\x68\x65\x6c\x6c\x6f\x77\x6f\x72\x6c\x64\x21"'
+  write_file "app/index.js" 'console.log("ok")'
+  scan
+  assert_success
+  assert_output --partial "Hex or Unicode string escapes in dependency libraries"
+  assert_output --partial "1 matches"
+  refute_output --partial "site-packages/pkg/mod.js:1"
+}
+
+@test "dependency hex summaries do not hide a real finding" {
+  write_file ".venv/lib/site-packages/pkg/a.js" 'var s = "\x68\x65\x6c\x6c\x6f\x77\x6f\x72\x6c\x64"'
+  write_file "evil.js" 'eval(atob("bad"))'
+  scan
+  assert_failure
+  assert_output --partial "evil.js:1"
+  assert_output --partial "Hex or Unicode string escapes in dependency libraries"
+  refute_output --partial "site-packages/pkg/a.js:1"
 }

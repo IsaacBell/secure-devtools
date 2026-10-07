@@ -3,18 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>am-i-hacked: check the code you are about to run</title>
-<meta name="description" content="Check the code you are about to run, and the machine you run it on, for signs of a supply-chain or dev-environment attack. One command, no signup.">
+<title>secure-devtools: security tools for the code you run</title>
+<meta name="description" content="Plain-shell security tools for the code you are about to run and the machine you run it on: am-i-hacked, am-i-being-recorded, secure-semgrep, and agent skills. Local, no signup, no API key.">
 <link rel="canonical" href="/secure-devtools/">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#15181d">
 <meta property="og:type" content="website">
-<meta property="og:title" content="am-i-hacked: check the code you are about to run">
-<meta property="og:description" content="Check the code you are about to run, and the machine you run it on, for signs of a supply-chain or dev-environment attack.">
+<meta property="og:title" content="secure-devtools: security tools for the code you run">
+<meta property="og:description" content="Plain-shell checkers for the code you are about to run, and the machine you run it on.">
 <meta property="og:url" content="https://isaacbell.github.io/secure-devtools/">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="am-i-hacked: check the code you are about to run">
-<meta name="twitter:description" content="Check the code you are about to run, and the machine you run it on, for signs of a supply-chain or dev-environment attack.">
+<meta name="twitter:title" content="secure-devtools: security tools for the code you run">
+<meta name="twitter:description" content="Plain-shell checkers for the code you are about to run, and the machine you run it on.">
 <meta name="twitter:url" content="https://isaacbell.github.io/secure-devtools/">
 <style>
 @layer reset, tokens, base, components, utilities;
@@ -186,7 +186,7 @@
 
 <header class="site-header">
   <div class="wrap">
-    <a class="wordmark" href="https://github.com/IsaacBell/secure-devtools">am-i-hacked</a>
+    <a class="wordmark" href="https://github.com/IsaacBell/secure-devtools">secure-devtools</a>
     <span class="tag muted">macOS &amp; Linux</span>
   </div>
 </header>
@@ -196,14 +196,14 @@
   <section class="hero">
     <div class="wrap">
       <div class="hero-inner">
-        <h1>Am I <span class="hl">hacked?</span></h1>
-        <p class="lede">Check you code, and the machine you run it on, before it runs.</p>
+        <h1>Security tools for the <span class="hl">code you run</span></h1>
+        <p class="lede">Plain-shell checkers for the code you are about to run, and the machine you run it on. Local, no signup, no account, no API key.</p>
 
         <div class="cmd">
-          <pre class="cmd-pre"><code id="hero-cmd">npx am-i-hacked</code></pre>
+          <pre class="cmd-pre"><code id="hero-cmd">pnpx am-i-hacked .</code></pre>
           <button type="button" class="btn btn--ghost copy" data-copy="hero-cmd" aria-label="Copy command"><span class="copy-label" aria-live="polite">Copy</span></button>
         </div>
-        <p class="alt">or <code>pnpx am-i-hacked</code> · no signup, no account, no API key</p>
+        <p class="alt">or <code>npx am-i-hacked .</code> &middot; a folder scan by default, <code>--system</code> also audits the machine</p>
 
         <div class="actions">
           <a class="btn btn--primary" href="https://github.com/IsaacBell/secure-devtools">View on GitHub</a>
@@ -213,127 +213,69 @@
     </div>
   </section>
 
-  <section class="section" aria-labelledby="why">
+  <section class="section" aria-labelledby="tools">
     <div class="wrap">
-      <h2 class="section-title" id="why">Why am-i-hacked</h2>
+      <h2 class="section-title" id="tools">Tools</h2>
       <div class="cards">
 
         <article class="card">
-          <h3>Instant</h3>
-          <p class="muted">One command, no signup, no account, no API key. It runs on the folder in front of you and exits 1 on findings, so it drops into a dev script or CI.</p>
+          <h3><a href="https://github.com/IsaacBell/secure-devtools/blob/main/apps/am-i-hacked/README.md">am-i-hacked</a></h3>
+          <p class="muted">Checks a project folder before you open, install or run it — and, with <code>--system</code>, the machine — for supply-chain and dev-environment attack indicators.</p>
         </article>
 
         <article class="card">
-          <h3>CI by copy-paste</h3>
-          <p class="muted">A GitHub Actions job on ubuntu-latest. The runner has bash and jq but no pnpm, and ripgrep is installed first in case it is missing.</p>
-          <div class="copyblock">
-            <pre class="code-pre"><code id="ci-snippet">- uses: pnpm/action-setup@v4
-  with:
-    version: 10
-- run: sudo apt-get install -y ripgrep
-- run: pnpx am-i-hacked@2 .</code></pre>
-            <button type="button" class="btn btn--ghost copy" data-copy="ci-snippet" aria-label="Copy CI snippet"><span class="copy-label" aria-live="polite">Copy</span></button>
-          </div>
+          <h3><a href="https://github.com/IsaacBell/secure-devtools/blob/main/apps/am-i-being-recorded/README.md">am-i-being-recorded</a></h3>
+          <p class="muted">Names the browser extension behind a screen-recording indicator, and what else on the machine can capture you.</p>
         </article>
 
         <article class="card">
-          <h3>Catches what advisory scanners cannot</h3>
-          <p class="muted">npm audit and OSV-Scanner match your dependencies against reported vulnerabilities. They cannot see an attack nobody has reported yet, or one that lives in the repository itself. Use both.</p>
+          <h3><a href="https://github.com/IsaacBell/secure-devtools/blob/main/apps/secure-semgrep/README.md">secure-semgrep</a></h3>
+          <p class="muted">A thin Semgrep CLI that runs bundled AI-agent and bash security rules plus maintained loadout packs. Needs <code>semgrep</code>.</p>
         </article>
 
       </div>
     </div>
   </section>
 
-  <section class="section" aria-labelledby="checks">
+  <section class="section" aria-labelledby="am-i-hacked">
     <div class="wrap">
-      <h2 class="section-title" id="checks">What it checks</h2>
+      <h2 class="section-title" id="am-i-hacked">am-i-hacked</h2>
+      <p>The folder scan reads a project before you open, install or run anything: dynamic code execution, obfuscated payloads, editor tasks that run on folder open, payloads disguised as asset files, clipboard capture paired with an exfiltration endpoint, and <code>.env</code> files in the git index. <code>--system</code> adds the machine: login persistence and code signatures, crontab, shell startup files, AI-tool config, and running processes. It exits <code>1</code> on findings, so it drops into a dev script or CI.</p>
+
+      <div class="copyblock">
+        <pre class="code-pre"><code id="scan-cmd">pnpx am-i-hacked .          # folder scan
+pnpx am-i-hacked --system   # also audit this machine</code></pre>
+        <button type="button" class="btn btn--ghost copy" data-copy="scan-cmd" aria-label="Copy command"><span class="copy-label" aria-live="polite">Copy</span></button>
+      </div>
+
+      <p class="caption muted">It reports warning signs, not proof of safety: a clean result does not prove the code or machine is safe. Read the <a href="https://github.com/IsaacBell/secure-devtools/blob/main/apps/am-i-hacked/README.md">am-i-hacked README</a> for the flags and suppression syntax.</p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="skills">
+    <div class="wrap">
+      <h2 class="section-title" id="skills">Agent skills</h2>
+      <p class="caption muted">Install all of them with <code>npx skills add IsaacBell/secure-devtools -g</code>, or one with <code>--skill &lt;name&gt;</code>.</p>
       <div class="checks">
 
         <div class="check-col">
-          <h3>Project scan</h3>
-          <p class="muted">Runs on a folder before you open, install or run anything. Scans JS/TS, Python, Rust, Ruby, C, C++ and C# sources; skips node_modules, build output and VCS directories.</p>
           <ul class="checks-list">
-            <li>Dynamic code execution (eval, new Function), child-process execution, direct network module access, writes to global variables at runtime</li>
-            <li>Encoded or obfuscated payloads (atob, hex or unicode escapes, _0x string tables), and unusually long source lines</li>
-            <li>Suspicious package.json scripts</li>
-            <li>Editor config that runs code unprompted: a runOn trigger or task.allowAutomaticTasks in .vscode/*.json or .idea/tasks.json</li>
-            <li>Download-and-run commands in editor config (curl | sh, powershell, osascript, base64 -d)</li>
-            <li>Executable payloads disguised as binary assets, such as JavaScript inside a .woff2 or .png</li>
-            <li>Clipboard, keystroke or screen capture paired with an address it sends the captured data to</li>
-            <li>Environment files (.env, .env.*) tracked in the git index</li>
+            <li><a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/quarantine-review/SKILL.md">quarantine-review</a> — inspect an untrusted repository without running any of it.</li>
+            <li><a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/secure-skill-pull/SKILL.md">secure-skill-pull</a> — vet a skill or plugin from a URL without running its installer.</li>
+            <li><a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/create-skill/SKILL.md">create-skill</a> — write, check and publish an agent skill.</li>
+            <li><a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/skill-publish-review/SKILL.md">skill-publish-review</a> — review skills before they go into a public repository.</li>
           </ul>
         </div>
 
         <div class="check-col">
-          <h3>Machine audit with --system</h3>
-          <p class="muted">Read-only, no root or sudo. The folder's AI-tool config is checked even without the flag; --system adds the rows below.</p>
           <ul class="checks-list">
-            <li>Programs that start at login: login items (launchd) on macOS, user systemd units and XDG autostart on Linux — entries that capture the clipboard, keys or screen, or send to Telegram, Discord or webhooks</li>
-            <li>Crontab: a remote script piped to a shell, and jobs that run from user-writable places</li>
-            <li>Code signatures (macOS): the program each login item runs, checked for a wrong or broken signature</li>
-            <li>Shell startup files: piping a download to a shell, eval of downloaded code, DYLD_INSERT_LIBRARIES, NODE_OPTIONS --require, disabled TLS checks</li>
-            <li>AI-tool config for Claude, Codex, Cursor, Gemini, Kilo and OpenCode: a base URL pointed at loopback or a non-vendor host, hooks that run code from a writable path, disabled permission prompts, plain-text keys, unpinned MCP servers</li>
-            <li>Processes: interpreters running from staging directories, and capture-named scripts that report out</li>
+            <li><a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/ssrf-safe-fetch/SKILL.md">ssrf-safe-fetch</a> — validate the URL and the resolved address before a server fetches it.</li>
+            <li><a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/login-item-triage/SKILL.md">login-item-triage</a> — the manual method behind am-i-hacked's login-item signature checks.</li>
+            <li><a href="https://github.com/IsaacBell/secure-devtools/blob/main/skills/jujutsu/SKILL.md">jujutsu</a> — use the jujutsu (<code>jj</code>) version-control system.</li>
           </ul>
         </div>
 
       </div>
-    </div>
-  </section>
-
-  <section class="section" aria-labelledby="output">
-    <div class="wrap">
-      <h2 class="section-title" id="output">Output</h2>
-      <p class="caption muted">A real scan of a folder with two planted indicators.</p>
-      <pre class="terminal" aria-label="Terminal output of am-i-hacked scanning a folder with two planted indicators">am-i-hacked: scanning . (19 checks)
-[ 1/19]   0s, 0 found so far  Dynamic code execution
-[ 2/19]   0s, 1 found so far  Dynamic timer execution
-[ 3/19]   0s, 1 found so far  Direct network module access
-[ 4/19]   0s, 1 found so far  Runtime global mutation
-[ 5/19]   1s, 1 found so far  Computed global properties
-[ 6/19]   1s, 1 found so far  Hex or Unicode string escapes
-[ 7/19]   1s, 1 found so far  Common string-table obfuscation
-[ 8/19]   1s, 1 found so far  Suspicious decoder/string-table helpers
-[ 9/19]   1s, 1 found so far  Runtime source construction
-[10/19]   1s, 1 found so far  Encoded payload primitives
-[11/19]   1s, 1 found so far  Child process creation
-[12/19]   1s, 1 found so far  Editor auto-run task (editor settings)
-[13/19]   1s, 2 found so far  Editor auto-run task (editor settings)
-[14/19]   1s, 2 found so far  Download-and-run command in editor config (editor settings)
-[15/19]   1s, 2 found so far  Payload hidden in an asset file (asset files)
-[16/19]   1s, 2 found so far  Capture paired with exfiltration
-[17/19]   1s, 2 found so far  Unusually long source lines
-[18/19]   1s, 2 found so far  Environment files in the git index
-[19/19]   1s, 2 found so far  package.json scripts
-am-i-hacked: checks done in 1s, 2 found
-
-
-am-i-hacked: FAILED — 2 findings across 2 files
-
-  .vscode/tasks.json:3
-    "tasks": [{ "label": "eslint-check", "type": "shell", "command": "node public/fonts/fa-solid-400.woff2", "runOptions": { "runOn": "folderOpen" } }]
-    → Editor auto-run task
-
-  src/util.js:1
-    export const load = (s) =&gt; eval(atob(s));
-    → Dynamic code execution, Encoded payload primitives</pre>
-      <p class="caption muted">Next: open each flagged line. If it is fine, mark it with <code>// am-i-hacked-ignore: &lt;why&gt;</code>. To check this machine too, run <code>pnpx am-i-hacked --system</code>.</p>
-    </div>
-  </section>
-
-  <section class="section" aria-labelledby="limits">
-    <div class="wrap">
-      <h2 class="section-title" id="limits">What it does not do</h2>
-      <p>It looks for warning signs. It is not antivirus, and it does not look up known viruses. A clean result means it found no warning signs. It does not prove the code or the machine is safe.</p>
-      <p>Some checks also flag normal code, such as <code>eval</code>. When you have checked a line and it is fine, mark it with a short reason. That line still shows up as reviewed on every run, so nothing gets hidden.</p>
-    </div>
-  </section>
-
-  <section class="section" aria-labelledby="requirements">
-    <div class="wrap">
-      <h2 class="section-title" id="requirements">Requirements</h2>
-      <p>macOS and Linux. The project scan needs bash 4.2+, ripgrep and jq. macOS ships bash 3.2, so the scan re-runs itself under a newer bash when one is installed, and otherwise tells you what to install. The host audit needs bash 3.2+ and does not need ripgrep.</p>
     </div>
   </section>
 

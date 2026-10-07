@@ -2,6 +2,22 @@
 
 Newest first. Default-behavior changes are marked **CHANGED**.
 
+## Unreleased
+
+**BLUF:** The system scan now checks the fixed places tooling installs code outside any project, the folder scan verifies Python virtualenv integrity, and the findings cap rises to 1000. `bin/host-audit.sh` is renamed to `bin/system-scan.sh`, with the old name kept as a shim.
+
+### Added
+- The system scan (`--system`) now also scans a fixed list of "dark corners" where tooling installs code outside any project: Python virtualenvs, the uv and pip caches, pyenv, pipx, the npx cache, the pnpm global store, cargo, bun, deno, and the go and gem bin folders. Each is scanned with the folder scan when present and skipped silently when it does not exist.
+- Python virtualenv integrity check in the folder scan: files that no longer match their package `RECORD` hashes are a `HIGH` finding; `RECORD` paths that leave the venv, files no package owns, `.pth` and `sitecustomize` hooks that run code, unreadable files and folders (reported rather than skipped), and symlinks and file names containing newlines are all reported.
+- `--max-findings N` sets the maximum findings printed, default raised from 100 to 1000. **CHANGED:** when findings exceed the cap, the true total and a per-rule count are printed, and higher-severity findings are kept first.
+
+### Changed
+- **CHANGED:** hex and unicode escape findings inside dependency folders (`site-packages`, `node_modules`, `vendor`) are reported as one summary count instead of one finding per match.
+- **CHANGED:** `bin/host-audit.sh` is now `bin/system-scan.sh`. `bin/host-audit.sh` remains as a shim, and the `host` command still works.
+
+### Fixed
+- The `ignored null byte in input` warnings printed on binary files are no longer emitted.
+
 ## 2.0.1 - 2026-10-01
 
 **BLUF:** A security release. The scan no longer trusts the tree it is reviewing: a scanned repo's `.git/config` could make it run a command, and payloads in dot-directories, in folders named in `.ignore` or `.rgignore`, in tracked files matched by `.gitignore`, and in tracked build output were not read. It also fixes a skip on extensionless scripts.

@@ -38,8 +38,8 @@ The skills, in [`skills/`](skills/): [quarantine-review](skills/quarantine-revie
 ## Why this one?
 
 - **Instant.** One command, no signup, no account, no API key: `pnpx am-i-hacked .`
-- **CI by copy-paste.** Exit code `1` on findings; the [package README](apps/am-i-hacked/README.md#-usage) has the workflow snippet.
-- **Catches what advisory scanners cannot.** `npm audit`, OSV-Scanner and similar tools match your dependencies against published advisories. They cannot see an attack nobody has reported yet, or one that lives in the repository itself: a `.vscode/tasks.json` that runs when you open the folder, a script saved as a font file, a stealer that starts itself at login. `am-i-hacked` reads the files for those indicators before you open, install or run anything. Use both.
+- **CI by copy-paste.** Exit code `1` on findings; the [package README](apps/am-i-hacked/README.md#install-and-run) has the workflow snippet.
+- **Catches what advisory scanners cannot.** `npm audit`, OSV-Scanner and similar tools match your dependencies against published advisories. They cannot see an unreported attack, or one that lives in the repository itself: a `.vscode/tasks.json` that runs on folder open, a script saved as a font file, a stealer that starts at login. `am-i-hacked` reads the files for those indicators before you open, install or run anything. Use both.
 
 ## What it does not do
 
@@ -61,7 +61,7 @@ mise run check   # shellcheck, shfmt check and the bats tests: what CI runs
 
 ## Semgrep
 
-[`secure-semgrep`](apps/secure-semgrep/README.md) is the repository's static-analysis pack: bundled, owned rules for AI agents and bash, plus Semgrep loadout packs you can point at any codebase. It lives in [`apps/secure-semgrep`](apps/secure-semgrep/README.md) and publishes to npm as `secure-semgrep`, mirroring how `am-i-hacked` is published.
+[`secure-semgrep`](apps/secure-semgrep/README.md) is the repository's static-analysis pack: bundled, owned rules for AI agents and bash, plus Semgrep loadout packs you can point at any codebase. It publishes to npm as `secure-semgrep`.
 
 Run it over this repository (review mode records findings without breaking the build):
 

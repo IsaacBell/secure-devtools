@@ -1,47 +1,42 @@
 # llms.txt
 
-> am-i-hacked — check the code you are about to run, and the machine you run it on, before it runs.
+> secure-devtools — plain-shell security tools for the code you are about to run, and the machine you run it on.
 
-am-i-hacked is a command-line security scanner for macOS and Linux. It checks a project folder before you open, install, or run anything, and can audit the host machine for persistence and exfiltration indicators. It runs with no signup, no account, and no API key, and exits with code 1 on findings so it drops into dev scripts or CI.
+secure-devtools is a collection of local security tools for macOS and Linux. They check a project folder, and the machine, for supply-chain and dev-environment attack indicators. They need no signup, account or API key, install nothing at runtime, and exit non-zero on findings so they drop into dev scripts or CI.
 
 **Website:** https://isaacbell.github.io/secure-devtools/
-**Run it:**
-- `pnpx am-i-hacked .`
-- `npx am-i-hacked .`
+**Repository:** https://github.com/IsaacBell/secure-devtools
 
-## What it is
+## Tools (apps/)
 
-- A pre-execution warning-sign scanner for source code and developer machines.
-- Designed to catch attack patterns that advisory scanners cannot see — unreported attacks, or attacks living in the repository itself.
-- A complement to `npm audit` and OSV-Scanner, not a replacement. Advisory scanners match dependencies against reported vulnerabilities; am-i-hacked looks for warning signs in the code and machine in front of you.
+- **am-i-hacked** — scan a project folder before you open, install or run it for malicious-code indicators, and (`--system`) audit the machine for persistence, capture tools and risky AI-tool config. Run: `pnpx am-i-hacked .` — https://github.com/IsaacBell/secure-devtools/tree/main/apps/am-i-hacked
+- **am-i-being-recorded** — name the browser extension behind a screen-recording indicator, and list what else on the machine can capture you. Run: `pnpx am-i-being-recorded` — https://github.com/IsaacBell/secure-devtools/tree/main/apps/am-i-being-recorded
+- **secure-semgrep** — a thin Semgrep CLI that runs bundled AI-agent and bash security rules plus maintained loadout packs (`py`, `js`, `ts`, `react`, `node`, `rust`). Needs `semgrep`. Run: `pnpx secure-semgrep ./src` — https://github.com/IsaacBell/secure-devtools/tree/main/apps/secure-semgrep
 
-## Key capabilities
+## Agent skills (skills/)
 
-### Project scan (runs on a folder)
-Scans JS/TS, Python, Rust, Ruby, C, C++, and C# sources. Skips `node_modules`, build output, and VCS directories. Detects:
+Install all with `npx skills add IsaacBell/secure-devtools -g`, or one with `--skill <name>`. Each skill lives at `skills/<name>/SKILL.md`.
 
-- Dynamic code execution (`eval`, `new Function`), child-process execution, direct network module access, runtime writes to globals
-- Encoded or obfuscated payloads (`atob`, hex/unicode escapes, `_0x` string tables), unusually long source lines
-- Suspicious `package.json` scripts
-- Editor config that runs code unprompted: `runOn` triggers or `task.allowAutomaticTasks` in `.vscode/*.json` or `.idea/tasks.json`
-- Download-and-run commands in editor config (`curl | sh`, `powershell`, `osascript`, `base64 -d`)
-- Executable payloads disguised as binary assets (JavaScript inside `.woff2` or `.png`)
-- Clipboard, keystroke, or screen capture paired with an exfiltration address
-- `.env` / `.env.*` files tracked in the git index
+- **quarantine-review** — inspect an untrusted repository without running any of it.
+- **secure-skill-pull** — vet a skill or plugin from a URL without running its installer.
+- **create-skill** — write, check and publish an agent skill.
+- **skill-publish-review** — review skills before they go into a public repository.
+- **ssrf-safe-fetch** — validate the URL and the resolved address before a server fetches it.
+- **login-item-triage** — the manual method behind am-i-hacked's login-item signature checks.
+- **jujutsu** — use the jujutsu (`jj`) version-control system.
 
-### Machine audit (`--system`)
-Read-only, no root or sudo required. AI-tool config is checked even without the flag; `--system` adds:
+## am-i-hacked in detail
 
-- Login items (launchd on macOS; user systemd units and XDG autostart on Linux) that capture clipboard/keys/screen or send to Telegram, Discord, or webhooks
-- Crontab: remote scripts piped to a shell; jobs running from user-writable places
-- macOS code signatures on programs run by login items
-- Shell startup files: download-to-shell piping, eval of downloaded code, `DYLD_INSERT_LIBRARIES`, `NODE_OPTIONS --require`, disabled TLS checks
-- AI-tool config for Claude, Codex, Cursor, Gemini, Kilo, and OpenCode: base URLs pointed at loopback or non-vendor hosts, hooks running code from writable paths, disabled permission prompts, plain-text keys, unpinned MCP servers
-- Processes: interpreters running from staging directories; capture-named scripts that report out
+- **Folder scan.** Reads JS/TS, Python, Rust, Ruby, C, C++, and C# sources. Skips `node_modules` and `.git`; also reads dot-directories and tracked files that `.gitignore` matches. Detects dynamic code execution (`eval`, `new Function`), child processes, direct network module access, runtime global writes; encoded or obfuscated payloads and unusually long lines; suspicious `package.json` scripts; editor config that runs code on folder open; download-and-run commands in editor config; executable payloads disguised as assets; clipboard/keystroke/screen capture paired with an exfiltration endpoint; `.env` files in the git index; official Yarn releases verified by SHA256; Python virtualenv integrity (package RECORD hashes, unowned files, code-running `.pth` hooks). In bundled code, only high-signal patterns are reported.
+- **System scan (`--system`, alias `--full-system-scan`).** Read-only, no root or sudo. Adds login persistence (launchd on macOS; systemd user units and XDG autostart on Linux) and macOS code signatures, crontab, shell startup files, user-level and managed AI-tool config, running processes, and the "dark corners" where tooling installs code outside any project. `am-i-hacked host [dir]` checks only a folder's AI-tool config.
+- **Flags:** `<dir>`; `--system`/`--full-system-scan`; `--max-findings N` (folder scan, default 1000); `-v`/`--verbose`; `-h`/`--help`.
+- **Suppressing a finding:** comment `am-i-hacked-ignore: <reason>` on the flagged line or the line before it; the reason is required. The old `am-i-compromised-ignore:` spelling is honored. Suppressed findings are always listed. For the system scan, allow a finding with `<id> | <reason>` in `~/.config/am-i-hacked/host-allow.txt`.
+- **Exit codes:** `0` nothing found; `1` findings to review or a missing requirement; `2` usage error.
+- **Limitations (state these):** it looks for warning signs, is **not antivirus**, and does not look up known viruses. A clean result does **not** prove the code or machine is safe. Some checks flag ordinary code such as `eval`.
 
 ## CI usage
 
-A GitHub Actions job on `ubuntu-latest`. The runner has bash and jq but no pnpm; ripgrep is installed first in case it is missing.
+A GitHub Actions job on `ubuntu-latest`. The runner has bash and jq but no pnpm; ripgrep is installed first.
 
 ```yaml
 - uses: pnpm/action-setup@v4
@@ -51,45 +46,15 @@ A GitHub Actions job on `ubuntu-latest`. The runner has bash and jq but no pnpm;
 - run: pnpx am-i-hacked@2 .
 ```
 
-## Output and exit behavior
-
-Prints per-check progress and a findings summary. Example:
-
-```
-am-i-hacked: scanning . (19 checks)
-...
-am-i-hacked: checks done in 1s, 2 found
-
-am-i-hacked: FAILED — 2 findings across 2 files
-
-  .vscode/tasks.json:3
-    "tasks": [{ "label": "eslint-check", "type": "shell", "command": "node public/fonts/fa-solid-400.woff2", "runOptions": { "runOn": "folderOpen" } }]
-    → Editor auto-run task
-
-  src/util.js:1
-    export const load = (s) => eval(atob(s));
-    → Dynamic code execution, Encoded payload primitives
-```
-
-Exits `1` on findings.
-
-## Limitations
-
-- It looks for warning signs. It is **not antivirus** and does not look up known viruses.
-- A clean result means no warning signs were found; it does **not** prove the code or machine is safe.
-- Some checks flag normal code (e.g. `eval`). Reviewed lines can be marked with a short reason and will show as reviewed on every run, so nothing is hidden.
-
 ## Requirements
 
 - macOS and Linux.
-- Project scan: bash 4.2+, ripgrep, jq. macOS ships bash 3.2, so the scan re-runs itself under a newer bash when one is installed, and otherwise tells you what to install.
-- Host audit: bash 3.2+ and does not need ripgrep.
+- Folder scan: bash 4.2+, ripgrep, jq.
+- System scan: bash 3.2+, jq (no ripgrep).
 
 ## Notes for LLM use
 
-- Canonical URL: https://www.npmjs.com/package/am-i-hacked and github.com/IsaacBell/secure-devtools/tree/main/apps/am-i-hacked
+- Canonical URL: https://isaacbell.github.io/secure-devtools/
 - Primary command: `pnpx am-i-hacked .` (or `npx am-i-hacked .`)
-- Flags mentioned: `--system` (machine audit)
-- Current major version referenced in CI example: `am-i-hacked@2`
-- Use case fit: pre-install/pre-run checks, CI gating, developer machine auditing
-- Do not describe it as antivirus or as a vulnerability database scanner
+- Use case fit: pre-install/pre-run checks, CI gating, developer-machine auditing.
+- Do not describe am-i-hacked as antivirus or as a vulnerability-database scanner.
