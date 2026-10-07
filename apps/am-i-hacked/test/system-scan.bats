@@ -1060,7 +1060,7 @@ EOF
   chmod +x "$BATS_TEST_TMPDIR/stub/crontab"
   PATH="$BATS_TEST_TMPDIR/stub:$PATH" audit
   assert_failure 1
-  assert_output --partial "The user crontab was not inspected"
+  assert_output --partial "Scheduled jobs (crontab) were not inspected"
 }
 
 @test "cron: a user with no crontab is still clean" {
@@ -1069,7 +1069,7 @@ EOF
   printf '#!/bin/sh\necho "no crontab for tester" >&2\nexit 1\n' >"$BATS_TEST_TMPDIR/stub/crontab"
   chmod +x "$BATS_TEST_TMPDIR/stub/crontab"
   PATH="$BATS_TEST_TMPDIR/stub:$PATH" audit
-  refute_output --partial "The user crontab was not inspected"
+  refute_output --partial "Scheduled jobs (crontab) were not inspected"
 }
 
 @test "pending: busybox ps (no -x, no pid= columns) falls back to a form it supports" {

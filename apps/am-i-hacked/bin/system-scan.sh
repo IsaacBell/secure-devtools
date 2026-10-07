@@ -814,11 +814,11 @@ audit_cron() {
 	if [[ -n "${AIC_HOST_CRONTAB_FILE:-}" ]]; then
 		tab="$(cat "${AIC_HOST_CRONTAB_FILE}" 2>/dev/null)"
 	elif ! tab="$(crontab -l 2>&1)"; then
-		# "no crontab for <user>" is the normal empty case; anything else means the
-		# crontab was never read and must not pass as clean.
+		# A user with no scheduled jobs is the normal empty case; anything else means
+		# the jobs were never read and must not pass as clean.
 		case "$tab" in
-		*"no crontab for"*) ;;
-		*) finding MEDIUM "cron:unreadable" "The user crontab was not inspected" "crontab -l" "$(printf '%s' "$tab" | head -n 1)" "Run crontab -l by hand and read every line. The audit stays open rather than reporting a check it could not perform." ;;
+		*"no crontab"*) ;;
+		*) finding MEDIUM "cron:unreadable" "Scheduled jobs (crontab) were not inspected" "crontab -l" "$(printf '%s' "$tab" | head -n 1)" "Run crontab -l by hand and read every line. The audit stays open rather than reporting a check it could not perform." ;;
 		esac
 		tab=""
 	fi
