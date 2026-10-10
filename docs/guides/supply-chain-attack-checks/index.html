@@ -105,7 +105,7 @@
 <article class="wrap article">
   <header class="page-head">
     <h1>How to catch a supply-chain attack that npm audit misses</h1>
-    <p class="byline muted">By <a href="https://isaacbell.io">Isaac Bell</a> · Updated <time datetime="2026-10-07">7 October 2026</time> · Applies to am-i-hacked 2.0.1</p>
+    <p class="byline muted">By <a href="https://isaacbell.io">Isaac Bell</a> · Updated <time datetime="2026-10-07">7 October 2026</time> · Applies to am-i-hacked 2.1.0</p>
   </header>
   <div class="answer"><p>Advisory scanners such as <code>npm audit</code>, OSV-Scanner and Snyk compare your dependency versions with known, published vulnerabilities. They cannot see an attack committed into the repository itself, or one nobody has reported yet. Add an indicator-based check that reads the code: run <code>npx am-i-hacked</code> before the dev server and in CI, and pull with <code>safe-pull</code> so incoming commits are inspected before they reach your working tree. Run both kinds of check.</p></div>
   <div class="prose">
@@ -142,7 +142,7 @@ safe-pull             # inspect, then merge --ff-only</code></pre>
 <ul>
   <li>Official Yarn release files committed to the repository, verified by SHA256.</li>
   <li><code>.env</code> files in the git index.</li>
-  <li>Python virtualenvs whose files no longer match their package <code>RECORD</code> hashes, files no package owns, and <code>.pth</code> hooks that run code. This check ships in the next am-i-hacked release, after 2.0.1.</li>
+  <li>Python virtualenvs whose files no longer match their package <code>RECORD</code> hashes, files no package owns, and <code>.pth</code> hooks that run code. This check was added in am-i-hacked 2.1.0.</li>
 </ul>
 
 <h2 id="limits">Limits</h2>

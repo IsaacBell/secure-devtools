@@ -107,6 +107,22 @@ pull_guard() {
   [ ! -f "$WORK/feature.js" ]
 }
 
+@test "core.fsmonitor from the working tree's .git/config does not run" {
+  printf 'console.log("feature")\n' >"$OTHER/feature.js"
+  commit_and_push "$OTHER" "add feature"
+
+  cd "$WORK"
+  # Set after setup, which would run the hook itself. The marker sits outside
+  # the working tree so it cannot dirty it.
+  git -C "$WORK" config core.fsmonitor "touch '$TMP/ran'; false"
+  pull_guard --dry-run
+  if [[ -e "$TMP/ran" ]]; then
+    fail "core.fsmonitor from the working tree ran during safe-pull"
+  fi
+  assert_success
+  assert_output --partial "clean (dry run)"
+}
+
 # -------------------------------------------------------------------------------
 # Refusals
 # -------------------------------------------------------------------------------

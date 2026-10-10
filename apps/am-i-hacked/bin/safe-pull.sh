@@ -78,6 +78,15 @@ if ! command -v git >/dev/null 2>&1; then
 	exit 2
 fi
 
+# Every git call below runs with the working tree's config defanged. A repository
+# received as an archive carries its own `.git/config`, and `git status` runs any
+# command that config names in `core.fsmonitor`. This does not cover config that
+# `git fetch` itself reads (for example `core.sshCommand`): run safe-pull only in a
+# repository whose `.git` you created, not one that arrived as an archive.
+git() {
+	command git -c core.fsmonitor=false "$@"
+}
+
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 	printf 'safe-pull: not inside a git working tree\n' >&2
 	exit 2

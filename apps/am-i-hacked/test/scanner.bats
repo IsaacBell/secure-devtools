@@ -528,7 +528,7 @@ write_file() {
 
 @test "editor MCP config: local package-runner servers are not flagged" {
   write_file ".vscode/mcp.json" \
-    '{"servers":{"serena":{"type":"stdio","command":"uvx","args":["--from","git+https://github.com/oraios/serena","serena","start-mcp-server"]},"context7":{"type":"stdio","command":"pnpm","args":["dlx","@upstash/context7-mcp"]}}}'
+    '{"servers":{"docs-server":{"type":"stdio","command":"uvx","args":["--from","git+https://github.com/example/docs-server","docs-server","start"]},"context7":{"type":"stdio","command":"pnpm","args":["dlx","@upstash/context7-mcp"]}}}'
   scan
   assert_success
 }

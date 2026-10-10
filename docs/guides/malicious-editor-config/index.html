@@ -105,7 +105,7 @@
 <article class="wrap article">
   <header class="page-head">
     <h1>How to detect malicious VS Code tasks that run when a folder opens</h1>
-    <p class="byline muted">By <a href="https://isaacbell.io">Isaac Bell</a> · Updated <time datetime="2026-10-07">7 October 2026</time> · Applies to am-i-hacked 2.0.1</p>
+    <p class="byline muted">By <a href="https://isaacbell.io">Isaac Bell</a> · Updated <time datetime="2026-10-07">7 October 2026</time> · Applies to am-i-hacked 2.1.0</p>
   </header>
   <div class="answer"><p>VS Code, and editors built on it such as Cursor, can run a task automatically when a folder opens if <code>.vscode/tasks.json</code> sets <code>"runOn": "folderOpen"</code>. A malicious repository uses this to run a download-and-execute command the moment you look at it. Before opening an unfamiliar folder, scan it with <code>npx am-i-hacked &lt;dir&gt;</code>, which flags editor auto-run tasks and download-and-run commands in editor config, and keep Workspace Trust turned on.</p></div>
   <div class="prose">

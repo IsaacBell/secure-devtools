@@ -2,12 +2,12 @@
 
 Newest first. Default-behavior changes are marked **CHANGED**.
 
-## Unreleased
+## 2.1.0 - 2026-10-09
 
-**BLUF:** The system scan now checks the fixed places tooling installs code outside any project, the folder scan verifies Python virtualenv integrity, and the findings cap rises to 1000. `bin/host-audit.sh` is renamed to `bin/system-scan.sh`, with the old name kept as a shim.
+**BLUF:** A security release with new checks. The scan no longer trusts the tree it is reviewing: a scanned repo's `.git/config` could make `am-i-hacked` or `safe-pull` run a command, and payloads in dot-directories, in folders named in `.ignore` or `.rgignore`, in tracked files matched by `.gitignore`, and in tracked build output were not read. It also adds a dark-corner system scan and Python virtualenv integrity, and raises the findings cap to 1000. `bin/host-audit.sh` is renamed to `bin/system-scan.sh`, with the old name kept as a shim. A 2.0.1 was prepared but never published; everything in it is in this release.
 
 ### Added
-- The system scan (`--system`) now also scans a fixed list of "dark corners" where tooling installs code outside any project: Python virtualenvs, the uv and pip caches, pyenv, pipx, the npx cache, the pnpm global store, cargo, bun, deno, and the go and gem bin folders. Each is scanned with the folder scan when present and skipped silently when it does not exist.
+- The system scan (`--system`) now also scans a fixed list of "dark corners" where tooling installs code outside any project: Python virtualenvs (`~/.venv` and `~/.virtualenvs`), pyenv versions, uv tools and cache, the pip cache, pipx, the npx cache, the pnpm global store, cargo's `bin`, bun, deno, go's `bin`, and the gem folder (`~/.gem`). Each is scanned with the folder scan when present and skipped silently when it does not exist.
 - Python virtualenv integrity check in the folder scan, for every venv under the scanned folder: files that no longer match their package `RECORD` hashes are a `HIGH` finding; `RECORD` paths that leave the venv or pass through a symlinked folder (never opened), files and symlinks no package owns, console scripts and symlinks in `bin/` no package claims (each venv checked on its own claims), a console script name containing `|`, `RECORD` entries with no hash, a venv whose `RECORD` files or whole `dist-info` folders were deleted, a `_virtualenv.pth` that is not the stock one-line file, `.pth` and `sitecustomize` hooks that run code, unreadable files and folders (reported rather than skipped), and file names containing newlines are all reported.
 - `--max-findings N` sets the maximum findings printed, from 1 to 999999999, default raised from 100 to 1000. **CHANGED:** when findings exceed the cap, the true total and a per-rule count are printed, and higher-severity findings are kept first.
 - The system scan reports a check it could not run instead of passing it: `ps` missing or failing, a `crontab -l` error other than "no crontab", `codesign` missing, an AI-tool config `jq` cannot parse (JSONC), an unreadable dark corner, your own relative-path process whose working directory `lsof` could not resolve, and a login item's file that you own but cannot read (a root-owned one stays informational).
@@ -15,8 +15,15 @@ Newest first. Default-behavior changes are marked **CHANGED**.
 ### Changed
 - **CHANGED:** hex and unicode escape findings inside installed dependency folders (`site-packages`, `dist-packages`, `node_modules`) are reported as one summary count instead of one finding per match. `vendor/` is committed with the project, so its findings are still listed.
 - **CHANGED:** `bin/host-audit.sh` is now `bin/system-scan.sh`. `bin/host-audit.sh` remains as a shim, and the `host` command still works.
+- **CHANGED:** bundled code (webpack/esbuild/ncc) identified by markers in the first 4096 bytes (`__webpack_require__`, `__nccwpck_require__`, `webpackBootstrap`, `__toESM(`, `__commonJS(`) receives only high-signal checks. Routine patterns in bundles (dynamic code execution, network modules, child process) are counted but not flagged; obfuscation, capture/exfiltration and bot tokens still are.
+- **CHANGED:** embedded WebAssembly data: URLs (`data:application/(wasm|octet-stream);base64,AGFzbQ...`) on a single line are no longer flagged for line length, as they are expected to be long.
 
 ### Security
+- **CHANGED:** the scan now reads dot-directories, no longer reads `.ignore` or `.rgignore`, and scans tracked files that `.gitignore` matches. Committed build output is now scanned, so findings may appear in `dist/`, `.github/`, `.vscode/` and similar. Untracked build output listed in `.gitignore` is still skipped, and `node_modules` and `.git` are always skipped.
+- Payloads were not scanned when they sat in a dot-directory, in a folder named in `.ignore` or `.rgignore`, in a tracked file matched by `.gitignore`, or in a tracked build output folder. All of these are scanned now.
+- A scanned repo's `.git/config` could make the scan run a command: `git ls-files` runs any `core.fsmonitor` hook the config names. The scan now runs git with `core.fsmonitor=false`.
+- `safe-pull` had the same flaw: its `git status` ran the `core.fsmonitor` command named in the working tree's `.git/config`. Every git call in `safe-pull` now runs with `core.fsmonitor=false`. Config that `git fetch` itself reads, such as `core.sshCommand`, is not covered, so run `safe-pull` only in a repository whose `.git` you created.
+- **CHANGED:** 71 official Yarn releases in `.yarn/releases` are verified by SHA256 checksum; a mismatch is a finding at line 1. Unverified or malicious Yarn files no longer pass silently.
 - A source file containing a NUL byte was skipped as binary, so one NUL in a comment hid the whole file from the folder scan. Source files are now always read as text.
 - A systemd or autostart `Exec` line containing `*` was glob-expanded against the scanner's working directory. It is now split without globbing.
 - A hook command containing a tab was cut at the tab, so a dangerous path after it was not checked.
@@ -24,25 +31,9 @@ Newest first. Default-behavior changes are marked **CHANGED**.
 
 ### Fixed
 - The `ignored null byte in input` warnings are no longer emitted, including for matched lines and build-output detection.
-
-## 2.0.1 - 2026-10-01
-
-**BLUF:** A security release. The scan no longer trusts the tree it is reviewing: a scanned repo's `.git/config` could make it run a command, and payloads in dot-directories, in folders named in `.ignore` or `.rgignore`, in tracked files matched by `.gitignore`, and in tracked build output were not read. It also fixes a skip on extensionless scripts.
-
-### Security
-- **CHANGED:** the scan now reads dot-directories, no longer reads `.ignore` or `.rgignore`, and scans tracked files that `.gitignore` matches. Committed build output is now scanned, so findings may appear in `dist/`, `.github/`, `.vscode/` and similar. Untracked build output listed in `.gitignore` is still skipped, and `node_modules` and `.git` are always skipped.
-- Payloads were not scanned when they sat in a dot-directory, in a folder named in `.ignore` or `.rgignore`, in a tracked file matched by `.gitignore`, or in a tracked build output folder. All of these are scanned now.
-- A scanned repo's `.git/config` could make the scan run a command: `git ls-files` runs any `core.fsmonitor` hook the config names. The scan now runs git with `core.fsmonitor=false`.
-- **CHANGED:** 71 official Yarn releases in `.yarn/releases` are verified by SHA256 checksum; a mismatch is a finding at line 1. Unverified or malicious Yarn files no longer pass silently.
-
-### Changed
-- **CHANGED:** bundled code (webpack/esbuild/ncc) identified by markers in the first 4096 bytes (`__webpack_require__`, `__nccwpck_require__`, `webpackBootstrap`, `__toESM(`, `__commonJS(`) receives only high-signal checks. Routine patterns in bundles (dynamic code execution, network modules, child process) are counted but not flagged; obfuscation, capture/exfiltration and bot tokens still are.
-- **CHANGED:** embedded WebAssembly data: URLs (`data:application/(wasm|octet-stream);base64,AGFzbQ...`) on a single line are no longer flagged for line length, as they are expected to be long.
-
-### Fixed
 - An extensionless script inside a folder with a dot in its name (for example `.devcontainer/sync-agent`) was skipped. The extensionless check now tests the file name.
 
-Upgrade: `pnpm add -D am-i-hacked@2.0.1`, or run the pinned version without installing: `pnpx am-i-hacked@2.0.1 .`
+Upgrade: `npm install --save-dev am-i-hacked@2.1.0`, or run the pinned version without installing: `npx am-i-hacked@2.1.0`
 
 ## 2.0.0 - 2026-10-01
 

@@ -4,7 +4,7 @@
 
 secure-devtools is a collection of local security tools for macOS and Linux. They check a project folder, and the machine, for supply-chain and dev-environment attack indicators. They need no signup, account or API key, have no npm runtime dependencies, and exit non-zero on findings so they drop into dev scripts or CI.
 
-**Current releases:** `am-i-hacked` 2.0.1, `am-i-being-recorded` 1.0.0, `secure-semgrep` 1.0.1. In the next `am-i-hacked` release: a dark-corner system scan, a Python virtualenv integrity check, and `--max-findings`.
+**Current releases:** `am-i-hacked` 2.1.0, `am-i-being-recorded` 1.0.0, `secure-semgrep` 1.0.1.
 **Website:** https://isaacbell.github.io/secure-devtools/
 **Repository:** https://github.com/IsaacBell/secure-devtools
 **Maintainer:** Isaac Bell — https://isaacbell.io — https://github.com/IsaacBell
@@ -53,8 +53,6 @@ Install all with `npx skills add IsaacBell/secure-devtools -g`, or one with `--s
 - **jujutsu** — use the jujutsu (`jj`) version-control system.
 
 ## am-i-hacked in detail
-
-The dark-corner system scan, the Python virtualenv integrity check and `--max-findings` below are unreleased: they ship in the next `am-i-hacked` release and are not in 2.0.1.
 
 - **Folder scan.** Reads JS/TS, Python, Rust, Ruby, C, C++, and C# sources. Skips `node_modules` and `.git`; also reads dot-directories and tracked files that `.gitignore` matches. Detects dynamic code execution (`eval`, `new Function`), child processes, direct network module access, runtime global writes; encoded or obfuscated payloads and unusually long lines; suspicious `package.json` scripts; editor config that runs code on folder open; download-and-run commands in editor config; executable payloads disguised as assets; clipboard/keystroke/screen capture paired with an exfiltration endpoint; `.env` files in the git index; official Yarn releases verified by SHA256; Python virtualenv integrity (package RECORD hashes, unowned files, code-running `.pth` hooks). In bundled code, only high-signal patterns are reported.
 - **System scan (`--system`, alias `--full-system-scan`).** Read-only, no root or sudo. Adds login persistence (launchd on macOS; systemd user units and XDG autostart on Linux) and macOS code signatures, crontab, shell startup files, user-level and managed AI-tool config, running processes, and the "dark corners" where tooling installs code outside any project. `am-i-hacked host [dir]` checks only a folder's AI-tool config.

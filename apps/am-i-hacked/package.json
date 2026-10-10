@@ -1,6 +1,6 @@
 {
   "name": "am-i-hacked",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Scan a project for malicious code and audit your machine for persistence, capture tools and risky AI-tool config",
   "license": "MIT",
   "author": "Isaac Bell <contact@isaacbell.io>",

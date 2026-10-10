@@ -67,7 +67,7 @@
   "applicationCategory": "SecurityApplication",
   "applicationSubCategory": "Command-line tool",
   "operatingSystem": "macOS, Linux",
-  "softwareVersion": "2.0.1",
+  "softwareVersion": "2.1.0",
   "softwareRequirements": "bash 4.2+, ripgrep and jq for the folder scan; bash 3.2+ and jq for the system scan",
   "license": "https://opensource.org/license/mit",
   "isAccessibleForFree": true,
@@ -151,7 +151,7 @@
 <article class="wrap article">
   <header class="page-head">
     <h1>am-i-hacked</h1>
-    <p class="byline muted">By <a href="https://isaacbell.io">Isaac Bell</a> · Updated <time datetime="2026-10-07">7 October 2026</time> · Version 2.0.1 · <a href="https://www.npmjs.com/package/am-i-hacked">npm</a> · <a href="https://github.com/IsaacBell/secure-devtools/tree/main/apps/am-i-hacked">source</a></p>
+    <p class="byline muted">By <a href="https://isaacbell.io">Isaac Bell</a> · Updated <time datetime="2026-10-07">7 October 2026</time> · Version 2.1.0 · <a href="https://www.npmjs.com/package/am-i-hacked">npm</a> · <a href="https://github.com/IsaacBell/secure-devtools/tree/main/apps/am-i-hacked">source</a></p>
   </header>
   <div class="answer"><p>am-i-hacked is a command-line scanner that checks the code you are about to run, and the machine you run it on, for signs of a supply-chain or dev-environment attack. <code>npx am-i-hacked</code> scans the current folder; <code>--system</code> also audits the machine. It is read-only, makes no network calls, needs no account, and exits <code>1</code> on findings. It is not antivirus: a clean result means no warning signs were found.</p></div>
   <div class="prose">
@@ -187,7 +187,7 @@ npm install --save-dev am-i-hacked</code></pre>
   <li><code>.env</code> files in the git index.</li>
   <li>Official Yarn releases, verified by SHA256.</li>
   <li>The folder's AI-tool config: <code>.claude/settings*.json</code> and <code>.mcp.json</code>.</li>
-  <li>Python virtualenv integrity: files that no longer match their package <code>RECORD</code> hashes, files no package owns, and <code>.pth</code> or startup hooks that run code. <em>Next release.</em></li>
+  <li>Python virtualenv integrity: files that no longer match their package <code>RECORD</code> hashes, files no package owns, and <code>.pth</code> or startup hooks that run code.</li>
 </ul>
 <p>Languages read: JS/TS, Python, Rust, Ruby, C, C++ and C#. Dot-directories and tracked files that <code>.gitignore</code> matches are read; <code>node_modules</code> and <code>.git</code> are skipped. In bundled output (webpack, esbuild, ncc) only high-signal patterns are reported.</p>
 
@@ -197,7 +197,7 @@ npm install --save-dev am-i-hacked</code></pre>
   <li>Shell startup files: piped remote scripts, injected libraries, hijacked <code>sudo</code> or <code>ssh</code>, background launchers, redirected AI API base URLs, proxies and extra certificate authorities.</li>
   <li>User-level and managed AI-tool config for Claude Code, Codex, Cursor, Gemini CLI, OpenCode and Kilo Code: permission bypass, plain-text keys, MCP servers that run unpinned code, and hooks.</li>
   <li>Running processes that run capture scripts or scripts from staging areas.</li>
-  <li>"Dark corners" where tooling installs code outside any project, such as virtualenvs, package-manager caches and language bin folders. <em>Next release.</em></li>
+  <li>"Dark corners" where tooling installs code outside any project, such as virtualenvs, package-manager caches and language bin folders.</li>
 </ul>
 
 <h2 id="example">Example output</h2>
@@ -224,7 +224,7 @@ npm install --save-dev am-i-hacked</code></pre>
     <tr><td><code>&lt;dir&gt;</code></td><td>Directory to scan (default: the current directory)</td></tr>
     <tr><td><code>host [dir]</code></td><td>Check only a folder's AI-tool config</td></tr>
     <tr><td><code>--system</code>, <code>--full-system-scan</code></td><td>Also audit the whole machine</td></tr>
-    <tr><td><code>--max-findings N</code></td><td>Maximum findings printed (default 1000; the true total is always shown). <em>Next release.</em></td></tr>
+    <tr><td><code>--max-findings N</code></td><td>Maximum findings printed (default 1000; the true total is always shown).</td></tr>
     <tr><td><code>-v</code>, <code>--verbose</code></td><td>System scan: also list informational items and every persistence entry with its signer</td></tr>
     <tr><td><code>-h</code>, <code>--help</code></td><td>Show usage</td></tr>
   </tbody>

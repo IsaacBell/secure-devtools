@@ -7,6 +7,23 @@ Newest first. One line per change. Default-behavior changes marked **CHANGED**. 
 ### CI
 - **CHANGED:** the security gate (`.github/workflows/gate.yml`) runs the latest stable `am-i-hacked` release from npm, pinned to an exact version, instead of the unreleased scanner on `main` (#6).
 
+## 2026-10-09 [am-i-hacked 2.1.0]
+
+**BLUF:** A security release: a scanned repository's `.git/config` can no longer make `am-i-hacked` or `safe-pull` run a command, and payloads in dot-directories, ignored folders and committed build output are now read. It also adds the dark-corner system scan, Python virtualenv integrity and `--max-findings`. There was no 2.0.1; its changes are in 2.1.0. The package changelog, [`apps/am-i-hacked/CHANGELOG.md`](apps/am-i-hacked/CHANGELOG.md), has the detail.
+
+### am-i-hacked
+- Security: the scan and `safe-pull` run git with `core.fsmonitor=false`, so a `.git/config` that ships inside an archive cannot run a command.
+- **CHANGED:** the scan reads dot-directories, ignores `.ignore` and `.rgignore`, and scans tracked files that `.gitignore` matches and committed build output. Findings may appear in `dist/`, `.github/`, `.vscode/` and similar.
+- **CHANGED:** 71 official Yarn releases in `.yarn/releases` are verified by SHA256.
+- **CHANGED:** bundled code gets only high-signal checks, and embedded WebAssembly data: URLs are not flagged for line length.
+- `--system` also scans a fixed list of dark corners (virtualenvs, package-manager caches, language bin folders), and reports a check it could not run instead of passing it.
+- The folder scan verifies Python virtualenv integrity against each package's `RECORD` hashes.
+- `--max-findings N` (default 1000, was 100). **CHANGED:** over the cap, the true total and a per-rule count are printed and higher-severity findings are kept first.
+- **CHANGED:** hex and unicode escape findings inside installed dependency folders are one summary count. `bin/host-audit.sh` is now `bin/system-scan.sh`, with the old name kept as a shim.
+
+### CI
+- The security gate pins `am-i-hacked` 2.1.0.
+
 ## 2026-10-05
 
 ### Skills
