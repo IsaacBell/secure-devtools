@@ -5,6 +5,10 @@ name: Security gate
 # checked out as data only: nothing from it is executed, no secrets are exposed,
 # and the token is read-only. The toolchain is installed before any pull request
 # file is on disk.
+#
+# The scanner is the latest stable am-i-hacked release from npm, pinned to an exact
+# version, never the unreleased source on main. Bump AIH_VERSION when a new release
+# ships (docs/RELEASING.md).
 on:
   push:
     branches: [main]
@@ -12,6 +16,9 @@ on:
 
 permissions:
   contents: read
+
+env:
+  AIH_VERSION: 2.0.1
 
 jobs:
   security-gate:
@@ -41,9 +48,9 @@ jobs:
       - name: Scan
         env:
           TARGET: ${{ github.event_name == 'pull_request_target' && '.review' || '.' }}
-        run: bash apps/am-i-hacked/bin/scanner.sh "$TARGET"
+        run: npx --yes "am-i-hacked@${AIH_VERSION}" "$TARGET"
 
       - name: Scan runner (login items, crontab, shell startup, agent config, processes)
-        run: bash apps/am-i-hacked/bin/scanner.sh --system
+        run: npx --yes "am-i-hacked@${AIH_VERSION}" --system
         # The hosted runner image is not ours; report its findings without blocking merges.
         continue-on-error: true

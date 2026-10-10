@@ -2,6 +2,11 @@
 
 Newest first. One line per change. Default-behavior changes marked **CHANGED**. Package versions in brackets.
 
+## 2026-10-10
+
+### CI
+- **CHANGED:** the security gate (`.github/workflows/gate.yml`) runs the latest stable `am-i-hacked` release from npm, pinned to an exact version, instead of the unreleased scanner on `main` (#6).
+
 ## 2026-10-05
 
 ### Skills
