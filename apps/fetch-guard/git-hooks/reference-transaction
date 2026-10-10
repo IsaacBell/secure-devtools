@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Git reference-transaction hook: refuse writes to refs/remotes/* made by fetch, pull, clone or remote update.
+# A fetch only writes objects, but moving a remote-tracking ref is what makes later checkouts, merges and tools
+# pick up what a compromised remote served. Content comes in through safe-pull.sh (bin/), which inspects the
+# incoming tree first and sets SAFE_PULL=1 for its own fetch. `git push` also moves refs/remotes/*; it is told
+# apart by GIT_REFLOG_ACTION and stays allowed. Not covered: tools that bypass git hooks (jj, libgit2).
+#
+# Contract: git runs this with the transaction state as $1 and "<old> <new> <ref>" lines on stdin.
+# Exit non-zero in the "prepared" state aborts the whole transaction.
+set -uo pipefail
+
+state="${1:-}"
+input="$(cat)"
+
+if [[ "$state" == prepared && "${SAFE_PULL:-}" != 1 ]]; then
+  case "${GIT_REFLOG_ACTION:-}" in
+    fetch* | pull* | clone* | remote*)
+      while read -r _ _ ref; do
+        if [[ "$ref" == refs/remotes/* ]]; then
+          {
+            echo "BLOCKED by fetch-guard: a raw fetch, pull or clone may not move $ref."
+            echo "Read names and commit ids with: git ls-remote <remote>"
+            echo "Bring content in with: bash apps/secure-devtools/apps/am-i-hacked/bin/safe-pull.sh --remote <name> --branch <name>"
+          } >&2
+          exit 1
+        fi
+      done <<<"$input"
+      ;;
+  esac
+fi
+
+# Global core.hooksPath replaces the repo's own hooks directory, so hand over to the repo's own hook.
+repo_hook="$(git rev-parse --git-path hooks/reference-transaction 2>/dev/null)" || exit 0
+if [[ -x "$repo_hook" ]]; then
+  printf '%s\n' "$input" | "$repo_hook" "$@"
+  exit $?
+fi
+exit 0

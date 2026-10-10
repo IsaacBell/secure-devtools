@@ -10,9 +10,9 @@
     "directory": "apps/am-i-hacked"
   },
   "bugs": {
-    "url": "https://github.com/IsaacBell/secure-devtools/issues"
+    "url": "https://github.com/IsaacBell/secure-devtools/security/advisories/new"
   },
-  "homepage": "https://github.com/IsaacBell/secure-devtools/tree/main/apps/am-i-hacked",
+  "homepage": "https://isaacbell.github.io/secure-devtools/tools/am-i-hacked",
 
   "funding": "https://ko-fi.com/ibell",
 
