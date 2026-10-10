@@ -1,7 +1,7 @@
 {
   "name": "am-i-being-recorded",
   "version": "1.0.0",
-  "description": "Audit screen/tab capture surfaces and the browser extensions that can start them",
+  "description": "Monitor screen capture surfaces and the apps that can start them",
   "license": "MIT",
   "author": "Isaac Bell <contact@isaacbell.io>",
   "repository": {
@@ -10,9 +10,9 @@
     "directory": "apps/am-i-being-recorded"
   },
   "bugs": {
-    "url": "https://github.com/IsaacBell/secure-devtools/issues"
+    "url": "https://github.com/IsaacBell/secure-devtools/security/advisories/new"
   },
-  "homepage": "https://github.com/IsaacBell/secure-devtools/tree/main/apps/am-i-being-recorded",
+  "homepage": "https://isaacbell.github.io/secure-devtools/tools/am-i-being-recorded",
 
   "funding": "https://ko-fi.com/ibell",
 
