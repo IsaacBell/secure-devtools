@@ -95,10 +95,6 @@ run = ["bash scripts/release.sh login", { task = "check" }, "bash scripts/releas
 description = "List the files one package would publish. Usage: mise run publish-dry-run apps/<package>"
 run = "bash scripts/release.sh dry-run"
 
-[tasks.export-public]
-description = "Stage the public repository as one fresh commit. Usage: mise run export-public <empty-dir>"
-run = "bash scripts/export-public.sh"
-
 [tasks.doctor]
 description = "Diagnose the dev environment (mise doctor)"
 run = "mise doctor"

@@ -44,15 +44,3 @@ at the new name:
 ```bash
 pnpm deprecate am-i-compromised "Renamed to am-i-hacked. Run: npx am-i-hacked"
 ```
-
-## Public repository
-
-The public repository is staged from an allowlist, `scripts/public-paths.txt`, as one fresh
-commit:
-
-```bash
-mise run export-public "$(mktemp -d)"
-```
-
-The export copies only listed paths, removes `!` lines, refuses local files, and fails on any
-personal-data pattern hit.
