@@ -121,7 +121,7 @@ else
 fi
 
 printf 'safe-pull: fetching %s\n' "$REMOTE"
-git -C "$ROOT" fetch --quiet "$REMOTE"
+SAFE_PULL=1 git -C "$ROOT" fetch --quiet "$REMOTE"
 
 if ! git -C "$ROOT" rev-parse --verify --quiet "$BRANCH" >/dev/null; then
 	printf 'safe-pull: %s does not exist after fetch\n' "$BRANCH" >&2
