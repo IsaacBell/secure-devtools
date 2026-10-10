@@ -24,6 +24,7 @@ npm publish needs 2FA.
    ```
 
 4. Create the GitHub release from the tag.
+5. For `am-i-hacked`, bump `AIH_VERSION` in `.github/workflows/gate.yml` to the new version so the security gate keeps running the latest stable release.
 
 `scripts/release.sh` refuses a private package, a version already on npm, and any
 `package.json` with lifecycle scripts (`prepare`, `prepack`, `postinstall` and the like) that

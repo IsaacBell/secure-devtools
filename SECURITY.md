@@ -69,4 +69,4 @@ gh api -X POST repos/IsaacBell/secure-devtools/security-advisories --input advis
 
 ## CI gates
 
-The security gate (`.github/workflows/gate.yml`) runs on `pull_request_target` and on pushes to `main`. For pull requests, the workflow file, the scanner, and the toolchain come from the base branch. The pull request's code is checked out into `.review` as data and is never executed. The job has read-only permissions and no secrets. Keep it that way: any step that runs code from `.review` turns this into a way to attack the repository.
+The security gate (`.github/workflows/gate.yml`) runs on `pull_request_target` and on pushes to `main`. For pull requests, the workflow file and the toolchain come from the base branch, and the scanner is the latest stable `am-i-hacked` release from npm, pinned to an exact version (`AIH_VERSION`), not the unreleased source on `main`. The pull request's code is checked out into `.review` as data and is never executed. The job has read-only permissions and no secrets. Keep it that way: any step that runs code from `.review` turns this into a way to attack the repository.
