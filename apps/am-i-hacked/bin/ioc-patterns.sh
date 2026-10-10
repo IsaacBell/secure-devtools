@@ -74,7 +74,7 @@ readonly IOC_CHILD_PROCESS_OPTIONS_OBJECT_PATTERN=',[[:space:]]*\{'
 # key is quoted in JSON, so a closing quote may sit between the key and the
 # colon: `"task.allowAutomaticTasks": true`.
 #
-# The MCP rule flags download-and-run shapes only; `uvx`, `pnpm dlx`, and `node`
+# The MCP rule flags download-and-run shapes only; `uvx`, `pnpx`, and `node`
 # servers are legitimate and must not be flagged.
 
 readonly IOC_EDITOR_PATTERNS=(

@@ -105,7 +105,7 @@
 <article class="wrap article">
   <header class="page-head">
     <h1>Is this macOS login item or background item malware?</h1>
-    <p class="byline muted">By <a href="https://isaacbell.io">Isaac Bell</a> · Updated <time datetime="2026-10-07">7 October 2026</time> · Applies to am-i-hacked 2.0.1</p>
+    <p class="byline muted">By <a href="https://isaacbell.io">Isaac Bell</a> · Updated <time datetime="2026-10-07">7 October 2026</time> · Applies to am-i-hacked 2.1.0</p>
   </header>
   <div class="answer"><p>The name in System Settings is the code signer, not the plist. Find the launchd plist behind it, read the program it runs, and verify that program's code signature and Team ID against the vendor's own apps on your machine. A valid vendor signature on a vendor-labelled entry closes the case. Anything unsigned, ad-hoc signed, failing verification or signed by the wrong team stays open. <code>npx am-i-hacked --system --verbose</code> does these checks for every login item at once.</p></div>
   <div class="prose">

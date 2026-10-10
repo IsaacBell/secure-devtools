@@ -108,7 +108,7 @@
 <article class="wrap article">
   <header class="page-head">
     <h1>How to check whether your developer machine is compromised</h1>
-    <p class="byline muted">By <a href="https://isaacbell.io">Isaac Bell</a> · Updated <time datetime="2026-10-07">7 October 2026</time> · Applies to am-i-hacked 2.0.1</p>
+    <p class="byline muted">By <a href="https://isaacbell.io">Isaac Bell</a> · Updated <time datetime="2026-10-07">7 October 2026</time> · Applies to am-i-hacked 2.1.0</p>
   </header>
   <div class="answer"><p>Run <code>npx am-i-hacked --system</code>. It is a read-only audit that needs no root or sudo and makes no network calls. It checks login persistence (launchd on macOS, systemd user units and autostart on Linux) and the code signatures of what they launch, the crontab, shell startup files, AI coding tool config, and running processes. Pair it with <code>npx am-i-being-recorded</code> for screen-capture capability. Neither is antivirus: a clean result means no warning signs were found.</p></div>
   <div class="prose">
@@ -121,7 +121,7 @@
     <tr><td>Shell startup files</td><td>Remote scripts piped to a shell, decoded payloads, <code>DYLD_INSERT_LIBRARIES</code> or <code>LD_PRELOAD</code>, TLS checks disabled, a forced <code>NODE_OPTIONS --require</code>, <code>sudo</code> or <code>ssh</code> replaced by an alias, a redirected AI API base URL, a proxy or extra certificate authority</td></tr>
     <tr><td>AI coding tool config</td><td>User-level and managed settings for Claude Code, Codex, Cursor, Gemini CLI, OpenCode and Kilo Code: permission bypass, redirected API URLs, plain-text keys, MCP servers that run unpinned code, and hooks that run from writable places or observe your prompts</td></tr>
     <tr><td>Running processes</td><td>Interpreters running capture scripts or scripts from staging areas such as Downloads, caches and <code>/tmp</code></td></tr>
-    <tr><td>Dark corners (next release)</td><td>Folders where tooling installs code outside any project: virtualenvs, pip and uv caches, pyenv, pipx, the npx cache, the pnpm store, cargo, bun, deno, go and gem bin folders</td></tr>
+    <tr><td>Dark corners</td><td>Folders where tooling installs code outside any project: virtualenvs, pip and uv caches, pyenv, pipx, the npx cache, the pnpm store, cargo, bun, deno, go and gem bin folders</td></tr>
   </tbody>
 </table></div>
 

@@ -2,14 +2,14 @@
 
 This is a plan, not a promise. Items can change, slip or be dropped. There are no dates: a release ships when it is ready. Anything that is neither listed here nor filed as an issue is not scheduled.
 
-Current release: **2.0.1**.
+Current release: **2.1.0**.
 
 ## How releases work
 
-- Every fix that merges ships as the next patch release: 2.0.2, then 2.0.3, and so on.
-- Issues labeled `release-blocker` gate the next minor release. 2.1.0 ships once every issue with that label is closed.
+- Every fix that merges ships as the next patch release: 2.1.1, then 2.1.2, and so on.
+- Issues labeled `release-blocker` gate the next minor release. 2.2.0 ships once every issue with that label is closed.
 
-## 2.1.0 candidates
+## 2.2.0 candidates
 
 A minor release that widens what the scanner reads and adds an opt-in feature.
 

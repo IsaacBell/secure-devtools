@@ -54,7 +54,7 @@ echo "== files =="; (cd "$work/src" && find . -type f ! -path './.git/*' | sort)
 echo "== executable files =="; find "$work/src" -type f -perm -u+x
 echo "== scanner =="; npx am-i-hacked "$work/src"
 echo "== risky lines =="
-grep -rInE '(curl|wget)[^|]*\|[[:space:]]*(sh|bash)|base64[[:space:]]+(-d|--decode)|eval[[:space:](]|(npx|pnpx|pnpm dlx)[[:space:]]|pip3? install|npm (i|install)[[:space:]]|chmod \+x|\.ssh|\.env|ignore (all |any )?(previous|prior) instructions|disregard (the |all )?(above|previous)' "$work/src" --exclude-dir=.git
+grep -rInE '(curl|wget)[^|]*\|[[:space:]]*(sh|bash)|base64[[:space:]]+(-d|--decode)|eval[[:space:](]|(^|[^[:alnum:]_-])(npx|pnpx|bunx|(pnpm|yarn)[[:space:]]+dlx|npm[[:space:]]+(exec|x)|bun[[:space:]]+x)[[:space:]]|pip3? install|npm (i|install)[[:space:]]|chmod \+x|\.ssh|\.env|ignore (all |any )?(previous|prior) instructions|disregard (the |all )?(above|previous)' "$work/src" --exclude-dir=.git
 echo "== invisible characters =="
 find "$work/src" -type f ! -path '*/.git/*' -print0 | xargs -0 perl -CSD -ne 'print "$ARGV:$.: invisible character\n" if /[\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}-\x{2064}\x{E0000}-\x{E007F}]/'
 echo "== main file =="; find "$work/src" -name SKILL.md | while read -r f; do shasum -a 256 "$f"; done

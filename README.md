@@ -11,7 +11,7 @@ npx am-i-hacked
 [![npm am-i-being-recorded](https://img.shields.io/npm/v/am-i-being-recorded?label=am-i-being-recorded)](https://www.npmjs.com/package/am-i-being-recorded)
 [![npm secure-semgrep](https://img.shields.io/npm/v/secure-semgrep?label=secure-semgrep)](https://www.npmjs.com/package/secure-semgrep)
 
-**Status:** actively maintained, macOS and Linux. Current releases: `am-i-hacked` 2.0.1, `am-i-being-recorded` 1.0.0, `secure-semgrep` 1.0.1. The next `am-i-hacked` release adds a dark-corner system scan, a Python virtualenv integrity check and `--max-findings`; each package's changelog has the detail. Website: <https://isaacbell.github.io/secure-devtools/>, with [guides](https://isaacbell.github.io/secure-devtools/guides/) such as [how to inspect an untrusted repository](https://isaacbell.github.io/secure-devtools/guides/inspect-untrusted-repository/) and [how to check AI-generated code](https://isaacbell.github.io/secure-devtools/guides/ai-generated-code-security/).
+**Status:** actively maintained, macOS and Linux. Current releases: `am-i-hacked` 2.1.0, `am-i-being-recorded` 1.0.0, `secure-semgrep` 1.0.1. Each package's changelog has the detail. Website: <https://isaacbell.github.io/secure-devtools/>, with [guides](https://isaacbell.github.io/secure-devtools/guides/) such as [how to inspect an untrusted repository](https://isaacbell.github.io/secure-devtools/guides/inspect-untrusted-repository/) and [how to check AI-generated code](https://isaacbell.github.io/secure-devtools/guides/ai-generated-code-security/).
 
 ## Tools
 
