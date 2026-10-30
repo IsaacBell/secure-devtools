@@ -1,6 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Resolve npm's executable symlink before loading package-local rules.
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+	entry="${BASH_SOURCE[0]}"
+	for ((link_depth = 0; link_depth < 40; link_depth++)); do
+		[[ -L "$entry" ]] || exec bash -- "$entry" "$@"
+		entry_dir="$(cd -P "$(dirname "$entry")" && pwd)"
+		link_target="$(readlink "$entry")"
+		case "$link_target" in
+		/*) entry="$link_target" ;;
+		*) entry="$entry_dir/$link_target" ;;
+		esac
+	done
+	printf 'safe-pull: too many entrypoint symlinks\n' >&2
+	exit 2
+fi
+
 # bin/safe-pull.sh
 #
 # A guarded `git pull`. Incoming commits are inspected before anything reaches

@@ -83,6 +83,36 @@ write_file() {
 # CLI contract
 # -------------------------------------------------------------------------------
 
+@test "installed entrypoint: relative npm bin symlink finds sibling resources" {
+  local install="$BATS_TEST_TMPDIR/install with spaces"
+  mkdir -p "$install/node_modules/am-i-hacked" "$install/node_modules/.bin"
+  cp -R "$BATS_TEST_DIRNAME/../bin" "$install/node_modules/am-i-hacked/bin"
+  ln -s ../am-i-hacked/bin/scanner.sh "$install/node_modules/.bin/am-i-hacked"
+  write_file "index.js" 'console.log("hello")'
+
+  run "$install/node_modules/.bin/am-i-hacked" "$TMP"
+  assert_success
+  assert_output --partial "am-i-hacked: PASSED"
+  refute_output --partial "checksum table not found"
+}
+
+@test "installed entrypoint: chained symlinks preserve finding exit status" {
+  ln -s "$SCRIPT" "$BATS_TEST_TMPDIR/real-entry"
+  ln -s real-entry "$BATS_TEST_TMPDIR/entry"
+  write_file "index.js" 'eval("1")'
+
+  run "$BATS_TEST_TMPDIR/entry" "$TMP"
+  assert_equal "$status" 1
+  assert_output --partial "Dynamic code execution"
+}
+
+@test "installed entrypoint: symlink forwards host arguments" {
+  ln -s "$SCRIPT" "$BATS_TEST_TMPDIR/entry"
+  run "$BATS_TEST_TMPDIR/entry" host --help
+  assert_success
+  assert_output --partial "usage: am-i-hacked host"
+}
+
 @test "clean repo passes with exit 0 and a PASSED line" {
   write_file "index.js" 'console.log("hello")' 'module.exports = 1'
   scan

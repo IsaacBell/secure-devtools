@@ -78,6 +78,14 @@ pull_guard() {
 # Happy path
 # -------------------------------------------------------------------------------
 
+@test "installed entrypoint: safe-pull symlink finds sibling rules" {
+  ln -s "$SCRIPT" "$TMP/safe-pull"
+  cd "$WORK"
+  run "$TMP/safe-pull" --dry-run
+  assert_success
+  assert_output --partial "already up to date"
+}
+
 @test "clean incoming commit is merged (fast-forward)" {
   printf 'console.log("feature")\n' >"$OTHER/feature.js"
   commit_and_push "$OTHER" "add feature"

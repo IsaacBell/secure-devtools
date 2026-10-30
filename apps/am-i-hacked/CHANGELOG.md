@@ -5,6 +5,7 @@ Newest first. Default-behavior changes are marked **CHANGED**.
 ## Unreleased
 
 ### Fixed
+- Installed CLI entrypoints resolve npm bin symlinks before loading sibling resources or dispatching host commands.
 - `safe-pull` now checks editor settings and disguised assets in every incoming commit tree, so deleting an injected payload before the final tip does not hide it. NUL bytes no longer exclude files from these checks, and Git content inspection errors block integration.
 
 ### Added

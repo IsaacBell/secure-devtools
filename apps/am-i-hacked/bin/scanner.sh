@@ -1,6 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# npm exposes this file through a symlink in node_modules/.bin. Re-enter the
+# physical script so all sibling resources are resolved from the package.
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+	entry="${BASH_SOURCE[0]}"
+	for ((link_depth = 0; link_depth < 40; link_depth++)); do
+		[[ -L "$entry" ]] || exec bash -- "$entry" "$@"
+		entry_dir="$(cd -P "$(dirname "$entry")" && pwd)"
+		link_target="$(readlink "$entry")"
+		case "$link_target" in
+		/*) entry="$link_target" ;;
+		*) entry="$entry_dir/$link_target" ;;
+		esac
+	done
+	printf 'am-i-hacked: too many entrypoint symlinks\n' >&2
+	exit 2
+fi
+
 # Development security gate.
 #
 # This script is intentionally conservative. It is not a malware scanner and
