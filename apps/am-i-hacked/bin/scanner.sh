@@ -46,7 +46,7 @@ fi
 # Keep known-malicious fixtures outside the trusted source tree rather than
 # suppressing findings with comments in the source itself.
 #
-# A line already reviewed and confirmed safe can be marked with a comment
+# In --trusted mode, a line reviewed and confirmed safe can carry a comment
 # carrying a required reason, on the finding's own line or the line before:
 #
 #   // am-i-hacked-ignore: ANSI color code, not an obfuscated payload
@@ -88,19 +88,28 @@ if ! command -v rg >/dev/null 2>&1; then
 	exit 1
 fi
 
-# Argument parsing. The only flag is --max-findings N, which caps how many
-# findings the report lists; the default lives here, not in an environment
-# variable. Everything that is not the flag is the directory to scan.
+# Input-controlled exclusions and suppressions are disabled by default.
+# --trusted explicitly enables the convenience behavior for reviewed inputs.
+# --max-findings caps the display, never the number of files inspected.
 MAX_FINDINGS=1000
+UNTRUSTED=1
 ARG_ROOT=""
 while (($# > 0)); do
 	case "$1" in
+	--untrusted)
+		UNTRUSTED=1
+		shift
+		;;
+	--trusted)
+		UNTRUSTED=0
+		shift
+		;;
 	--max-findings)
 		# 1 to 9 digits, no leading zero: bash reads 08 as bad octal, and 0 would
 		# list nothing.
 		if [[ -z "${2:-}" || ! "${2:-}" =~ ^[1-9][0-9]{0,8}$ ]]; then
 			echo "am-i-hacked: --max-findings requires a whole number from 1 to 999999999" >&2
-			echo "usage: am-i-hacked [<directory>] [--max-findings N]  (defaults to the current directory)" >&2
+			echo "usage: am-i-hacked [<directory>] [--max-findings N] [--trusted]  (defaults to the current directory)" >&2
 			exit 2
 		fi
 		MAX_FINDINGS="$2"
@@ -109,7 +118,7 @@ while (($# > 0)); do
 	*)
 		if [[ -n "$ARG_ROOT" ]]; then
 			echo "am-i-hacked: unexpected argument '$1'" >&2
-			echo "usage: am-i-hacked [<directory>] [--max-findings N]  (defaults to the current directory)" >&2
+			echo "usage: am-i-hacked [<directory>] [--max-findings N] [--trusted]  (defaults to the current directory)" >&2
 			exit 2
 		fi
 		ARG_ROOT="$1"
@@ -130,6 +139,7 @@ ROOT="$(cd "$ARG_ROOT" && pwd)"
 readonly MAX_SOURCE_LINE_LENGTH=4000
 readonly MAX_SNIPPET=240
 readonly MAX_FINDINGS
+readonly UNTRUSTED
 
 readonly SOURCE_GLOBS=(
 	--glob '*.js'
@@ -149,14 +159,14 @@ readonly SOURCE_GLOBS=(
 	--glob '*.cpp'
 )
 
-# Only installed dependencies and git's own store are skipped by name. Build
-# output (dist/, build/, .next/ ...) is scanned when committed, since a package
-# script can run it; untracked build output that .gitignore lists is skipped
-# like any other ignored untracked file (see "scan scope" below).
+# Git metadata is always excluded. Only explicit --trusted mode also skips
+# installed dependencies and untracked ignored output (see "scan scope").
 EXCLUDE_GLOBS=(
-	--glob '!**/node_modules/**'
 	--glob '!**/.git/**'
 )
+if ((UNTRUSTED == 0)); then
+	EXCLUDE_GLOBS+=(--glob '!**/node_modules/**')
+fi
 
 readonly FIXTURES_DIRNAME="__security_gate_fixtures__"
 
@@ -166,11 +176,9 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/ioc-patterns.sh"
 # shellcheck source=bin/venv-integrity.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/venv-integrity.sh"
 
-# INCLUDE_FIXTURES=1 disables the fixtures-dir exclusion so the fixtures
-# themselves can be scanned as a self-test of the detection logic. Default
-# behavior (unset/0) excludes the fixtures dir, since it deliberately
-# contains malicious samples that should never gate a real dev server run.
-if [[ "${INCLUDE_FIXTURES:-0}" != "1" ]]; then
+# Default scans include fixture directories. In --trusted mode,
+# INCLUDE_FIXTURES=1 overrides the convenience fixture exclusion.
+if ((UNTRUSTED == 0)) && [[ "${INCLUDE_FIXTURES:-0}" != "1" ]]; then
 	EXCLUDE_GLOBS+=(
 		--glob "!**/${FIXTURES_DIRNAME}/**"
 	)
@@ -179,7 +187,9 @@ readonly EXCLUDE_GLOBS
 
 # --- scan scope ------------------------------------------------------------------
 #
-# The tree under review must not decide what gets scanned. On its own, ripgrep
+# The tree under review must not decide what gets scanned. Default scans use
+# --no-ignore. Explicit --trusted mode uses the narrower behavior below.
+# On its own, ripgrep
 # skips dot-directories and anything named in .gitignore, .ignore or .rgignore,
 # so a payload under .vscode/, or in a directory the repository's own .gitignore
 # lists, would never be read. So every scan reads dot-directories (--hidden)
@@ -211,6 +221,10 @@ readonly TRACKED_IGNORED
 rg_scoped() {
 	local args=("$@") globs=() extra=() file i
 
+	if ((UNTRUSTED == 1)); then
+		rg --hidden --no-ignore --text "$@" -- "$ROOT" || true
+		return 0
+	fi
 	rg --hidden --no-ignore-dot --text "$@" -- "$ROOT" || true
 	((${#TRACKED_IGNORED[@]} > 0)) || return 0
 
@@ -292,8 +306,8 @@ declare -a YARN_UNVERIFIED=() # Unverified release versions (for footer)
 YARN_TABLE_MISSING=0          # Set to 1 if the checksum table is missing
 readonly YARN_RELEASE_UNVERIFIED_TITLE="Yarn release does not match any official Yarn release"
 
-# Build-output detection and low-signal tracking. Bundled code (webpack/esbuild/ncc)
-# only gets high-signal checks: string-table obfuscation, capture/exfiltration,
+# In --trusted mode, bundled code (webpack/esbuild/ncc) only gets high-signal
+# checks: string-table obfuscation, capture/exfiltration,
 # Telegram tokens, launchers, editor auto-run, asset payloads, .env tracking.
 # Dynamic code exec, network access, and similar routine patterns in bundled code
 # are not recorded as findings; matches are counted by file and tag instead.
@@ -338,12 +352,17 @@ readonly -a SEVERITY_HIGH_TAGS=(
 	"Tracked .env file"
 	"$YARN_RELEASE_UNVERIFIED_TITLE"
 	"Runtime source construction"
+	"Encoded source execution"
+	"Inline remote response execution"
+	"Runtime module bridge"
+	"$IOC_REMOTE_EVAL_TITLE"
 )
 readonly -a SEVERITY_MEDIUM_TAGS=(
 	"Common string-table obfuscation"
 	"Encoded payload primitives"
 	"Hex or Unicode string escapes"
 	"Suspicious decoder/string-table helpers"
+	"Obfuscated loader declaration"
 )
 
 # The one rule summarized (never listed per hit) inside installed dependencies.
@@ -402,6 +421,7 @@ readonly SUPPRESS_MARKER_RE='am-i-(hacked|compromised)-ignore:[[:space:]]*(.+)$'
 # `path` carries a valid marker on `line` or `line - 1`; exit status 0. No
 # output and exit status 1 otherwise. Checks the finding's own line first.
 suppression_reason() {
+	((UNTRUSTED == 0)) || return 1
 	local path="$1"
 	local line="$2"
 	local prev=$((line > 1 ? line - 1 : 0))
@@ -514,8 +534,8 @@ record_finding() {
 	# installed file still fails its RECORD hash in the venv integrity check; a
 	# package published with the payload needs a dependency audit, which this
 	# line was never a substitute for. vendor/ is committed with the project and
-	# reviewed like it, so its hits stay findings. No flag turns this off.
-	if [[ "$tag" == "$DEP_HEX_TAG" ]]; then
+	# reviewed like it, so its hits stay findings. Untrusted mode reports these matches individually.
+	if ((UNTRUSTED == 0)) && [[ "$tag" == "$DEP_HEX_TAG" ]]; then
 		case "/$pathrel/" in
 		*/site-packages/* | */dist-packages/* | */node_modules/*)
 			DEP_HEX_COUNT=$((DEP_HEX_COUNT + 1))
@@ -525,7 +545,7 @@ record_finding() {
 	fi
 
 	# Build-output: low-signal tags are tracked but not recorded as findings
-	if is_build_output "$path" && is_low_signal_tag "$tag"; then
+	if ((UNTRUSTED == 0)) && is_build_output "$path" && is_low_signal_tag "$tag"; then
 		local bundle_idx
 		if [[ -v BUNDLE_IDX[$pathrel] ]]; then
 			bundle_idx="${BUNDLE_IDX[$pathrel]}"
@@ -652,6 +672,21 @@ scan_child_process() {
 			"${YARN_RELEASE_EXCLUDE_GLOBS[@]}" \
 			"$IOC_CHILD_PROCESS_PATTERN" 2>/dev/null || true
 	)
+}
+
+scan_remote_response_execution() {
+	local row start end window_text
+	while IFS= read -r row; do
+		[[ -n "$row" ]] || continue
+		split_rg_row "$row"
+		ioc_remote_eval_variable "$P_SNIP" || continue
+		start=$((P_LINE > IOC_REMOTE_EVAL_WINDOW ? P_LINE - IOC_REMOTE_EVAL_WINDOW : 1))
+		end=$((P_LINE + IOC_REMOTE_EVAL_WINDOW))
+		window_text="$(sed -n "${start},${end}p" "$P_PATH" 2>/dev/null | LC_ALL=C tr -d '\000')"
+		if ioc_remote_text_assignment_matches "$window_text" "$IOC_REMOTE_EVAL_VARIABLE"; then
+			record_finding "$P_PATH" "$P_LINE" "$P_SNIP" "$IOC_REMOTE_EVAL_TITLE"
+		fi
+	done < <(rg_scoped -n --no-heading --color never "${SOURCE_GLOBS[@]}" "${EXCLUDE_GLOBS[@]}" "${YARN_RELEASE_EXCLUDE_GLOBS[@]}" "$IOC_REMOTE_EVAL_PATTERN" 2>/dev/null || true)
 }
 
 # --- yarn release verification ---------------------------------------------------
@@ -875,6 +910,10 @@ scan_long_lines() {
 scan_package_scripts() {
 	local package_files=()
 	local file pathrel entry script_name script_value
+	local package_excludes=(-not -path '*/.git/*')
+	if ((UNTRUSTED == 0)); then
+		package_excludes+=(-not -path '*/node_modules/*')
+	fi
 
 	while IFS= read -r -d '' file; do
 		package_files+=("$file")
@@ -882,8 +921,7 @@ scan_package_scripts() {
 		find "$ROOT" \
 			-type f \
 			-name 'package.json' \
-			-not -path '*/node_modules/*' \
-			-not -path '*/.git/*' \
+			"${package_excludes[@]}" \
 			-print0
 	)
 
@@ -1192,7 +1230,7 @@ scan_tracked_env() {
 
 	while IFS= read -r file; do
 		[[ -n "$file" ]] || continue
-		if [[ "$file" == *"${FIXTURES_DIRNAME}/"* && "${INCLUDE_FIXTURES:-0}" != "1" ]]; then
+		if ((UNTRUSTED == 0)) && [[ "$file" == *"${FIXTURES_DIRNAME}/"* && "${INCLUDE_FIXTURES:-0}" != "1" ]]; then
 			continue
 		fi
 		record_finding "$ROOT/$file" 1 "$file (present in the git index)" "Tracked .env file"
@@ -1208,7 +1246,7 @@ else
 	PROGRESS=0
 fi
 STEP=0
-STEP_TOTAL=$((${#IOC_CONTENT_PATTERNS[@]} + ${#IOC_EDITOR_PATTERNS[@]} + ${#IOC_ASSET_PATTERNS[@]} + 8))
+STEP_TOTAL=$((${#IOC_CONTENT_PATTERNS[@]} + ${#IOC_LOADER_PATTERNS[@]} + ${#IOC_EDITOR_PATTERNS[@]} + ${#IOC_ASSET_PATTERNS[@]} + 9))
 SCAN_START=$SECONDS
 
 progress() {
@@ -1226,6 +1264,16 @@ while IFS= read -r entry; do
 	progress "$IOC_TITLE"
 	scan_pattern "$IOC_TITLE" "$IOC_PATTERN"
 done < <(printf '%s\n' "${IOC_CONTENT_PATTERNS[@]}")
+
+while IFS= read -r entry; do
+	[[ -n "$entry" ]] || continue
+	split_ioc_entry "$entry"
+	progress "$IOC_TITLE"
+	scan_pattern "$IOC_TITLE" "$IOC_PATTERN"
+done < <(printf '%s\n' "${IOC_LOADER_PATTERNS[@]}")
+
+progress "$IOC_REMOTE_EVAL_TITLE"
+scan_remote_response_execution
 
 progress "Encoded payload primitives"
 scan_encoded_payload_primitives
@@ -1282,9 +1330,9 @@ if ((${#F_PATH[@]} > 0 || ${#S_PATH[@]} > 0)); then
 
 	cat <<'EOF'
 
-Review each flagged location above before starting the dev server. If a
-finding is a real false positive, mark it reviewed instead of reflexively
-rewriting working code:
+Review each flagged location above before starting the dev server. Default
+scans do not accept suppression comments from the input. For reviewed inputs,
+explicit --trusted mode honors a marker with a reason:
 
   // am-i-hacked-ignore: <why this is safe>
 

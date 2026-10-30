@@ -5,8 +5,12 @@ Newest first. Default-behavior changes are marked **CHANGED**.
 ## Unreleased
 
 ### Fixed
+- Source-loader checks cover encoded execution, runtime module bridges, alternate string-table declarations, and remote response execution across application entrypoints. Guarded pulls apply these checks to every incoming commit tree.
 - Installed CLI entrypoints resolve npm bin symlinks before loading sibling resources or dispatching host commands.
 - `safe-pull` now checks editor settings and disguised assets in every incoming commit tree, so deleting an injected payload before the final tip does not hide it. NUL bytes no longer exclude files from these checks, and Git content inspection errors block integration.
+
+### Changed
+- **CHANGED:** scans treat inputs as untrusted by default. Ignore files, inline suppressions, dependency/fixture exclusions, and bundle exemptions cannot hide findings. Git metadata remains excluded. The previous convenience behavior requires explicit `--trusted` for reviewed inputs.
 
 ### Added
 - Regression coverage for intermediate commit trees, binary-like inputs, CRLF configuration, and inspection errors.

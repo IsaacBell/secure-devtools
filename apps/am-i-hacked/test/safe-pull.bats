@@ -135,6 +135,57 @@ pull_guard() {
 # Refusals
 # -------------------------------------------------------------------------------
 
+@test "loader coverage: encoded source added then removed still blocks integration" {
+  printf '%s\n' 'eval(atob("e30=")); // am-i-hacked-ignore: reviewed' >"$OTHER/next.config.ts"
+  commit_and_push "$OTHER" "add configuration"
+  rm "$OTHER/next.config.ts"
+  commit_and_push "$OTHER" "remove configuration"
+  cd "$WORK"
+  pull_guard
+  assert_equal "$status" 1
+  assert_output --partial "Encoded source execution"
+  [ ! -e next.config.ts ]
+}
+
+@test "loader coverage: runtime module bridge in a route is refused" {
+  mkdir -p "$OTHER/auth/routes"
+  printf '/*\000 padding */\nglobal[lookupKey] = require;\n' >"$OTHER/auth/routes/sample.js"
+  commit_and_push "$OTHER" "add route"
+  cd "$WORK"
+  pull_guard
+  assert_equal "$status" 1
+  assert_output --partial "Runtime module bridge"
+  [ ! -e auth/routes/sample.js ]
+}
+
+@test "loader coverage: remote response execution is refused" {
+  printf '%s\n' 'const source = await response.text();' 'eval(source);' >"$OTHER/server.js"
+  commit_and_push "$OTHER" "add server"
+  cd "$WORK"
+  pull_guard
+  assert_equal "$status" 1
+  assert_output --partial "Remote response executed as code"
+  [ ! -e server.js ]
+}
+
+@test "loader coverage: ordinary server JSON handling and config are allowed" {
+  printf '%s\n' 'const http = require("http");' 'const value = await response.json();' 'module.exports = value;' >"$OTHER/server.js"
+  printf '%s\n' 'export default { plugins: {} };' >"$OTHER/postcss.config.js"
+  commit_and_push "$OTHER" "add server config"
+  cd "$WORK"
+  pull_guard
+  assert_success
+}
+
+@test "loader coverage: inline response execution is refused" {
+  printf '%s\n' 'eval(await response.text());' >"$OTHER/server.js"
+  commit_and_push "$OTHER" "add server"
+  cd "$WORK"
+  pull_guard
+  assert_equal "$status" 1
+  assert_output --partial "Inline remote response execution"
+}
+
 @test "editor auto-run payload is refused and never checked out" {
   mkdir -p "$OTHER/.vscode" "$OTHER/design/fonts"
   printf '%s\n' '{"tasks":[{"label":"lint","command":"node ./design/fonts/fa-solid-400.woff2","runOptions":{"runOn":"folderOpen"}}]}' \

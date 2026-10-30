@@ -210,7 +210,7 @@ run_ref_rule() {
 	local title="$1"
 	local pattern="$2"
 	shift 2
-	local row location tree matches grep_status
+	local row location tree matches grep_status rest line snippet blob start end window_text
 
 	for tree in "${INCOMING_TREES[@]}"; do
 		if matches="$(git -C "$ROOT" grep -n -E --text "$pattern" "$tree" -- "$@" 2>/dev/null | LC_ALL=C tr -d '\000')"; then
@@ -225,6 +225,24 @@ run_ref_rule() {
 			[ -n "$row" ] || continue
 			row="${row#"$tree":}"
 			location="${row%%:*}"
+			if [[ "$title" == "$IOC_REMOTE_EVAL_TITLE" ]]; then
+				rest="${row#*:}"
+				line="${rest%%:*}"
+				snippet="${rest#*:}"
+				if ! [[ "$line" =~ ^[0-9]+$ ]]; then
+					record_finding "Git content inspection failed" "$tree" "could not parse source location"
+					continue
+				fi
+				ioc_remote_eval_variable "$snippet" || continue
+				if ! blob="$(git -C "$ROOT" show "$tree:$location" 2>/dev/null | LC_ALL=C tr -d '\000')"; then
+					record_finding "Git content inspection failed" "$tree" "could not read source context"
+					continue
+				fi
+				start=$((line > IOC_REMOTE_EVAL_WINDOW ? line - IOC_REMOTE_EVAL_WINDOW : 1))
+				end=$((line + IOC_REMOTE_EVAL_WINDOW))
+				window_text="$(printf '%s\n' "$blob" | sed -n "${start},${end}p")"
+				ioc_remote_text_assignment_matches "$window_text" "$IOC_REMOTE_EVAL_VARIABLE" || continue
+			fi
 			record_finding "$title" "$location" "matched in incoming commit $tree"
 		done <<<"$matches"
 	done
@@ -241,6 +259,13 @@ while IFS= read -r entry; do
 	split_ioc_entry "$entry"
 	run_ref_rule "$IOC_TITLE" "$IOC_PATTERN" "${IOC_ASSET_PATHSPEC[@]}"
 done < <(printf '%s\n' "${IOC_ASSET_PATTERNS[@]}")
+
+while IFS= read -r entry; do
+	[ -n "$entry" ] || continue
+	split_ioc_entry "$entry"
+	run_ref_rule "$IOC_TITLE" "$IOC_PATTERN" "${IOC_SOURCE_PATHSPEC[@]}"
+done < <(printf '%s\n' "${IOC_LOADER_PATTERNS[@]}")
+run_ref_rule "$IOC_REMOTE_EVAL_TITLE" "$IOC_REMOTE_EVAL_PATTERN" "${IOC_SOURCE_PATHSPEC[@]}"
 
 # --- 6. committed environment files -------------------------------------------
 
