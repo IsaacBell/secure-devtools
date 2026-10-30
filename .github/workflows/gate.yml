@@ -35,6 +35,9 @@ jobs:
         with:
           version: 2026.9.12
 
+      - name: Install released scanner
+        run: npm install --prefix "$RUNNER_TEMP/security-gate" --ignore-scripts --no-audit --no-fund "am-i-hacked@${AIH_VERSION}"
+
       # nosemgrep: yaml.github-actions.security.pull-request-target-code-checkout.pull-request-target-code-checkout -- reviewed: the scanner only reads these files (rg, sed, git ls-files) and never runs them; see the note at the top.
       - name: Check out the code under review
         if: github.event_name == 'pull_request_target'
@@ -48,9 +51,9 @@ jobs:
       - name: Scan
         env:
           TARGET: ${{ github.event_name == 'pull_request_target' && '.review' || '.' }}
-        run: npx --yes "am-i-hacked@${AIH_VERSION}" "$TARGET"
+        run: bash "$RUNNER_TEMP/security-gate/node_modules/am-i-hacked/bin/scanner.sh" "$TARGET"
 
       - name: Scan runner (login items, crontab, shell startup, agent config, processes)
-        run: npx --yes "am-i-hacked@${AIH_VERSION}" --system
+        run: bash "$RUNNER_TEMP/security-gate/node_modules/am-i-hacked/bin/scanner.sh" --system
         # The hosted runner image is not ours; report its findings without blocking merges.
         continue-on-error: true
