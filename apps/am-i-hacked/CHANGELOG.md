@@ -2,6 +2,19 @@
 
 Newest first. Default-behavior changes are marked **CHANGED**.
 
+## Unreleased
+
+### Fixed
+- Source-loader checks cover encoded execution, runtime module bridges, alternate string-table declarations, and remote response execution across application entrypoints. Guarded pulls apply these checks to every incoming commit tree.
+- Installed CLI entrypoints resolve npm bin symlinks before loading sibling resources or dispatching host commands.
+- `safe-pull` now checks editor settings and disguised assets in every incoming commit tree, so deleting an injected payload before the final tip does not hide it. NUL bytes no longer exclude files from these checks, and Git content inspection errors block integration.
+
+### Changed
+- **CHANGED:** scans treat inputs as untrusted by default. Ignore files, inline suppressions, dependency/fixture exclusions, and bundle exemptions cannot hide findings. Git metadata remains excluded. The previous convenience behavior requires explicit `--trusted` for reviewed inputs.
+
+### Added
+- Regression coverage for intermediate commit trees, binary-like inputs, CRLF configuration, and inspection errors.
+
 ## 2.1.0 - 2026-10-09
 
 **BLUF:** A security release with new checks. The scan no longer trusts the tree it is reviewing: a scanned repo's `.git/config` could make `am-i-hacked` or `safe-pull` run a command, and payloads in dot-directories, in folders named in `.ignore` or `.rgignore`, in tracked files matched by `.gitignore`, and in tracked build output were not read. It also adds a dark-corner system scan and Python virtualenv integrity, and raises the findings cap to 1000. `bin/host-audit.sh` is renamed to `bin/system-scan.sh`, with the old name kept as a shim. A 2.0.1 was prepared but never published; everything in it is in this release.

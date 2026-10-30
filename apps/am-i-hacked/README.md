@@ -4,7 +4,7 @@
 [![CI](https://github.com/IsaacBell/secure-devtools/actions/workflows/ci.yml/badge.svg)](https://github.com/IsaacBell/secure-devtools/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/npm/l/am-i-hacked)](LICENSE)
 
-`am-i-hacked` checks the code you are about to run, and the machine you run it on, for signs of a supply-chain or dev-environment attack. It is an indicator-of-compromise scanner, not antivirus: a clean result means no warning signs were found, not that anything is proven safe.
+`am-i-hacked` checks the code you are about to run, and the machine you run it on, for signs of a supply-chain or dev-environment attack. Its signature and heuristic checks are read-only: a clean result means no warning signs were found, not that anything is proven safe.
 
 ```sh
 npx am-i-hacked
@@ -56,7 +56,21 @@ Both scans are read-only and make no network calls. Scanned source languages: JS
 | Folder | Dynamic code execution, child processes, direct network module access, runtime global mutation; encoded or obfuscated payloads and unusually long lines; suspicious `package.json` scripts; editor config that runs code on folder open; download-and-run commands in editor config; executable payloads disguised as asset files; clipboard, keystroke or screen capture paired with an exfiltration endpoint; `.env` files in the git index; official Yarn releases verified by SHA256; Python virtualenvs (files that no longer match their package `RECORD` hashes, files no package owns, `.pth` or startup hooks that run code). |
 | System (`--system`) | Login persistence (launchd on macOS; systemd user units and XDG autostart on Linux) and, on macOS, the code signature of what it launches; crontab; shell startup files; user-level and managed AI-tool config; running processes; and the "dark corners" where tooling installs code outside any project (`~/.venv`, tool and package caches, and the like), each scanned with the folder scan when present and skipped when not. |
 
-The folder scan also checks its own AI-tool config (`.claude/settings*.json`, `.mcp.json`). It reads dot-directories and tracked files that `.gitignore` matches; `node_modules` and `.git` are always skipped. In bundled code (webpack/esbuild/ncc) only high-signal patterns are reported; routine dynamic-code and network patterns are counted but not flagged. Findings are `HIGH`, `MEDIUM` or `INFO`; `HIGH` and `MEDIUM` exit `1`.
+The folder scan also checks its own AI-tool config (`.claude/settings*.json`, `.mcp.json`). Inputs are treated as untrusted by default: the scanner ignores `.gitignore`, `.ignore`, and `.rgignore`; includes dependencies and fixtures; and does not honor inline suppressions or bundle exemptions. Git metadata is excluded. Files are read without executing their contents.
+
+Source-loader checks apply across server routes, startup modules, framework configuration, and helper scripts. They report encoded text passed to code execution, computed global module bridges, string-table declarations, and response text executed as code. The response-text check correlates an identifier with a nearby `.text()` assignment; it is a heuristic, not complete data-flow analysis. Ordinary JSON handling and local module loading are not loader findings on their own.
+
+### Reviewing trusted inputs (unreleased)
+
+Run the checkout's scanner before opening or installing an unfamiliar repository:
+
+```sh
+bash apps/am-i-hacked/bin/scanner.sh /path/to/repository
+```
+
+For input you have already reviewed, `--trusted` explicitly enables the convenience behavior: ignore untracked files matched by `.gitignore`, skip dependencies and fixtures, honor documented inline suppression comments, and summarize routine patterns in bundles. Suppressed findings remain visible in the report. The default scan does not accept those signals as evidence that a file is safe.
+
+The default can be slower and noisier after installing dependencies. It uses the documented source/asset file types and does not unpack archives, certify dependencies, or establish that the machine is uncompromised. These unreleased changes require this checkout until a new npm version is published.
 
 ## Flags
 
@@ -66,6 +80,8 @@ The folder scan also checks its own AI-tool config (`.claude/settings*.json`, `.
 | `host` | folder | Check a folder's AI-tool config only: `am-i-hacked host [dir]`. |
 | `--system` | both | Also audit the whole machine. Alias: `--full-system-scan`. |
 | `--max-findings N` | folder | Maximum findings printed, 1 to 999999999 (default: 1000). The true total and a per-rule count are always shown. |
+| `--trusted` | folder | Unreleased: explicitly enable exclusions, suppression comments, and bundle exemptions for reviewed inputs. |
+| `--untrusted` | folder | Unreleased: explicitly select the default behavior. |
 | `-v`, `--verbose` | system | Also list informational items and every persistence entry, with its signer. |
 | `-h`, `--help` | both | Show usage. |
 
@@ -73,13 +89,13 @@ The folder scan also checks its own AI-tool config (`.claude/settings*.json`, `.
 
 ## Suppressing a finding
 
-When a match is accurate but the code is genuinely safe, mark the line reviewed instead of rewriting working code:
+For reviewed inputs scanned with `--trusted`, mark a confirmed safe match with a reason:
 
 ```js
 const decoded = atob(header); // am-i-hacked-ignore: decodes a request header, not a payload
 ```
 
-The marker is `am-i-hacked-ignore:` followed by a required reason, on the finding's own line or the line immediately before it. The pre-2.0 spelling, `am-i-compromised-ignore:`, is still honored. Suppressed findings are never dropped silently: they are counted and listed in their own section on every run, including a clean one. The marker is honored by the folder scan only — `safe-pull` deliberately does not read it, because it inspects commits nobody has reviewed.
+The marker is `am-i-hacked-ignore:` followed by a required reason, on the finding's own line or the line immediately before it. The pre-2.0 spelling, `am-i-compromised-ignore:`, is still honored. Suppressed findings are never dropped silently: they are counted and listed in their own section on every run, including a clean one. The marker is honored by the folder scan with `--trusted` only — `safe-pull` deliberately does not read it, because it inspects commits nobody has reviewed.
 
 For the system scan, accept a reviewed finding by adding `<finding id> | <reason>` to `~/.config/am-i-hacked/host-allow.txt` (create the folder first; override the path with `AIC_HOST_ALLOW`). Allowed findings are listed on every run.
 
@@ -94,6 +110,8 @@ For the system scan, accept a reviewed finding by adding `<finding id> | <reason
 ## Guarded pull (`safe-pull`)
 
 `safe-pull` inspects incoming commits before anything is written to disk, then fast-forwards. It checks for a rewritten (force-pushed) upstream, an author/committer mismatch, editor auto-run tasks, download-and-run editor commands, executable payloads disguised as assets, committed `.env` files, and a `dotenv` plus `node-fetch`/`axios` dependency pair.
+
+Editor, disguised-asset, and source-loader checks inspect every incoming commit tree, including merge parents, as well as the upstream tip. A payload added and then deleted still blocks integration. Files containing NUL bytes are inspected as text; an inspection error also blocks integration. Incoming comments cannot suppress findings. Environment-file and dependency-pair checks currently inspect the tip only. Commit names, emails, and dates are warning signals, not proof of identity or authenticity.
 
 ```sh
 safe-pull                 # fetch, inspect, then merge --ff-only

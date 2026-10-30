@@ -1,6 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Resolve npm's executable symlink before loading package-local rules.
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+	entry="${BASH_SOURCE[0]}"
+	for ((link_depth = 0; link_depth < 40; link_depth++)); do
+		[[ -L "$entry" ]] || exec bash -- "$entry" "$@"
+		entry_dir="$(cd -P "$(dirname "$entry")" && pwd)"
+		link_target="$(readlink "$entry")"
+		case "$link_target" in
+		/*) entry="$link_target" ;;
+		*) entry="$entry_dir/$link_target" ;;
+		esac
+	done
+	printf 'safe-pull: too many entrypoint symlinks\n' >&2
+	exit 2
+fi
+
 # bin/safe-pull.sh
 #
 # A guarded `git pull`. Incoming commits are inspected before anything reaches
@@ -176,23 +192,60 @@ while IFS='|' read -r sha author_email committer_email author_date committer_dat
 	fi
 done < <(git -C "$ROOT" log --format='%h|%ae|%ce|%ad|%cd|%s' --date=short "HEAD..$BRANCH" 2>/dev/null || true)
 
-# --- 4-5. content rules over the incoming tree --------------------------------
+# --- 4-5. content rules over every incoming commit tree -----------------------
 #
 # `git grep <pattern> <tree>` reads blobs from the object store, so hidden paths
-# are covered by construction and nothing is written to disk.
+# are covered by construction and nothing is written to disk. Include the tip
+# explicitly (also covers a rewritten upstream with no new commits). Inspect
+# intermediate trees too: deleting a payload at the tip does not remove it
+# from the history we are about to integrate.
+INCOMING_TREES=("$UPSTREAM_SHA")
+INCOMING_REVISIONS="$(git -C "$ROOT" rev-list "HEAD..$BRANCH")"
+while IFS= read -r tree; do
+	[ -n "$tree" ] && [ "$tree" != "$UPSTREAM_SHA" ] || continue
+	INCOMING_TREES+=("$tree")
+done <<<"$INCOMING_REVISIONS"
 
 run_ref_rule() {
 	local title="$1"
 	local pattern="$2"
 	shift 2
-	local row location
+	local row location tree matches grep_status rest line snippet blob start end window_text
 
-	while IFS= read -r row; do
-		[ -n "$row" ] || continue
-		row="${row#"$BRANCH":}"
-		location="${row%%:*}"
-		record_finding "$title" "$location" "matched in the incoming tree"
-	done < <(git -C "$ROOT" grep -n -E -I "$pattern" "$BRANCH" -- "$@" 2>/dev/null || true)
+	for tree in "${INCOMING_TREES[@]}"; do
+		if matches="$(git -C "$ROOT" grep -n -E --text "$pattern" "$tree" -- "$@" 2>/dev/null | LC_ALL=C tr -d '\000')"; then
+			:
+		else
+			grep_status=$?
+			if [ "$grep_status" -ne 1 ]; then
+				record_finding "Git content inspection failed" "$tree" "could not check $title (exit $grep_status)"
+			fi
+		fi
+		while IFS= read -r row; do
+			[ -n "$row" ] || continue
+			row="${row#"$tree":}"
+			location="${row%%:*}"
+			if [[ "$title" == "$IOC_REMOTE_EVAL_TITLE" ]]; then
+				rest="${row#*:}"
+				line="${rest%%:*}"
+				snippet="${rest#*:}"
+				if ! [[ "$line" =~ ^[0-9]+$ ]]; then
+					record_finding "Git content inspection failed" "$tree" "could not parse source location"
+					continue
+				fi
+				ioc_remote_eval_variable "$snippet" || continue
+				if ! blob="$(git -C "$ROOT" show "$tree:$location" 2>/dev/null | LC_ALL=C tr -d '\000')"; then
+					record_finding "Git content inspection failed" "$tree" "could not read source context"
+					continue
+				fi
+				start=$((line > IOC_REMOTE_EVAL_WINDOW ? line - IOC_REMOTE_EVAL_WINDOW : 1))
+				end=$((line + IOC_REMOTE_EVAL_WINDOW))
+				window_text="$(printf '%s\n' "$blob" | sed -n "${start},${end}p")"
+				ioc_remote_text_assignment_matches "$window_text" "$IOC_REMOTE_EVAL_VARIABLE" || continue
+			fi
+			record_finding "$title" "$location" "matched in incoming commit $tree"
+		done <<<"$matches"
+	done
 }
 
 while IFS= read -r entry; do
@@ -206,6 +259,13 @@ while IFS= read -r entry; do
 	split_ioc_entry "$entry"
 	run_ref_rule "$IOC_TITLE" "$IOC_PATTERN" "${IOC_ASSET_PATHSPEC[@]}"
 done < <(printf '%s\n' "${IOC_ASSET_PATTERNS[@]}")
+
+while IFS= read -r entry; do
+	[ -n "$entry" ] || continue
+	split_ioc_entry "$entry"
+	run_ref_rule "$IOC_TITLE" "$IOC_PATTERN" "${IOC_SOURCE_PATHSPEC[@]}"
+done < <(printf '%s\n' "${IOC_LOADER_PATTERNS[@]}")
+run_ref_rule "$IOC_REMOTE_EVAL_TITLE" "$IOC_REMOTE_EVAL_PATTERN" "${IOC_SOURCE_PATHSPEC[@]}"
 
 # --- 6. committed environment files -------------------------------------------
 
