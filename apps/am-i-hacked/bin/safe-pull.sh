@@ -176,23 +176,42 @@ while IFS='|' read -r sha author_email committer_email author_date committer_dat
 	fi
 done < <(git -C "$ROOT" log --format='%h|%ae|%ce|%ad|%cd|%s' --date=short "HEAD..$BRANCH" 2>/dev/null || true)
 
-# --- 4-5. content rules over the incoming tree --------------------------------
+# --- 4-5. content rules over every incoming commit tree -----------------------
 #
 # `git grep <pattern> <tree>` reads blobs from the object store, so hidden paths
-# are covered by construction and nothing is written to disk.
+# are covered by construction and nothing is written to disk. Include the tip
+# explicitly (also covers a rewritten upstream with no new commits). Inspect
+# intermediate trees too: deleting a payload at the tip does not remove it
+# from the history we are about to integrate.
+INCOMING_TREES=("$UPSTREAM_SHA")
+INCOMING_REVISIONS="$(git -C "$ROOT" rev-list "HEAD..$BRANCH")"
+while IFS= read -r tree; do
+	[ -n "$tree" ] && [ "$tree" != "$UPSTREAM_SHA" ] || continue
+	INCOMING_TREES+=("$tree")
+done <<<"$INCOMING_REVISIONS"
 
 run_ref_rule() {
 	local title="$1"
 	local pattern="$2"
 	shift 2
-	local row location
+	local row location tree matches grep_status
 
-	while IFS= read -r row; do
-		[ -n "$row" ] || continue
-		row="${row#"$BRANCH":}"
-		location="${row%%:*}"
-		record_finding "$title" "$location" "matched in the incoming tree"
-	done < <(git -C "$ROOT" grep -n -E -I "$pattern" "$BRANCH" -- "$@" 2>/dev/null || true)
+	for tree in "${INCOMING_TREES[@]}"; do
+		if matches="$(git -C "$ROOT" grep -n -E --text "$pattern" "$tree" -- "$@" 2>/dev/null | LC_ALL=C tr -d '\000')"; then
+			:
+		else
+			grep_status=$?
+			if [ "$grep_status" -ne 1 ]; then
+				record_finding "Git content inspection failed" "$tree" "could not check $title (exit $grep_status)"
+			fi
+		fi
+		while IFS= read -r row; do
+			[ -n "$row" ] || continue
+			row="${row#"$tree":}"
+			location="${row%%:*}"
+			record_finding "$title" "$location" "matched in incoming commit $tree"
+		done <<<"$matches"
+	done
 }
 
 while IFS= read -r entry; do

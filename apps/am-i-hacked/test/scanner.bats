@@ -47,6 +47,38 @@ write_file() {
   printf '%s\n' "$@" >"$TMP/$rel"
 }
 
+# Synthetic inputs for editor settings and asset-content checks.
+# Fixture contents are read as data, never executed.
+@test "regression: CRLF folder-open task and woff2 payload are both reported" {
+  write_file ".vscode/tasks.json" \
+    '{"tasks":[{"label":"sample-task","type":"shell","command":"node ./public/fonts/sample.woff2","presentation":{"reveal":"never","echo":false},"runOptions":{"runOn":"folderOpen"}}]}'
+  printf '{"task.allowAutomaticTasks":true}\r\n' >"$TMP/.vscode/settings.json"
+  write_file "public/fonts/sample.woff2" 'const _0x123abc = "inert regression marker";'
+  scan
+  assert_equal "$status" 1
+  assert_output --partial "Editor auto-run task"
+  assert_output --partial "Payload hidden in an asset file"
+  assert_output --partial ".vscode/settings.json:1"
+  assert_output --partial "public/fonts/sample.woff2:1"
+}
+
+@test "regression: renamed eot payload with NUL padding is reported without an editor task" {
+  mkdir -p "$TMP/public/fonts"
+  printf '/*\000 inert padding */\nconst _0x456def = "inert regression marker";\n' >"$TMP/public/fonts/renamed.eot"
+  scan
+  assert_equal "$status" 1
+  assert_output --partial "Payload hidden in an asset file"
+  assert_output --partial "public/fonts/renamed.eot:2"
+}
+
+@test "regression control: font-like bytes and manual documentation tasks pass" {
+  mkdir -p "$TMP/public/fonts"
+  printf 'wOF2\000\001\000\000' >"$TMP/public/fonts/font.woff2"
+  write_file ".vscode/tasks.json" '{"tasks":[{"label":"docs","type":"shell","command":"echo docs"}]}'
+  scan
+  assert_success
+}
+
 # -------------------------------------------------------------------------------
 # CLI contract
 # -------------------------------------------------------------------------------

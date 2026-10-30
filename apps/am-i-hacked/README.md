@@ -95,6 +95,8 @@ For the system scan, accept a reviewed finding by adding `<finding id> | <reason
 
 `safe-pull` inspects incoming commits before anything is written to disk, then fast-forwards. It checks for a rewritten (force-pushed) upstream, an author/committer mismatch, editor auto-run tasks, download-and-run editor commands, executable payloads disguised as assets, committed `.env` files, and a `dotenv` plus `node-fetch`/`axios` dependency pair.
 
+Editor and disguised-asset checks inspect every incoming commit tree, including merge parents, as well as the upstream tip. A payload added and then deleted still blocks integration. Files containing NUL bytes are inspected as text; an inspection error also blocks integration. Environment-file and dependency-pair checks currently inspect the tip only. Commit names, emails, and dates are warning signals, not proof of identity or authenticity.
+
 ```sh
 safe-pull                 # fetch, inspect, then merge --ff-only
 safe-pull --dry-run       # inspect only; never merge

@@ -146,6 +146,89 @@ pull_guard() {
   [ ! -e "$WORK/design/fonts/fa-solid-400.woff2" ]
 }
 
+# Synthetic Git histories for content inspection and integration checks.
+# Fixture contents are read as data, never executed.
+@test "regression: a font payload added then deleted is still refused" {
+  local before flagged_commit
+  before="$(git -C "$WORK" rev-parse HEAD)"
+  mkdir -p "$OTHER/public/fonts"
+  printf '%s\n' 'const _0x123abc = "inert regression marker";' >"$OTHER/public/fonts/sample.woff2"
+  commit_and_push "$OTHER" "add font"
+  flagged_commit="$(git -C "$OTHER" rev-parse HEAD)"
+  rm "$OTHER/public/fonts/sample.woff2"
+  commit_and_push "$OTHER" "delete font"
+
+  cd "$WORK"
+  pull_guard
+  assert_equal "$status" 1
+  assert_output --partial "Payload hidden in an asset file"
+  assert_output --partial "$flagged_commit"
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ ! -e public/fonts/sample.woff2 ]
+}
+
+@test "regression: a NUL byte cannot hide JavaScript in a renamed eot font" {
+  local before
+  before="$(git -C "$WORK" rev-parse HEAD)"
+  mkdir -p "$OTHER/public/fonts"
+  printf '/*\000 inert padding */\nconst _0x456def = "inert regression marker";\n' >"$OTHER/public/fonts/renamed.eot"
+  commit_and_push "$OTHER" "add font"
+
+  cd "$WORK"
+  pull_guard
+  assert_equal "$status" 1
+  assert_output --partial "Payload hidden in an asset file"
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ ! -e public/fonts/renamed.eot ]
+}
+
+@test "regression: an editor trigger removed before the tip is still refused" {
+  mkdir -p "$OTHER/.vscode"
+  printf '%s\r\n' '{"task.allowAutomaticTasks":true}' >"$OTHER/.vscode/settings.json"
+  commit_and_push "$OTHER" "add editor settings"
+  rm "$OTHER/.vscode/settings.json"
+  commit_and_push "$OTHER" "delete editor settings"
+
+  cd "$WORK"
+  pull_guard --dry-run
+  assert_equal "$status" 1
+  assert_output --partial "Editor auto-run task"
+  [ ! -e .vscode/settings.json ]
+}
+
+@test "regression: ordinary documentation added then removed remains allowed" {
+  printf '%s\n' '# Notes' >"$OTHER/notes.md"
+  commit_and_push "$OTHER" "add notes"
+  rm "$OTHER/notes.md"
+  commit_and_push "$OTHER" "delete notes"
+
+  cd "$WORK"
+  pull_guard
+  assert_success
+  [ "$(git rev-parse HEAD)" = "$(git -C "$OTHER" rev-parse HEAD)" ]
+}
+
+@test "regression: a payload on a merged side branch is refused even with a clean merge tree" {
+  local flagged_commit before
+  before="$(git -C "$WORK" rev-parse HEAD)"
+  git -C "$OTHER" checkout -qb side
+  mkdir -p "$OTHER/public/fonts"
+  printf '%s\n' 'const _0x456def = "inert regression marker";' >"$OTHER/public/fonts/side.eot"
+  git -C "$OTHER" add -A
+  run_git_as_test -C "$OTHER" commit -qm "side branch font"
+  flagged_commit="$(git -C "$OTHER" rev-parse HEAD)"
+  git -C "$OTHER" checkout -q main
+  run_git_as_test -C "$OTHER" merge -q --no-ff -s ours side -m "merge with clean tree"
+  git -C "$OTHER" push -q origin main
+
+  cd "$WORK"
+  pull_guard
+  assert_equal "$status" 1
+  assert_output --partial "$flagged_commit"
+  assert_output --partial "Payload hidden in an asset file"
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
 @test "committed .env file is refused" {
   printf 'API_KEY=placeholder\n' >"$OTHER/.env"
   commit_and_push "$OTHER" "add env"
@@ -155,6 +238,30 @@ pull_guard() {
   assert_failure
   assert_output --partial "Tracked .env file"
   [ ! -e "$WORK/.env" ]
+}
+
+@test "regression: a Git content inspection error blocks integration" {
+  local actual_git before
+  actual_git="$(command -v git)"
+  before="$(git -C "$WORK" rev-parse HEAD)"
+  printf '%s\n' '# Clean documentation' >"$OTHER/notes.md"
+  commit_and_push "$OTHER" "add notes"
+  mkdir "$TMP/mockbin"
+  cat >"$TMP/mockbin/git" <<'EOF'
+#!/usr/bin/env bash
+for arg do
+  if [[ "$arg" == grep ]]; then exit 2; fi
+done
+exec "$REAL_GIT" "$@"
+EOF
+  chmod +x "$TMP/mockbin/git"
+
+  cd "$WORK"
+  run env PATH="$TMP/mockbin:$PATH" REAL_GIT="$actual_git" bash "$SCRIPT"
+  assert_equal "$status" 1
+  assert_output --partial "Git content inspection failed"
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ ! -e notes.md ]
 }
 
 @test "dotenv plus node-fetch in a changed package.json is refused" {
