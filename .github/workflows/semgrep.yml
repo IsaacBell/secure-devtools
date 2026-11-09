@@ -25,7 +25,6 @@ jobs:
 
       - name: Run Semgrep
         id: semgrep
-        continue-on-error: true
         run: |
           semgrep scan \
             --config apps/secure-semgrep/rules \
