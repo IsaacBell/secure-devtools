@@ -34,10 +34,46 @@ readonly IOC_CONTENT_PATTERNS=(
 	$'Runtime global mutation\t(^|[^[:alnum:]_$])global([.]|\\[)'
 	$'Computed global properties\tglobal[[:space:]]*\\[[[:space:]]*["\']'
 	$'Hex or Unicode string escapes\t(\\\\x[0-9a-fA-F]{2}){4,}|(\\\\u[0-9a-fA-F]{4}){4,}'
-	$'Common string-table obfuscation\t(_0x[0-9a-fA-F]{3,}|_0X[0-9A-F]{3,})'
+	$'Common string-table obfuscation\t(_0x[0-9a-fA-F]{3,}|_0X[0-9A-F]{3,}|_\\$_[0-9a-fA-F]{3,})'
 	$'Suspicious decoder/string-table helpers\t(fromCharCode|String[.]fromCharCode)[[:space:]]*\\('
 	$'Runtime source construction\t(new[[:space:]]+Function|constructor[[:space:]]*\\[[[:space:]]*["\']constructor["\']\\])'
 )
+
+# High-signal source rules shared by folder scans and guarded Git integration.
+# Filenames do not constrain these checks: routes, build configs, startup
+# modules and helpers all receive the same inspection.
+readonly IOC_LOADER_PATTERNS=(
+	$'Encoded source execution\t(^|[^[:alnum:]_$])(eval|Function)[[:space:]]*\\(.{0,240}(atob|Buffer[.]from)[[:space:]]*\\('
+	$'Inline remote response execution\t(^|[^[:alnum:]_$])(eval|Function)[[:space:]]*\\([[:space:]]*(await[[:space:]]+)?[A-Za-z_$][A-Za-z0-9_$]*[[:space:]]*[.][[:space:]]*text[[:space:]]*\\('
+	$'Runtime module bridge\t(^|[^[:alnum:]_$])global(This)?[[:space:]]*\\[.{1,160}\\][[:space:]]*=[[:space:]]*(require|module)([^[:alnum:]_$]|$)'
+	$'Obfuscated loader declaration\t(^|[^[:alnum:]_$])(var|let|const)[[:space:]]+(_0x[0-9a-fA-F]{3,}|_\\$_[0-9a-fA-F]{3,})[[:space:]]*='
+)
+readonly IOC_SOURCE_PATHSPEC=(
+	':(glob)**/*.js' ':(glob)**/*.jsx' ':(glob)**/*.mjs' ':(glob)**/*.cjs'
+	':(glob)**/*.ts' ':(glob)**/*.tsx' ':(glob)**/*.mts' ':(glob)**/*.cts'
+)
+readonly IOC_REMOTE_EVAL_TITLE='Remote response executed as code'
+readonly IOC_REMOTE_EVAL_PATTERN='(^|[^[:alnum:]_$])(eval|Function)[[:space:]]*\([[:space:]]*([A-Za-z_$][A-Za-z0-9_$]*)[[:space:]]*\)'
+readonly IOC_REMOTE_EVAL_WINDOW=12
+
+# Extract an identifier and correlate its response.text() assignment nearby.
+# These functions only match text; they never evaluate or decode source code.
+ioc_remote_eval_variable() {
+	IOC_REMOTE_EVAL_VARIABLE=''
+	if [[ "$1" =~ $IOC_REMOTE_EVAL_PATTERN ]]; then
+		IOC_REMOTE_EVAL_VARIABLE="${BASH_REMATCH[3]}"
+		return 0
+	fi
+	return 1
+}
+
+ioc_remote_text_assignment_matches() {
+	local text="$1" variable="$2" escaped pattern
+	[[ "$variable" =~ ^[A-Za-z_$][A-Za-z0-9_$]*$ ]] || return 1
+	escaped="${variable//\$/\\$}"
+	pattern="(^|[^[:alnum:]_$])${escaped}[[:space:]]*(:[^=;]+)?=[[:space:]]*(await[[:space:]]+)?[A-Za-z_$][A-Za-z0-9_$]*[[:space:]]*[.][[:space:]]*text[[:space:]]*\("
+	[[ "$text" =~ $pattern ]]
+}
 
 # --- context-aware source rules -------------------------------------------------
 #
@@ -100,7 +136,7 @@ readonly IOC_EDITOR_PATHSPEC=(
 # named like a font (`fa-solid-400.woff2`) that holds plain-text JS.
 
 readonly IOC_ASSET_PATTERNS=(
-	$'Payload hidden in an asset file\t(require|eval|Function)[[:space:]]*\\(|_0x[0-9a-fA-F]{3,}|(execSync|spawn|child_process)|atob[[:space:]]*\\('
+	$'Payload hidden in an asset file\t(require|eval|Function|fromCharCode)[[:space:]]*\\(|_0x[0-9a-fA-F]{3,}|_\\$_[0-9a-fA-F]{3,}|(execSync|spawn|child_process)|atob[[:space:]]*\\('
 )
 
 readonly IOC_ASSET_GLOBS=(

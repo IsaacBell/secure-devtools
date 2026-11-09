@@ -78,6 +78,14 @@ pull_guard() {
 # Happy path
 # -------------------------------------------------------------------------------
 
+@test "installed entrypoint: safe-pull symlink finds sibling rules" {
+  ln -s "$SCRIPT" "$TMP/safe-pull"
+  cd "$WORK"
+  run "$TMP/safe-pull" --dry-run
+  assert_success
+  assert_output --partial "already up to date"
+}
+
 @test "clean incoming commit is merged (fast-forward)" {
   printf 'console.log("feature")\n' >"$OTHER/feature.js"
   commit_and_push "$OTHER" "add feature"
@@ -127,6 +135,57 @@ pull_guard() {
 # Refusals
 # -------------------------------------------------------------------------------
 
+@test "loader coverage: encoded source added then removed still blocks integration" {
+  printf '%s\n' 'eval(atob("e30=")); // am-i-hacked-ignore: reviewed' >"$OTHER/next.config.ts"
+  commit_and_push "$OTHER" "add configuration"
+  rm "$OTHER/next.config.ts"
+  commit_and_push "$OTHER" "remove configuration"
+  cd "$WORK"
+  pull_guard
+  assert_equal "$status" 1
+  assert_output --partial "Encoded source execution"
+  [ ! -e next.config.ts ]
+}
+
+@test "loader coverage: runtime module bridge in a route is refused" {
+  mkdir -p "$OTHER/auth/routes"
+  printf '/*\000 padding */\nglobal[lookupKey] = require;\n' >"$OTHER/auth/routes/sample.js"
+  commit_and_push "$OTHER" "add route"
+  cd "$WORK"
+  pull_guard
+  assert_equal "$status" 1
+  assert_output --partial "Runtime module bridge"
+  [ ! -e auth/routes/sample.js ]
+}
+
+@test "loader coverage: remote response execution is refused" {
+  printf '%s\n' 'const source = await response.text();' 'eval(source);' >"$OTHER/server.js"
+  commit_and_push "$OTHER" "add server"
+  cd "$WORK"
+  pull_guard
+  assert_equal "$status" 1
+  assert_output --partial "Remote response executed as code"
+  [ ! -e server.js ]
+}
+
+@test "loader coverage: ordinary server JSON handling and config are allowed" {
+  printf '%s\n' 'const http = require("http");' 'const value = await response.json();' 'module.exports = value;' >"$OTHER/server.js"
+  printf '%s\n' 'export default { plugins: {} };' >"$OTHER/postcss.config.js"
+  commit_and_push "$OTHER" "add server config"
+  cd "$WORK"
+  pull_guard
+  assert_success
+}
+
+@test "loader coverage: inline response execution is refused" {
+  printf '%s\n' 'eval(await response.text());' >"$OTHER/server.js"
+  commit_and_push "$OTHER" "add server"
+  cd "$WORK"
+  pull_guard
+  assert_equal "$status" 1
+  assert_output --partial "Inline remote response execution"
+}
+
 @test "editor auto-run payload is refused and never checked out" {
   mkdir -p "$OTHER/.vscode" "$OTHER/design/fonts"
   printf '%s\n' '{"tasks":[{"label":"lint","command":"node ./design/fonts/fa-solid-400.woff2","runOptions":{"runOn":"folderOpen"}}]}' \
@@ -146,6 +205,89 @@ pull_guard() {
   [ ! -e "$WORK/design/fonts/fa-solid-400.woff2" ]
 }
 
+# Synthetic Git histories for content inspection and integration checks.
+# Fixture contents are read as data, never executed.
+@test "regression: a font payload added then deleted is still refused" {
+  local before flagged_commit
+  before="$(git -C "$WORK" rev-parse HEAD)"
+  mkdir -p "$OTHER/public/fonts"
+  printf '%s\n' 'const _0x123abc = "inert regression marker";' >"$OTHER/public/fonts/sample.woff2"
+  commit_and_push "$OTHER" "add font"
+  flagged_commit="$(git -C "$OTHER" rev-parse HEAD)"
+  rm "$OTHER/public/fonts/sample.woff2"
+  commit_and_push "$OTHER" "delete font"
+
+  cd "$WORK"
+  pull_guard
+  assert_equal "$status" 1
+  assert_output --partial "Payload hidden in an asset file"
+  assert_output --partial "$flagged_commit"
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ ! -e public/fonts/sample.woff2 ]
+}
+
+@test "regression: a NUL byte cannot hide JavaScript in a renamed eot font" {
+  local before
+  before="$(git -C "$WORK" rev-parse HEAD)"
+  mkdir -p "$OTHER/public/fonts"
+  printf '/*\000 inert padding */\nconst _0x456def = "inert regression marker";\n' >"$OTHER/public/fonts/renamed.eot"
+  commit_and_push "$OTHER" "add font"
+
+  cd "$WORK"
+  pull_guard
+  assert_equal "$status" 1
+  assert_output --partial "Payload hidden in an asset file"
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ ! -e public/fonts/renamed.eot ]
+}
+
+@test "regression: an editor trigger removed before the tip is still refused" {
+  mkdir -p "$OTHER/.vscode"
+  printf '%s\r\n' '{"task.allowAutomaticTasks":true}' >"$OTHER/.vscode/settings.json"
+  commit_and_push "$OTHER" "add editor settings"
+  rm "$OTHER/.vscode/settings.json"
+  commit_and_push "$OTHER" "delete editor settings"
+
+  cd "$WORK"
+  pull_guard --dry-run
+  assert_equal "$status" 1
+  assert_output --partial "Editor auto-run task"
+  [ ! -e .vscode/settings.json ]
+}
+
+@test "regression: ordinary documentation added then removed remains allowed" {
+  printf '%s\n' '# Notes' >"$OTHER/notes.md"
+  commit_and_push "$OTHER" "add notes"
+  rm "$OTHER/notes.md"
+  commit_and_push "$OTHER" "delete notes"
+
+  cd "$WORK"
+  pull_guard
+  assert_success
+  [ "$(git rev-parse HEAD)" = "$(git -C "$OTHER" rev-parse HEAD)" ]
+}
+
+@test "regression: a payload on a merged side branch is refused even with a clean merge tree" {
+  local flagged_commit before
+  before="$(git -C "$WORK" rev-parse HEAD)"
+  git -C "$OTHER" checkout -qb side
+  mkdir -p "$OTHER/public/fonts"
+  printf '%s\n' 'const _0x456def = "inert regression marker";' >"$OTHER/public/fonts/side.eot"
+  git -C "$OTHER" add -A
+  run_git_as_test -C "$OTHER" commit -qm "side branch font"
+  flagged_commit="$(git -C "$OTHER" rev-parse HEAD)"
+  git -C "$OTHER" checkout -q main
+  run_git_as_test -C "$OTHER" merge -q --no-ff -s ours side -m "merge with clean tree"
+  git -C "$OTHER" push -q origin main
+
+  cd "$WORK"
+  pull_guard
+  assert_equal "$status" 1
+  assert_output --partial "$flagged_commit"
+  assert_output --partial "Payload hidden in an asset file"
+  [ "$(git rev-parse HEAD)" = "$before" ]
+}
+
 @test "committed .env file is refused" {
   printf 'API_KEY=placeholder\n' >"$OTHER/.env"
   commit_and_push "$OTHER" "add env"
@@ -155,6 +297,30 @@ pull_guard() {
   assert_failure
   assert_output --partial "Tracked .env file"
   [ ! -e "$WORK/.env" ]
+}
+
+@test "regression: a Git content inspection error blocks integration" {
+  local actual_git before
+  actual_git="$(command -v git)"
+  before="$(git -C "$WORK" rev-parse HEAD)"
+  printf '%s\n' '# Clean documentation' >"$OTHER/notes.md"
+  commit_and_push "$OTHER" "add notes"
+  mkdir "$TMP/mockbin"
+  cat >"$TMP/mockbin/git" <<'EOF'
+#!/usr/bin/env bash
+for arg do
+  if [[ "$arg" == grep ]]; then exit 2; fi
+done
+exec "$REAL_GIT" "$@"
+EOF
+  chmod +x "$TMP/mockbin/git"
+
+  cd "$WORK"
+  run env PATH="$TMP/mockbin:$PATH" REAL_GIT="$actual_git" bash "$SCRIPT"
+  assert_equal "$status" 1
+  assert_output --partial "Git content inspection failed"
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ ! -e notes.md ]
 }
 
 @test "dotenv plus node-fetch in a changed package.json is refused" {

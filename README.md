@@ -42,7 +42,9 @@ The skills, in [`skills/`](skills/): [quarantine-review](skills/quarantine-revie
 
 ## What it does not do
 
-The scanners look for warning signs; they are not antivirus and do not look up known viruses. A clean result means no warning signs were found, not that the code or the machine is safe. Some checks also flag ordinary code, such as `eval`; when a line is fine, mark it reviewed with a short reason (`am-i-hacked-ignore: <reason>`) and it still appears as reviewed on every run.
+The scanners look for warning signs; they are not antivirus and do not look up known viruses. A clean result means no warning signs were found, not that the code or the machine is safe. Some checks also flag ordinary code, such as `eval`.
+
+The unreleased checkout scans `node_modules`, ignored files and fixtures by default, and does not let input comments or bundle markers suppress findings. Use `bash apps/am-i-hacked/bin/scanner.sh /path/to/repository` for this behavior. For inputs you have already reviewed, `--trusted` enables exclusions and inline review markers (`am-i-hacked-ignore: <reason>`). Published version 2.1.0 still uses the older exclusions and suppression behavior; installing it with `npx` does not enable these unreleased protections.
 
 ## Develop
 

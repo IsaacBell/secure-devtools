@@ -25,6 +25,12 @@ npm publish needs 2FA.
 
 4. Create the GitHub release from the tag.
 5. For `am-i-hacked`, bump `AIH_VERSION` in `.github/workflows/gate.yml` to the new version so the security gate keeps running the latest stable release.
+6. Update the root README and the static Pages files in `docs/` (tool reference,
+   homepage, comparison, supply-chain guide and `llms.txt`). Remove the unreleased
+   scan-scope notices only after verifying the npm release scans `node_modules`
+   and rejects input-controlled suppressions by default. Keep `--trusted` behavior
+   documented separately. Check the Pages deployment after merging; a local HTML
+   change does not establish that the published site was updated.
 
 `scripts/release.sh` refuses a private package, a version already on npm, and any
 `package.json` with lifecycle scripts (`prepare`, `prepack`, `postinstall` and the like) that

@@ -146,6 +146,8 @@
   </header>
   <div class="answer"><p>They answer different questions, so use more than one. am-i-hacked looks for signs that a project or machine is under attack. secure-semgrep finds insecure code with static analysis. npm audit, OSV-Scanner and Snyk match dependency versions against published advisories. Antivirus matches known malware. None of them proves code is safe.</p></div>
   <div class="prose">
+<p>This comparison describes npm version 2.1.0. The unreleased checkout scans <code>node_modules</code> and ignored files by default and requires explicit <code>--trusted</code> to honor suppression comments. <a href="../tools/am-i-hacked/#unreleased-scope">See the checkout command and version differences</a>.</p>
+
 <h2 id="table">Side by side</h2>
 <div class="table-wrap"><table>
   <thead><tr><th>Tool</th><th>Question it answers</th><th>Method</th><th>Blind spot</th></tr></thead>

