@@ -25,7 +25,7 @@ jobs:
           CODEANT_API_TOKEN: ${{ secrets.CODEANT_API_TOKEN }}
         run: |
           if [[ -z "$CODEANT_API_TOKEN" ]]; then
-            echo '::error::CODEANT_API_TOKEN is unavailable. Configure the repository Actions secret; fork pull requests do not receive it.'
+            echo '::error::CODEANT_API_TOKEN is unavailable. Check repository Actions or Dependabot secrets for this event; fork pull requests do not receive it.'
             exit 1
           fi
       - name: Run CodeAnt CI Scan

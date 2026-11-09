@@ -27,6 +27,13 @@ completed status, findings and exit behavior. Never print the token when
 diagnosing authentication. The explicit token preflight reports an unavailable
 secret before downloading or running the scan script.
 
+Dependabot-triggered workflows use Dependabot secrets rather than the repository's
+Actions secrets. If CodeAnt works on an owner PR but fails on a Dependabot PR,
+check that `CODEANT_API_TOKEN` is also available in the repository's Dependabot
+secret settings. Enter it securely there; do not put it in workflow YAML or chat.
+Confirm the diagnosis against the preflight and authenticated logs before
+changing or rotating a working credential.
+
 ## Pages
 
 The website is static HTML under `docs/`. Check local links and anchors, serve
