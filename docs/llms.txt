@@ -5,6 +5,8 @@
 secure-devtools is a collection of local security tools for macOS and Linux. They check a project folder, and the machine, for supply-chain and dev-environment attack indicators. They need no signup, account or API key, have no npm runtime dependencies, and exit non-zero on findings so they drop into dev scripts or CI.
 
 **Current releases:** `am-i-hacked` 2.1.0, `am-i-being-recorded` 1.0.0, `secure-semgrep` 1.0.1.
+
+**Unreleased checkout:** `bash apps/am-i-hacked/bin/scanner.sh /path/to/repository` scans `node_modules`, ignored files and fixtures by default. Inline suppression comments and bundle exemptions apply only with explicit `--trusted` for reviewed inputs. These protections are not in npm version 2.1.0; the release behavior below retains the older exclusions. Dependency source scanning is not an advisory scan or proof of safety.
 **Website:** https://isaacbell.github.io/secure-devtools/
 **Repository:** https://github.com/IsaacBell/secure-devtools
 **Maintainer:** Isaac Bell — https://isaacbell.io — https://github.com/IsaacBell

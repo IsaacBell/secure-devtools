@@ -155,6 +155,13 @@
   </header>
   <div class="answer"><p>am-i-hacked is a command-line scanner that checks the code you are about to run, and the machine you run it on, for signs of a supply-chain or dev-environment attack. <code>npx am-i-hacked</code> scans the current folder; <code>--system</code> also audits the machine. It is read-only, makes no network calls, needs no account, and exits <code>1</code> on findings. It is not antivirus: a clean result means no warning signs were found.</p></div>
   <div class="prose">
+<aside aria-labelledby="unreleased-scope">
+<h2 id="unreleased-scope">Unreleased: scan dependencies and ignored files</h2>
+<p>The checkout now treats inputs as untrusted by default: it scans <code>node_modules</code>, ignored files and fixtures, and does not let inline comments or bundle markers suppress findings. Run the checkout directly:</p>
+<pre class="block"><code>bash apps/am-i-hacked/bin/scanner.sh /path/to/repository</code></pre>
+<p>For inputs you have already reviewed, <code>--trusted</code> enables the older exclusions and suppression comments. These changes are not in npm version 2.1.0; the release behavior described below still skips installed dependencies. Scanning dependency source does not replace an advisory scan or prove packages safe.</p>
+</aside>
+
 <h2 id="who">Who it is for</h2>
 <ul>
   <li>Developers about to run a repository they did not write: a take-home test, a contributor's branch, a template, code an AI agent produced.</li>

@@ -202,7 +202,9 @@ done < <(git -C "$ROOT" log --format='%h|%ae|%ce|%ad|%cd|%s' --date=short "HEAD.
 INCOMING_TREES=("$UPSTREAM_SHA")
 INCOMING_REVISIONS="$(git -C "$ROOT" rev-list "HEAD..$BRANCH")"
 while IFS= read -r tree; do
-	[ -n "$tree" ] && [ "$tree" != "$UPSTREAM_SHA" ] || continue
+	if [ -z "$tree" ] || [ "$tree" = "$UPSTREAM_SHA" ]; then
+		continue
+	fi
 	INCOMING_TREES+=("$tree")
 done <<<"$INCOMING_REVISIONS"
 
